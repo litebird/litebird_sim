@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change**: the default `cheby_ripple_dB` of `BandPassInfo` is 0.2 dB instead of 3 dB, the same as in `bandpass_template_module.bandpass_profile` and `lowpass_chebyshev`: a ripple of 3 dB halves the transmission in band. The results of `BandPassInfo(bandtype="cheby")` without an explicit ripple change. Reference PR: [#PRNUM](https://github.com/litebird/litebird_sim/pull/PRNUM).
+
 -   litebird_sim requires ducc0 0.42.0 or later, also in `uv.lock` (multiarch wheels on x86_64, faster internal array operations, more accurate twiddle factors for shifted HEALPix rings and SHTs). Reference PR: [#591](https://github.com/litebird/litebird_sim/pull/591).
 
 -   `write_observations` saves in each file only the quaternions that cover its observation, instead of those of the whole simulation: in a one-year simulation with daily observations, each file is ~17 MB smaller. The start time of the quaternions is saved with nanosecond precision instead of being rounded to the millisecond (times in MJD format could not be read back). Reference PR: [#594](https://github.com/litebird/litebird_sim/pull/594).

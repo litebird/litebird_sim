@@ -94,3 +94,21 @@ def test_bpass_resampling():
 test_tophat_bpass()
 test_bpass_apodization()
 test_bpass_resampling()
+
+
+def test_cheby_default_ripple():
+    # The default ripple of Chebyshev bandpasses must be the same in
+    # `BandPassInfo` and in `bandpass_template_module.bandpass_profile`
+    from litebird_sim.bandpass_template_module import bandpass_profile
+
+    band = BandPassInfo(bandcenter_ghz=140.0, bandwidth_ghz=42.0, bandtype="cheby")
+    _, profile = bandpass_profile(
+        freqs=band.freqs_ghz,
+        bandpass={
+            "band_type": "cheby",
+            "bandcenter_ghz": 140.0,
+            "band_low_edge": 119.0,
+            "band_high_edge": 161.0,
+        },
+    )
+    np.testing.assert_allclose(profile, band.weights)

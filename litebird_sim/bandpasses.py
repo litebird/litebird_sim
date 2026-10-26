@@ -73,7 +73,8 @@ class BandPassInfo:
 
         - cheby_poly_order (int): chebyshev filter order.
 
-        - cheby_ripple_dB (int): maximum ripple amplitude in decibels.
+        - cheby_ripple_dB (float): maximum ripple amplitude in decibels
+          (default: 0.2)
     """
 
     bandcenter_ghz: float = 0.0
@@ -90,7 +91,7 @@ class BandPassInfo:
     beta_exp: float = 1
     cosine_apo_length: float = 5
     cheby_poly_order: int = 3
-    cheby_ripple_dB: int | float = 3
+    cheby_ripple_dB: int | float = 0.2
 
     def __post_init__(self):
         """
