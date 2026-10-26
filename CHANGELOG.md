@@ -1,5 +1,7 @@
 # HEAD
 
+-   litebird_sim requires ducc0 0.42.0 or later, also in `uv.lock` (multiarch wheels on x86_64, faster internal array operations, more accurate twiddle factors for shifted HEALPix rings and SHTs). Reference PR: [#591](https://github.com/litebird/litebird_sim/pull/591).
+
 -   `write_observations` saves in each file only the quaternions that cover its observation, instead of those of the whole simulation: in a one-year simulation with daily observations, each file is ~17 MB smaller. The start time of the quaternions is saved with nanosecond precision instead of being rounded to the millisecond (times in MJD format could not be read back). Reference PR: [#594](https://github.com/litebird/litebird_sim/pull/594).
 
 -   Fix the HWP angle of observations read from HDF5 files when they were split in time among MPI processes (`n_blocks_time > 1`): `write_observations` saves `start_time_global`, from which the HWP angle is computed, and `read_list_of_observations` uses it. Reference PR: [#597](https://github.com/litebird/litebird_sim/pull/597).
