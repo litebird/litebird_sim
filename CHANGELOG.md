@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change**: the default `cheby_ripple_dB` of `BandPassInfo` is 0.2 dB instead of 3 dB, the same as in `bandpass_template_module.bandpass_profile` and `lowpass_chebyshev`: a ripple of 3 dB halves the transmission in band. The results of `BandPassInfo(bandtype="cheby")` without an explicit ripple change. The function `bandpass_template_module.beam_throughtput` is renamed `beam_throughput`. Reference PR: [#598](https://github.com/litebird/litebird_sim/pull/598).
+
 -   Fix the cosine tails of `BandPassInfo` with `bandtype="top-hat-cosine"`: they covered the whole frequency range, putting one third of the weight outside the band. Now they are `bandwidth_ghz / cosine_apo_length` long, so the bandpasses of this type change. Reference PR: [#593](https://github.com/litebird/litebird_sim/pull/593).
 
 -   litebird_sim requires ducc0 0.42.0 or later, also in `uv.lock` (multiarch wheels on x86_64, faster internal array operations, more accurate twiddle factors for shifted HEALPix rings and SHTs). Reference PR: [#591](https://github.com/litebird/litebird_sim/pull/591).
