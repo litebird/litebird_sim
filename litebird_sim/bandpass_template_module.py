@@ -92,8 +92,8 @@ def add_high_frequency_transmission(freqs, bandpass, location=3, transmission=0.
 
 
 # Beam throughput
-def beam_throughtput(freqs):
-    r"""Beam throughtput factor
+def beam_throughput(freqs):
+    r"""Beam throughput factor
 
     Args:
       freqs (np.array): frequency in GHz
@@ -223,6 +223,6 @@ def bandpass_profile(
             )
 
     if include_beam_throughput is True:
-        profile = profile * beam_throughtput(freqs)
+        profile = profile * beam_throughput(freqs)
 
     return freqs, profile
