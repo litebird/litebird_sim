@@ -1290,7 +1290,7 @@ requires-dist = [
     { name = "asciimatics", specifier = ">=1.15.0" },
     { name = "astropy", specifier = ">=6.1.7" },
     { name = "deprecated", specifier = ">=1.2.18" },
-    { name = "ducc0", specifier = ">=0.41.0" },
+    { name = "ducc0", specifier = ">=0.42.0" },
     { name = "h5py", specifier = ">=3.9" },
     { name = "healpy", specifier = ">=1.18.1" },
     { name = "jinja2", specifier = ">=3.1" },
