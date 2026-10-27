@@ -3,7 +3,7 @@ from .binner import make_binned_map, check_valid_splits, BinnerResult
 from .h_maps import HMapsResult, make_h_maps, load_h_maps_from_file
 from .brahmap_gls import make_brahmap_gls_map
 from .sanepic_gls import (
-    add_sanepic_beam_templates,
+    compute_sanepic_beam_templates,
     estimate_sanepic_noise,
     make_sanepic_gls_map,
 )
@@ -38,7 +38,7 @@ __all__ = [
     # sanepic_gls
     "make_sanepic_gls_map",
     "estimate_sanepic_noise",
-    "add_sanepic_beam_templates",
+    "compute_sanepic_beam_templates",
     # destriper.py
     "DestriperParameters",
     "DestriperResult",

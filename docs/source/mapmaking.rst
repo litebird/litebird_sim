@@ -918,32 +918,68 @@ calibration when the mean band of the detectors is not at the frequency of
 ``sky_model`` (see the pysanepic documentation).
 
 pysanepic (0.6.0 or later) has helpers for the templates of polarization
-angles and beams, built from the sky model: ``pysanepic.pol_angle_template``
-(the polarization angle errors of the detectors) and
-``pysanepic.fwhm_template`` (their FWHM differences) are sky templates;
-pointing offsets and ellipticities of the beams turn with the detector and
-are TOD templates, the derivatives of the sky model along the axes of each
-detector, computed by :func:`.add_sanepic_beam_templates` (or
-:meth:`.Simulation.add_sanepic_beam_templates`) and stored as TOD components
-of the observations (``offset_x``, ``offset_y``, ``ell_plus``,
-``ell_cross``). ``pysanepic.beam_parameters`` turns the fitted amplitudes
-into the offsets and the axes of the beams. The sky model must be alm, and
-should be smoothed with the mean beam of the detectors.
+angles and beams, built from the sky model:
+
+- ``pysanepic.pol_angle_template`` (the polarization angle errors of the
+  detectors) and ``pysanepic.fwhm_template`` (their FWHM differences) are
+  sky templates: pass them in ``templates`` as they are;
+- pointing offsets and ellipticities of the beams turn with the detector, so
+  they are TOD templates, the derivatives of the sky model along the axes of
+  each detector at its pointing. :func:`.compute_sanepic_beam_templates` (or
+  :meth:`.Simulation.compute_sanepic_beam_templates`) computes them and
+  stores them as TOD components of the observations (``offset_x``,
+  ``offset_y``, ``ell_plus``, ``ell_cross``, each ``(n_detectors,
+  n_samples)``), and returns the ``pysanepic.Template`` objects that tell
+  the map-maker to fit them;
+- ``pysanepic.beam_parameters`` turns the fitted amplitudes into the offsets
+  and the axes of the beams.
+
+To use the beam templates in the map-maker:
+
+1. call :meth:`.Simulation.compute_sanepic_beam_templates` before
+   :meth:`.Simulation.make_sanepic_gls_map`, with the same
+   ``output_coordinate_system`` (and, with the low-level functions, the
+   same observations, ``pointings`` and ``hwp``);
+2. pass the dict it returns in ``templates``, with its keys unchanged: a
+   template without ``sky`` is fitted to the TOD component of the
+   observations with its name, so the keys are what links the two calls.
+   Add the other templates to the same dict;
+3. pass the same sky model as ``sky_model``: the templates are derivatives
+   of it, its TOD is subtracted from the data, and as alm it makes
+   pysanepic use the pointings as angles;
+4. keep the dict: ``pysanepic.beam_parameters(result, templates)`` reads
+   from it which amplitudes sum to zero.
+
+The sky model must be alm, smoothed with the mean beam of the detectors.
 
 .. code-block:: python
 
   import pysanepic
 
   # sky_alm: CMB + foregrounds through the mean beam, a SphericalHarmonics in Galactic coordinates
-  templates = sim.add_sanepic_beam_templates(sky_model=sky_alm)  # offsets, ellipticity
-  templates["pol_angle"] = pysanepic.pol_angle_template(sky_alm.values)
+  templates = sim.compute_sanepic_beam_templates(sky_model=sky_alm)  # 1: offsets, ellipticity
+  templates["pol_angle"] = pysanepic.pol_angle_template(sky_alm.values)  # sky templates
   templates["fwhm"] = pysanepic.fwhm_template(sky_alm.values)
   result = sim.make_sanepic_gls_map(
-      nside=nside, params=params, sky_model=sky_alm, templates=templates
+      nside=nside,
+      params=params,
+      sky_model=sky_alm,     # 3: the same model
+      templates=templates,   # 2: the keys name the TOD components
   )
+  result.templates["offset_x"]   # {detector name: offset [rad]}
   result.templates["pol_angle"]  # {detector name: angle error - mean [rad]}
-  beams = pysanepic.beam_parameters(result, templates, sigma=sigma_of_the_mean_beam)
+  beams = pysanepic.beam_parameters(result, templates, sigma=sigma_of_the_mean_beam)  # 4
   beams["det0"]  # offset_x, offset_y [rad], c_plus, c_cross, delta_sigma2 [rad^2], sigma_major, ...
+
+  for obs in sim.observations:   # free the memory of the components (4 TODs per detector)
+      for name in ("offset_x", "offset_y", "ell_plus", "ell_cross"):
+          delattr(obs, name)
+
+Only the offsets: ``compute_sanepic_beam_templates(sky_model=sky_alm,
+ellipticity=False)`` (2 TODs per detector). The templates can be combined
+with calibration and with the other templates (e.g. the bandpass ones):
+the amplitudes are then inside the gains, and ``template_covariance=True``
+shows how much they are correlated.
 
 The offsets are in the frame of the polarization angle of the detector, at
 ψ + ``pol_angle_rad``: a detector quaternion rotated by a small angle ρ

@@ -385,7 +385,9 @@ def make_sanepic_gls_map(
         the foregrounds, the derivative with respect to frequency at the
         frequency of the foregrounds in `sky_model`); one without ``sky`` is
         the TOD component of the observations with its name (e.g. a
-        thermometer reading). Needs pysanepic 0.6.0 or later.
+        thermometer reading, or the beam templates of
+        :func:`.compute_sanepic_beam_templates`, which returns their
+        ``Template`` objects). Needs pysanepic 0.6.0 or later.
     template_covariance : bool, optional
         Also compute the covariance of the amplitudes per detector and common
         (``MapResult.template_covariance``): one more PCG solve per
@@ -460,6 +462,13 @@ def make_sanepic_gls_map(
         observations=observations, pointings=pointings
     )
     nthreads = resolve_nthreads(nthreads)
+    for k in tod_templates:
+        if any(not hasattr(obs, k) for obs in obs_list):
+            raise ValueError(
+                f"template '{k}' has no sky: the observations need a TOD "
+                f"component '{k}' (for the beam templates, call "
+                "compute_sanepic_beam_templates first)"
+            )
     data = _detector_data(
         pysanepic,
         obs_list,
@@ -491,7 +500,7 @@ def make_sanepic_gls_map(
     )
 
 
-def add_sanepic_beam_templates(
+def compute_sanepic_beam_templates(
     observations,
     sky_model,
     pointings: npt.NDArray | list[npt.NDArray] | None = None,
@@ -518,6 +527,22 @@ def add_sanepic_beam_templates(
     turns them into beam axes. See the beam section of the pysanepic
     documentation for the frame of the detector and what is fitted. The FWHM
     is a sky template, ``pysanepic.fwhm_template``.
+
+    Use with the map-maker:
+
+    1. call this function before :func:`.make_sanepic_gls_map`, with the same
+       observations (and `pointings`, `hwp`) and `output_coordinate_system`;
+    2. pass the returned dict as (part of) its ``templates``, with the keys
+       unchanged: they are the names of the TOD components that the
+       map-maker reads, e.g. ``templates={**beam, "fwhm":
+       pysanepic.fwhm_template(sky_alm.values)}``;
+    3. pass the same `sky_model` as its ``sky_model``: the templates are
+       derivatives of that model, and its TOD is subtracted;
+    4. keep the dict for ``pysanepic.beam_parameters(result, templates)``,
+       which needs to know which amplitudes sum to zero.
+
+    The components take the memory of 2 (offsets) or 4 TODs per detector:
+    delete them (``del obs.offset_x``, ...) when no longer needed.
 
     Parameters
     ----------
@@ -554,7 +579,7 @@ def add_sanepic_beam_templates(
     pysanepic = _import_pysanepic("beam_tods", "0.6.0")
     alm = _sky_array(sky_model)
     if not np.iscomplexobj(alm):
-        raise ValueError("add_sanepic_beam_templates: sky_model must be alm")
+        raise ValueError("compute_sanepic_beam_templates: sky_model must be alm")
     coordinates = _COORDINATES[output_coordinate_system]
     nthreads = resolve_nthreads(nthreads)
     obs_list, ptg_list = _normalize_observations_and_pointings(
@@ -608,7 +633,7 @@ def add_sanepic_beam_templates(
         has_hwp = set().union(*MPI_COMM_WORLD.allgather(has_hwp))
     if len(has_hwp) > 1:
         raise ValueError(
-            "add_sanepic_beam_templates: observations with and without HWP "
+            "compute_sanepic_beam_templates: observations with and without HWP "
             "(the ellipticity constraints differ)"
         )
     has_hwp = True in has_hwp

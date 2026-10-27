@@ -555,7 +555,7 @@ def test_sanepic_beam_templates():
         sim, _ = _beam_sim([np.array([0.0, 0.0, 0.0, 1.0])] * 4, hwp)
         for obs, obs_data in zip(sim.observations, data.observations):
             obs.tod[:] = obs_data.tod
-        templates = sim.add_sanepic_beam_templates(
+        templates = sim.compute_sanepic_beam_templates(
             sky_model=sky, ellipticity=ellipticity
         )
         names = ["offset_x", "offset_y"] + (
@@ -571,8 +571,16 @@ def test_sanepic_beam_templates():
             templates=templates,
             append_to_report=False,
         )
+        par = pysanepic.beam_parameters(r, templates)
         for name, (u, v) in uv.items():
             c, s = np.cos(pols[name]), np.sin(pols[name])
             expect = (c * u + s * v, -s * u + c * v)
             got = (r.templates["offset_x"][name], r.templates["offset_y"][name])
             assert np.hypot(*np.subtract(got, expect)) < 0.02 * rho, (hwp, name, got)
+            assert par[name]["offset_x"] == got[0]
+    # a TOD template needs its component in the observations
+    del sim.observations[0].offset_x
+    with pytest.raises(ValueError, match="compute_sanepic_beam_templates"):
+        sim.make_sanepic_gls_map(
+            nside=8, params=params, sky_model=sky, templates=templates
+        )
