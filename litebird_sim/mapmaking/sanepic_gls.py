@@ -104,6 +104,7 @@ def _detector_data(
     correlation=None,
     dipole_component=None,
     angles=False,
+    tod_templates=(),
 ):
     """pysanepic.DetectorData for each detector of each observation, as a
     generator: pointings are computed for one detector at a time and turned
@@ -111,7 +112,8 @@ def _detector_data(
     map-makers (or, with `angles`, passed as angles in the output
     coordinates: pointing_form, needed by sky models given as alm); pysanepic keeps only pixels
     and angles (no copy of the TODs). With `dipole_component`, that TOD
-    component is DetectorData.dipole (for calibration).
+    component is DetectorData.dipole (for calibration); the TOD components
+    in `tod_templates` are DetectorData.templates.
     The noise is `noise[name]` if given, else the 1/f model of the detector.
     With `correlation` (the common-mode model of add_noise), the detectors of
     each group of an observation are yielded as one pysanepic.DetectorGroup,
@@ -147,6 +149,7 @@ def _detector_data(
                     noise,
                     dipole_component=dipole_component,
                     angles=angles,
+                    tod_templates=tod_templates,
                 ),
             )
             continue
@@ -178,6 +181,10 @@ def _detector_data(
             extra = {"name": name} if named else {}
             if dipole_component is not None:
                 extra["dipole"] = getattr(obs, dipole_component)[det_idx]
+            if tod_templates:
+                extra["templates"] = {
+                    k: getattr(obs, k)[det_idx] for k in tod_templates
+                }
             if noise is not None and name in noise:
                 det_noise = noise[name]
             else:
@@ -279,8 +286,8 @@ def make_sanepic_gls_map(
     calibration: "pysanepic.CalibrationParameters | None" = None,
     dipole_component: str | None = None,
     sky_model=None,
-    bandpass_templates: dict | None = None,
-    bandpass_common: bool = False,
+    templates: dict | None = None,
+    template_covariance: bool = False,
     pointing_form: str = "auto",
 ) -> "pysanepic.MapResult":
     """
@@ -369,24 +376,26 @@ def make_sanepic_gls_map(
         put back: given as alm it is interpolated at the pointing, so its
         structure below the pixel size does not leak through the 1/f weights.
         Needs pysanepic 0.5.0 or later.
-    bandpass_templates : dict, optional
-        ``{name: template}``, maps or alm as `sky_model` (e.g. the derivative
-        of the foregrounds with respect to frequency, at the frequency of the
-        foregrounds in `sky_model`): one amplitude per template and detector,
-        summing to zero over the detectors, fitted with the maps (and the
-        gains); in ``MapResult.bandpass``. Needs pysanepic 0.5.0 or later.
-    bandpass_common : bool, optional
-        Fit also the common part of the bandpass templates (free amplitudes
-        instead of summing to zero): with calibration, a mean band of the
-        detectors away from the frequency of `sky_model` would otherwise bias
-        the absolute calibration. Needs the templates as alm; see the
-        pysanepic documentation for its limits. False by default.
+    templates : dict, optional
+        ``{name: pysanepic.Template}``, templates fitted with the maps (and
+        the gains), with amplitudes per detector (also summing to zero, or
+        common to all) or per period; in ``MapResult.templates``. A template
+        with ``sky`` is a sky signal, maps or alm as `sky_model` (e.g.
+        ``Template(sky=dfg_dnu, sum_zero=True)`` for the bandpass mismatch of
+        the foregrounds, the derivative with respect to frequency at the
+        frequency of the foregrounds in `sky_model`); one without ``sky`` is
+        the TOD component of the observations with its name (e.g. a
+        thermometer reading). Needs pysanepic 0.6.0 or later.
+    template_covariance : bool, optional
+        Also compute the covariance of the amplitudes per detector and common
+        (``MapResult.template_covariance``): one more PCG solve per
+        amplitude. False by default. Needs pysanepic 0.6.0 or later.
     pointing_form : str, optional
         How the pointings are passed to pysanepic, always in
         `output_coordinate_system`: ``"pixels"`` (HEALPix pixels at `nside`,
         computed here as in the other map-makers), ``"angles"`` (θ, φ, ψ,
         pixelized by pysanepic) or ``"auto"`` (default): angles if
-        `sky_model` or some bandpass template is given as alm, which are
+        `sky_model` or some template is given as alm, which are
         interpolated at the pointing and need the angles, pixels otherwise.
         The maps are the same; pixels keep less memory per detector.
 
@@ -394,8 +403,8 @@ def make_sanepic_gls_map(
     -------
     pysanepic.MapResult
         Output maps (``maps``, ``hp.UNSEEN`` where not solved), ``hit_map``,
-        the PCG convergence information, and ``gains`` and ``bandpass`` with
-        calibration and bandpass templates
+        the PCG convergence information, and ``gains``, ``templates`` and
+        ``template_covariance`` with calibration and templates
     """
     pysanepic = _import_pysanepic()
     if correlation is not None:
@@ -409,21 +418,25 @@ def make_sanepic_gls_map(
             )
         extra["calibration"] = calibration
     if sky_model is not None:
+        if not hasattr(pysanepic, "CalibrationParameters"):
+            raise ImportError(
+                f"pysanepic {pysanepic.__version__} is too old for sky_model: "
+                "version 0.5.0 or later is needed"
+            )
         extra["sky_model"] = _sky_array(sky_model)
-    if bandpass_templates:
-        extra["bandpass_templates"] = {
-            k: _sky_array(v) for k, v in bandpass_templates.items()
+    tod_templates = []
+    if templates or template_covariance:
+        pysanepic = _import_pysanepic("Template", "0.6.0")
+        extra["templates"] = {
+            k: t if t.sky is None else dataclasses.replace(t, sky=_sky_array(t.sky))
+            for k, t in (templates or {}).items()
         }
-    if bandpass_common:
-        extra["bandpass_common"] = True
-    if ("sky_model" in extra or "bandpass_templates" in extra) and not hasattr(
-        pysanepic.MapResult, "bandpass"
-    ):
-        raise ImportError(
-            f"pysanepic {pysanepic.__version__} is too old for sky_model and "
-            "bandpass_templates: version 0.5.0 or later is needed"
-        )
-    models = [extra.get("sky_model"), *extra.get("bandpass_templates", {}).values()]
+        extra["template_covariance"] = template_covariance
+        tod_templates = [k for k, t in extra["templates"].items() if t.sky is None]
+    models = [
+        extra.get("sky_model"),
+        *(t.sky for t in extra.get("templates", {}).values()),
+    ]
     alm = any(m is not None and np.iscomplexobj(m) for m in models)
     if pointing_form not in ("auto", "pixels", "angles"):
         raise ValueError(
@@ -431,7 +444,7 @@ def make_sanepic_gls_map(
         )
     if pointing_form == "pixels" and alm:
         raise ValueError(
-            "pointing_form='pixels' with sky_model or bandpass_templates as alm: "
+            "pointing_form='pixels' with sky_model or templates as alm: "
             "they are interpolated at the pointing and need the angles "
             "(use 'angles' or 'auto', or pass them as maps)"
         )
@@ -463,6 +476,7 @@ def make_sanepic_gls_map(
         correlation,
         dipole_component=dipole_component if calibration is not None else None,
         angles=angles,
+        tod_templates=tod_templates,
     )
 
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None

@@ -364,7 +364,7 @@ def test_sanepic_calibration_keep_solar_dipole():
     # The solar dipole kept in the maps: only the orbital dipole in the
     # component, the solar one in the sky model (alm); the maps are the sky
     # plus the solar dipole
-    if not hasattr(pysanepic.MapResult, "bandpass"):
+    if not hasattr(pysanepic, "CalibrationParameters"):
         pytest.skip("pysanepic without sky_model")
     sim, sky_alm = _calibration_sim(lmax=16)
     # LINEAR: the dipole of solar + orbital velocity is exactly the sum of the two
@@ -411,12 +411,13 @@ def test_sanepic_calibration_keep_solar_dipole():
     assert np.abs((r.maps - binned)[:, seen]).max() < 1e-6 * amp
 
 
-def test_sanepic_sky_model_and_bandpass():
+def test_sanepic_sky_model_and_templates():
     # A sky model as zero alm (pointings passed as angles) or as the sky map
     # leaves the maps unchanged; a foreground seen with a different amplitude
-    # by each detector is fitted with a bandpass template
-    if not hasattr(pysanepic.MapResult, "bandpass"):
-        pytest.skip("pysanepic without sky_model and bandpass_templates")
+    # by each detector is fitted with a sky template, and a TOD component
+    # with a coupling per detector with a TOD template
+    if not hasattr(pysanepic, "Template"):
+        pytest.skip("pysanepic without templates")
     sim, sky = _calibration_sim(n_days=4)
     params = pysanepic.GLSParameters(chunk_s=86400.0, tol=1e-20, min_pol_rcond=0.0)
     ref = sim.make_sanepic_gls_map(nside=8, params=params, append_to_report=False)
@@ -456,10 +457,29 @@ def test_sanepic_sky_model_and_bandpass():
         )
         for i, name in enumerate(obs.name):
             obs.tod[i] = signal[i] + (1 + amp[name]) * obs.tod[i]
+    fg_tmpl = pysanepic.Template(sky=fg, sum_zero=True)
     r = sim.make_sanepic_gls_map(
-        nside=8, params=params, bandpass_templates={"fg": fg}, append_to_report=False
+        nside=8, params=params, templates={"fg": fg_tmpl}, append_to_report=False
     )
-    assert all(abs(r.bandpass["fg"][k] - (v - mean)) < 1e-6 for k, v in amp.items())
+    assert all(abs(r.templates["fg"][k] - (v - mean)) < 1e-6 for k, v in amp.items())
     err = (r.maps - ref.maps - (1 + mean) * fg)[:, seen]
     err[0] -= err[0].mean()
     assert np.abs(err).max() < 1e-6 * np.abs(sky).max()
+
+    # a TOD component (e.g. a thermometer) seen with a coupling per detector
+    rng = np.random.default_rng(11)
+    coupling = {"a": 2e-4, "b": -1e-4, "c": 5e-5, "d": 3e-4}
+    for obs in sim.observations:
+        obs.thermal = rng.normal(size=obs.tod.shape)
+        for i, name in enumerate(obs.name):
+            obs.tod[i] += coupling[name] * obs.thermal[i]
+    r = sim.make_sanepic_gls_map(
+        nside=8,
+        params=params,
+        templates={"fg": fg_tmpl, "thermal": pysanepic.Template()},
+        template_covariance=True,
+        append_to_report=False,
+    )
+    assert all(abs(r.templates["thermal"][k] - v) < 1e-9 for k, v in coupling.items())
+    assert all(abs(r.templates["fg"][k] - (v - mean)) < 1e-6 for k, v in amp.items())
+    assert r.template_covariance["labels"][-1] == ("thermal", "d")

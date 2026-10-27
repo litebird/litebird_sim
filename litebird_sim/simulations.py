@@ -3117,8 +3117,8 @@ class Simulation:
         calibration: "pysanepic.CalibrationParameters | None" = None,
         dipole_component: str | None = None,
         sky_model=None,
-        bandpass_templates: dict | None = None,
-        bandpass_common: bool = False,
+        templates: dict | None = None,
+        template_covariance: bool = False,
         pointing_form: str = "auto",
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
@@ -3142,8 +3142,8 @@ class Simulation:
             calibration=calibration,
             dipole_component=dipole_component,
             sky_model=sky_model,
-            bandpass_templates=bandpass_templates,
-            bandpass_common=bandpass_common,
+            templates=templates,
+            template_covariance=template_covariance,
             pointing_form=pointing_form,
         )
 
