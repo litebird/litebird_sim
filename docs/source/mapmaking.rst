@@ -917,6 +917,44 @@ alm their common part can be fitted too, which avoids biasing the absolute
 calibration when the mean band of the detectors is not at the frequency of
 ``sky_model`` (see the pysanepic documentation).
 
+pysanepic (0.6.0 or later) has helpers for the templates of polarization
+angles and beams, built from the sky model: ``pysanepic.pol_angle_template``
+(the polarization angle errors of the detectors) and
+``pysanepic.fwhm_template`` (their FWHM differences) are sky templates;
+pointing offsets and ellipticities of the beams turn with the detector and
+are TOD templates, the derivatives of the sky model along the axes of each
+detector, computed by :func:`.add_sanepic_beam_templates` (or
+:meth:`.Simulation.add_sanepic_beam_templates`) and stored as TOD components
+of the observations (``offset_x``, ``offset_y``, ``ell_plus``,
+``ell_cross``). ``pysanepic.beam_parameters`` turns the fitted amplitudes
+into the offsets and the axes of the beams. The sky model must be alm, and
+should be smoothed with the mean beam of the detectors.
+
+.. code-block:: python
+
+  import pysanepic
+
+  # sky_alm: CMB + foregrounds through the mean beam, a SphericalHarmonics in Galactic coordinates
+  templates = sim.add_sanepic_beam_templates(sky_model=sky_alm)  # offsets, ellipticity
+  templates["pol_angle"] = pysanepic.pol_angle_template(sky_alm.values)
+  templates["fwhm"] = pysanepic.fwhm_template(sky_alm.values)
+  result = sim.make_sanepic_gls_map(
+      nside=nside, params=params, sky_model=sky_alm, templates=templates
+  )
+  result.templates["pol_angle"]  # {detector name: angle error - mean [rad]}
+  beams = pysanepic.beam_parameters(result, templates, sigma=sigma_of_the_mean_beam)
+  beams["det0"]  # offset_x, offset_y [rad], c_plus, c_cross, delta_sigma2 [rad^2], sigma_major, ...
+
+The offsets are in the frame of the polarization angle of the detector, at
+ψ + ``pol_angle_rad``: a detector quaternion rotated by a small angle ρ
+about the x (y) axis of the focal plane moves the beam by ρ along the axis at
+ψ (ψ + 90°), so the fitted offsets are that displacement rotated by
+``-pol_angle_rad`` (checked in ``test/test_sanepic.py``). Without HWP the
+ellipticities sum to zero over the detectors (their common part leaks the
+temperature into Q/U exactly as a polarization map); with an HWP they are
+free. See the pysanepic documentation for what the amplitudes are and how
+they are computed.
+
 To keep the solar dipole in the maps, put only the orbital dipole in the
 component (an orbit with ``solar_velocity_km_s=0``) and the solar dipole in
 ``sky_model`` as alm, so that its gradient within the pixels is modelled.

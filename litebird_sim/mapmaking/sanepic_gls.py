@@ -491,6 +491,138 @@ def make_sanepic_gls_map(
     )
 
 
+def add_sanepic_beam_templates(
+    observations,
+    sky_model,
+    pointings: npt.NDArray | list[npt.NDArray] | None = None,
+    hwp: HWP | None = None,
+    output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+    offsets: bool = True,
+    ellipticity: bool = True,
+    dtype=np.float64,
+    pointings_dtype=np.float64,
+    nthreads: int | None = None,
+) -> dict:
+    """
+    Beam templates for :func:`.make_sanepic_gls_map`: pointing offsets and
+    ellipticity of the beams, as TOD components of the observations.
+
+    For each detector, the derivatives of `sky_model` along the axes of the
+    detector at its pointing (``pysanepic.beam_tods``): the TODs
+    ``offset_x``, ``offset_y`` (first derivatives) and ``ell_plus``,
+    ``ell_cross`` (second derivatives) are stored in each observation, as
+    arrays ``(n_detectors, n_samples)``, and fitted by
+    :func:`.make_sanepic_gls_map` with the templates returned here. The
+    amplitudes are the offsets of the beam centres [rad] and the changes of
+    the second moments of the beams [rad²]; ``pysanepic.beam_parameters``
+    turns them into beam axes. See the beam section of the pysanepic
+    documentation for the frame of the detector and what is fitted. The FWHM
+    is a sky template, ``pysanepic.fwhm_template``.
+
+    Parameters
+    ----------
+    observations : Observation | list[Observation]
+        Observations to use; with MPI, every process must call this function
+    sky_model : np.ndarray or SphericalHarmonics
+        The sky model through the mean beam of the detectors, alm (T or
+        T/E/B, mmax = lmax) in `output_coordinate_system`: the `sky_model` of
+        :func:`.make_sanepic_gls_map`
+    pointings : np.ndarray | list[np.ndarray], optional
+        Pointings (θ, φ, ψ); by default they are taken from `observations`
+    hwp : HWP, optional
+        An instance of :class:`.HWP`; by default the one in the observations
+    output_coordinate_system : CoordinateSystem, optional
+        Coordinate system of `sky_model` and of the maps, by default Galactic
+    offsets, ellipticity : bool, optional
+        Which templates to compute (by default both)
+    dtype : dtype, optional
+        dtype of the TOD components, by default `np.float64`
+    pointings_dtype : dtype, optional
+        dtype used to compute pointings on the fly, by default `np.float64`
+    nthreads : int, optional
+        Threads per process; by default resolved with :func:`.resolve_nthreads`
+
+    Returns
+    -------
+    dict
+        ``{name: pysanepic.Template}`` for the ``templates`` of
+        :func:`.make_sanepic_gls_map`: one offset per detector, one
+        ellipticity per detector, summing to zero without HWP (a common
+        ellipticity is then degenerate with Q/U) and free with an HWP.
+        Needs pysanepic 0.6.0 or later.
+    """
+    pysanepic = _import_pysanepic("beam_tods", "0.6.0")
+    alm = _sky_array(sky_model)
+    if not np.iscomplexobj(alm):
+        raise ValueError("add_sanepic_beam_templates: sky_model must be alm")
+    coordinates = _COORDINATES[output_coordinate_system]
+    nthreads = resolve_nthreads(nthreads)
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=observations, pointings=pointings
+    )
+    noise = pysanepic.OneOverFNoise(net_ukrts=1.0)  # not used
+    has_hwp = set()
+    for obs, cur_ptg in zip(obs_list, ptg_list):
+        hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        has_hwp.add(hwp_angle is not None)
+        gamma = get_pol_efficiency(obs)
+        out = {}
+        for det_idx in range(obs.n_detectors):
+            ptg_det, hwp_det = _get_pointings_array(
+                detector_idx=det_idx,
+                pointings=cur_ptg,
+                hwp_angle=hwp_angle,
+                output_coordinate_system=output_coordinate_system,
+                pointings_dtype=pointings_dtype,
+                nthreads=nthreads,
+            )
+            d = pysanepic.DetectorData(
+                tod=np.broadcast_to(0.0, (obs.n_samples,)),
+                pointing=pysanepic.Pointing(
+                    theta=ptg_det[:, 0],
+                    phi=ptg_det[:, 1],
+                    psi=ptg_det[:, 2],
+                    coordinates=coordinates,
+                ),
+                hwp_angle=hwp_det,
+                sampling_rate_hz=obs.sampling_rate_hz,
+                noise=noise,
+                pol_angle_rad=obs.pol_angle_rad[det_idx],
+                pol_efficiency=gamma[det_idx],
+            )
+            tods = pysanepic.beam_tods(
+                d,
+                alm,
+                coordinates,
+                offsets=offsets,
+                ellipticity=ellipticity,
+                nthreads=nthreads,
+            )
+            for k, v in tods.items():
+                if k not in out:
+                    out[k] = np.empty((obs.n_detectors, obs.n_samples), dtype=dtype)
+                out[k][det_idx] = v
+        for k, v in out.items():
+            setattr(obs, k, v)
+    if MPI_ENABLED and MPI_COMM_WORLD.size > 1:
+        has_hwp = set().union(*MPI_COMM_WORLD.allgather(has_hwp))
+    if len(has_hwp) > 1:
+        raise ValueError(
+            "add_sanepic_beam_templates: observations with and without HWP "
+            "(the ellipticity constraints differ)"
+        )
+    has_hwp = True in has_hwp
+    templates = {}
+    if offsets:
+        templates.update(offset_x=pysanepic.Template(), offset_y=pysanepic.Template())
+    if ellipticity:
+        templates.update(
+            ell_plus=pysanepic.Template(sum_zero=not has_hwp),
+            ell_cross=pysanepic.Template(sum_zero=not has_hwp),
+        )
+    return templates
+
+
 def estimate_sanepic_noise(
     result: "pysanepic.MapResult",
     observations,

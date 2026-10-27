@@ -60,6 +60,7 @@ from .mapmaking import (
     make_brahmap_gls_map,
     make_sanepic_gls_map,
     estimate_sanepic_noise,
+    add_sanepic_beam_templates,
     make_destriped_map,
     make_h_maps,
     make_pair_differenced_map,
@@ -3161,6 +3162,34 @@ class Simulation:
             )
 
         return result
+
+    @_profile
+    def add_sanepic_beam_templates(
+        self,
+        sky_model,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        offsets: bool = True,
+        ellipticity: bool = True,
+        dtype=np.float64,
+        pointings_dtype=np.float64,
+        nthreads: int | None = None,
+    ) -> dict:
+        """Beam templates (pointing offsets, ellipticity) for the pysanepic
+        map-maker, stored as TOD components of the observations.
+
+        For details, see the low-level interface :func:`.add_sanepic_beam_templates`.
+        """
+        return add_sanepic_beam_templates(
+            observations=self.observations,
+            sky_model=sky_model,
+            hwp=self.hwp,
+            output_coordinate_system=output_coordinate_system,
+            offsets=offsets,
+            ellipticity=ellipticity,
+            dtype=dtype,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
 
     @_profile
     def estimate_sanepic_noise(
