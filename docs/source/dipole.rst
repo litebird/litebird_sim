@@ -233,8 +233,10 @@ a dot product with pre-computed beam moments (Eq. C.5 of NPIPE):
        + q(x)\, S_{ij} \beta_i \beta_j
        + r(x)\, S_{ijk} \beta_i \beta_j \beta_k\bigr],
 
-where :math:`\boldsymbol\beta` is the velocity in the **beam frame**
-and the S-parameters are
+where :math:`\boldsymbol\beta` is the velocity in the **beam frame**,
+obtained from the pointing :math:`(\theta, \varphi, \psi)` with the rotation
+:math:`R_z(\varphi) R_y(\theta) R_z(\psi)` used by ducc0 and
+:func:`.add_convolved_sky`, and the S-parameters are
 
 .. math::
 

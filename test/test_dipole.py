@@ -248,7 +248,8 @@ def test_dipole_convolved_through_observations(tmp_path):
 
     Exercises the wrapper convolution path (apply_convolution=True), which
     computes BeamSParams.from_beam_alm internally. Checks that:
-      * a single beam and a per-detector dict ({"A": beam}) give the same TOD;
+      * a single beam, a per-detector dict ({"A": beam, "B": beam}) and a
+        per-channel dict ({"ch": beam}) give the same TOD;
       * the convolved TOD differs from the pencil-beam TOD.
     """
     sim = lbs.Simulation(
@@ -259,7 +260,10 @@ def test_dipole_convolved_through_observations(tmp_path):
     )
     sim.create_observations(
         detectors=[
-            lbs.DetectorInfo(name="A", sampling_rate_hz=1, bandcenter_ghz=100.0)
+            lbs.DetectorInfo(
+                name=name, channel="ch", sampling_rate_hz=1, bandcenter_ghz=100.0
+            )
+            for name in ("A", "B")
         ],
     )
     sim.set_scanning_strategy(
@@ -295,21 +299,23 @@ def test_dipole_convolved_through_observations(tmp_path):
     obs = sim.observations[0]
 
     def run(**kwargs):
-        obs.tod[0][:] = 0.0
+        obs.tod[:] = 0.0
         lbs.add_dipole_to_observations(
             observations=sim.observations,
             pos_and_vel=pos_vel,
             dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
             **kwargs,
         )
-        return obs.tod[0].copy()
+        return obs.tod.copy()
 
     tod_pencil = run()
     tod_single = run(apply_convolution=True, beam_alms=beam_alm)
-    tod_dict = run(apply_convolution=True, beam_alms={"A": beam_alm})
+    tod_dict = run(apply_convolution=True, beam_alms={"A": beam_alm, "B": beam_alm})
+    tod_channel = run(apply_convolution=True, beam_alms={"ch": beam_alm})
 
-    # Single beam and per-detector dict must agree exactly.
+    # Single beam, per-detector and per-channel dicts must agree exactly.
     np.testing.assert_allclose(tod_single, tod_dict, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(tod_single, tod_channel, rtol=1e-12, atol=1e-12)
     # Convolution with a wide beam must change the signal.
     assert not np.allclose(tod_single, tod_pencil)
 
@@ -436,3 +442,76 @@ def test_dipole_convolved_beam_suppression():
     beta_sq = 0.1**2
     expected = q_x * beta_sq / 3.0
     np.testing.assert_allclose(tod_conv[0, 0], expected, rtol=1e-10)
+
+
+def test_dipole_convolved_matches_ducc():
+    """The moment expansion must match a full 4π convolution with ducc0.
+
+    For a fixed velocity, the sky T₀[β·n̂ + q(x)(β·n̂)² + r(x)(β·n̂)³] has only
+    ℓ ≤ 3 modes, so convolving it with an asymmetric beam through ducc0 (the
+    engine of add_convolved_sky) must give the same TOD as CUBIC_FROM_LIN_T
+    with the S-parameters of that beam. This also checks that the beam frame
+    built from ψ is the same as in ducc0.
+    """
+    from ducc0.totalconvolve import Interpolator
+
+    rng = np.random.default_rng(1)
+    lmax = 8
+    nside = 32
+    n_samples = 100
+    t_cmb_k = 2.72548
+    frequency_ghz = 140.0
+
+    # Random real beam with every m up to lmax, normalised to unit integral
+    blm = rng.normal(size=hp.Alm.getsize(lmax)) + 1j * rng.normal(
+        size=hp.Alm.getsize(lmax)
+    )
+    m0_idx = hp.Alm.getidx(lmax, np.arange(lmax + 1), 0)
+    blm[m0_idx] = blm[m0_idx].real
+    blm[0] = 1.0 / np.sqrt(4.0 * np.pi)
+    s_params = lbs.BeamSParams.from_beam_alm(
+        lbs.SphericalHarmonics(values=blm[None, :], lmax=lmax, mmax=lmax)
+    )
+
+    beta = np.array([0.3, -0.5, 0.8]) * 3e-3
+    velocity = np.tile(beta * lbs.C_LIGHT_KM_OVER_S, (n_samples, 1))
+
+    x = lbs.H_OVER_K_B * frequency_ghz * 1e9 / t_cmb_k
+    q_x = 0.5 * x * (np.exp(x) + 1) / (np.exp(x) - 1)
+    r_x = x**2 * (np.exp(2 * x) + 4 * np.exp(x) + 1) / (6 * (np.exp(x) - 1) ** 2)
+    beta_dot_n = beta @ np.array(hp.pix2vec(nside, np.arange(hp.nside2npix(nside))))
+    sky = t_cmb_k * (beta_dot_n + q_x * beta_dot_n**2 + r_x * beta_dot_n**3)
+    slm = hp.map2alm(sky, lmax=lmax, iter=10)
+
+    pointings = np.stack(
+        [
+            np.arccos(rng.uniform(-1.0, 1.0, n_samples)),
+            rng.uniform(0.0, 2.0 * np.pi, n_samples),
+            rng.uniform(0.0, 2.0 * np.pi, n_samples),
+        ],
+        axis=1,
+    )
+
+    interpolator = Interpolator(
+        sky=slm[None, :],
+        beam=blm[None, :],
+        separate=False,
+        lmax=lmax,
+        kmax=lmax,
+        epsilon=1e-12,
+        nthreads=1,
+    )
+    expected = interpolator.interpol(pointings)[0]
+
+    tod = np.zeros((1, n_samples))
+    lbs.add_dipole(
+        tod,
+        pointings[None, :, :],
+        velocity,
+        t_cmb_k=t_cmb_k,
+        frequency_ghz=[frequency_ghz],
+        dipole_type=lbs.DipoleType.CUBIC_FROM_LIN_T,
+        s_params=s_params,
+    )
+
+    np.testing.assert_allclose(tod[0], expected, rtol=0, atol=1e-10 * t_cmb_k)
