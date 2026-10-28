@@ -15,7 +15,7 @@ from .observation_utilities import (
     _get_pointings_array,
 )
 from .maps_and_harmonics import SphericalHarmonics
-from .utilities import resolve_nthreads
+from .utilities import resolve_nthreads, wrap_phi
 
 
 @dataclass
@@ -336,8 +336,9 @@ def add_convolved_sky(
             nthreads=nthreads,
         )
 
-        # FIXME: Fix this at some point, ducc wants phi 0 -> 2pi
-        curr_pointings_det[:, 1] = np.mod(curr_pointings_det[:, 1], 2 * np.pi)
+        # ducc wants phi in [0, 2π): wrap a copy, as `curr_pointings_det` can
+        # be a view of the caller's pointings
+        curr_pointings_det = wrap_phi(curr_pointings_det)
 
         add_convolved_sky_to_one_detector(
             tod_det=tod[detector_idx],

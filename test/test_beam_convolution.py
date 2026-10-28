@@ -272,3 +272,57 @@ def test_beam_convolution():
 
 
 test_beam_convolution()
+
+
+def test_beam_convolution_does_not_modify_pointings():
+    # ducc wants φ in [0, 2π): the convolution must wrap a copy of the
+    # precomputed pointings, without modifying them, and give the same TOD
+    sim = lbs.Simulation(start_time=0.0, duration_s=60.0, random_seed=1)
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785,
+            precession_rate_hz=8.66e-5,
+            spin_rate_hz=8.33e-4,
+        ),
+        delta_time_s=1.0,
+        append_to_report=False,
+    )
+    sim.set_instrument(lbs.InstrumentInfo(spin_boresight_angle_rad=0.87))
+    (obs,) = sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="d", sampling_rate_hz=10.0)]
+    )
+    sim.prepare_pointings(append_to_report=False)
+    sim.precompute_pointings()
+
+    lmax = 32
+    rng = np.random.default_rng(12345)
+    nalm = SphericalHarmonics.num_of_alm_from_lmax(lmax)
+    sky = SphericalHarmonics(
+        values=rng.normal(size=(3, nalm)) + 1j * rng.normal(size=(3, nalm)),
+        lmax=lmax,
+        coordinates=lbs.CoordinateSystem.Ecliptic,
+    )
+    sky.values[:, : lmax + 1] = sky.values[:, : lmax + 1].real
+    beam = lbs.gauss_beam_to_alm(lmax=lmax, mmax=4, fwhm_rad=np.deg2rad(5.0))
+    params = lbs.BeamConvolutionParameters(lmax=lmax, mmax=4, strict_typing=False)
+
+    def convolve():
+        obs.tod[:] = 0.0
+        lbs.add_convolved_sky_to_observations(
+            obs,
+            sky_alms=sky,
+            beam_alms=beam,
+            pointings=obs.pointing_matrix,
+            convolution_params=params,
+        )
+        return obs.tod.copy()
+
+    tod_in_range = convolve()
+
+    # Same directions, with φ in [-2π, 0)
+    obs.pointing_matrix[..., 1] -= 2 * np.pi
+    shifted = obs.pointing_matrix.copy()
+    tod_shifted = convolve()
+
+    np.testing.assert_array_equal(obs.pointing_matrix, shifted)
+    np.testing.assert_allclose(tod_shifted, tod_in_range, atol=1e-10)
