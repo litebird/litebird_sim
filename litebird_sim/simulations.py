@@ -3121,6 +3121,7 @@ class Simulation:
         templates: dict | None = None,
         template_covariance: bool = False,
         pointing_form: str = "auto",
+        verbose: bool = False,
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
@@ -3146,6 +3147,7 @@ class Simulation:
             templates=templates,
             template_covariance=template_covariance,
             pointing_form=pointing_form,
+            verbose=verbose,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

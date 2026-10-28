@@ -289,6 +289,7 @@ def make_sanepic_gls_map(
     templates: dict | None = None,
     template_covariance: bool = False,
     pointing_form: str = "auto",
+    verbose: bool = False,
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -400,6 +401,10 @@ def make_sanepic_gls_map(
         `sky_model` or some template is given as alm, which are
         interpolated at the pointing and need the angles, pixels otherwise.
         The maps are the same; pixels keep less memory per detector.
+    verbose : bool, optional
+        Print the progress of pysanepic on the first MPI process: the PCG
+        iterations and, with calibration, the largest gain correction of
+        each iteration. False by default.
 
     Returns
     -------
@@ -496,6 +501,7 @@ def make_sanepic_gls_map(
         params=params,
         comm=comm,
         nthreads=nthreads,
+        verbose=verbose,
         **extra,
     )
 
