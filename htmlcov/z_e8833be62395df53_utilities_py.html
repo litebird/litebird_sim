@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/utilities.py: 71%</title>
+    <title>Coverage for litebird_sim/utilities.py: 77%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
-    <script src="coverage_html_cb_15cffcd0.js" defer></script>
+    <script src="coverage_html_cb_54cfdca1.js" defer></script>
 </head>
 <body class="pyfile">
 <header>
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim<span class="sep">/</span>utilities.py</b>:
-            <span class="pc_cov">71%</span>
+            <span class="pc_cov">77%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -54,8 +54,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">35 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">25<span class="text"> run</span></button>
+            <span class="text">44 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">34<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">10<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
@@ -64,8 +64,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_version_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-26 17:45 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
+            created at 2026-10-28 13:43 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -170,6 +170,27 @@
     <p class="mis mis2 show_mis"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">        <span class="nam">_TRIG_COS</span><span class="op">[</span><span class="nam">k</span><span class="op">]</span> <span class="op">*</span> <span class="nam">cd</span> <span class="op">-</span> <span class="nam">_TRIG_SIN</span><span class="op">[</span><span class="nam">k</span><span class="op">]</span> <span class="op">*</span> <span class="nam">sd</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t89" href="#t89">89</a></span><span class="t">        <span class="nam">_TRIG_SIN</span><span class="op">[</span><span class="nam">k</span><span class="op">]</span> <span class="op">*</span> <span class="nam">cd</span> <span class="op">+</span> <span class="nam">_TRIG_COS</span><span class="op">[</span><span class="nam">k</span><span class="op">]</span> <span class="op">*</span> <span class="nam">sd</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t90" href="#t90">90</a></span><span class="t">    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t91" href="#t91">91</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t92" href="#t92">92</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t93" href="#t93">93</a></span><span class="t"><span class="key">def</span> <span class="nam">wrap_phi</span><span class="op">(</span><span class="nam">pointings</span><span class="op">:</span> <span class="nam">np</span><span class="op">.</span><span class="nam">ndarray</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">np</span><span class="op">.</span><span class="nam">ndarray</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t94" href="#t94">94</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Return the pointings with the longitude &#966; (``pointings[..., 1]``) in [0, 2&#960;)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t95" href="#t95">95</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t96" href="#t96">96</a></span><span class="t"><span class="str">    ducc0 (e.g., ``synthesis_general`` and ``totalconvolve.Interpolator``)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t97" href="#t97">97</a></span><span class="t"><span class="str">    rejects longitudes outside this range. If all the values are already in</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t98" href="#t98">98</a></span><span class="t"><span class="str">    range, `pointings` is returned unchanged; otherwise a copy is wrapped, so</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t"><span class="str">    that the caller&#x27;s array is never modified.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t101" href="#t101">101</a></span><span class="t">    <span class="nam">phi</span> <span class="op">=</span> <span class="nam">pointings</span><span class="op">[</span><span class="op">...</span><span class="op">,</span> <span class="num">1</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t">    <span class="key">if</span> <span class="key">not</span> <span class="nam">np</span><span class="op">.</span><span class="nam">any</span><span class="op">(</span><span class="op">(</span><span class="nam">phi</span> <span class="op">&lt;</span> <span class="num">0.0</span><span class="op">)</span> <span class="op">|</span> <span class="op">(</span><span class="nam">phi</span> <span class="op">&gt;=</span> <span class="num">2.0</span> <span class="op">*</span> <span class="nam">np</span><span class="op">.</span><span class="nam">pi</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t103" href="#t103">103</a></span><span class="t">        <span class="key">return</span> <span class="nam">pointings</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t104" href="#t104">104</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t105" href="#t105">105</a></span><span class="t">    <span class="nam">pointings</span> <span class="op">=</span> <span class="nam">pointings</span><span class="op">.</span><span class="nam">copy</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t106" href="#t106">106</a></span><span class="t">    <span class="nam">phi</span> <span class="op">=</span> <span class="nam">pointings</span><span class="op">[</span><span class="op">...</span><span class="op">,</span> <span class="num">1</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t107" href="#t107">107</a></span><span class="t">    <span class="nam">np</span><span class="op">.</span><span class="nam">mod</span><span class="op">(</span><span class="nam">phi</span><span class="op">,</span> <span class="num">2.0</span> <span class="op">*</span> <span class="nam">np</span><span class="op">.</span><span class="nam">pi</span><span class="op">,</span> <span class="nam">out</span><span class="op">=</span><span class="nam">phi</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t108" href="#t108">108</a></span><span class="t">    <span class="com"># `np.mod` of a tiny negative number (e.g. -1e-17) can round to exactly</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t109" href="#t109">109</a></span><span class="t">    <span class="com"># 2&#960;, and so can the conversion to float32 of a value just below 2&#960;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t110" href="#t110">110</a></span><span class="t">    <span class="nam">phi</span><span class="op">[</span><span class="nam">phi</span> <span class="op">&gt;=</span> <span class="num">2.0</span> <span class="op">*</span> <span class="nam">np</span><span class="op">.</span><span class="nam">pi</span><span class="op">]</span> <span class="op">=</span> <span class="num">0.0</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t111" href="#t111">111</a></span><span class="t">    <span class="key">return</span> <span class="nam">pointings</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -178,8 +199,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_e8833be62395df53_version_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-26 17:45 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
+            created at 2026-10-28 13:43 +0000
         </p>
     </div>
 </footer>
