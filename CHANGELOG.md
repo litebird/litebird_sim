@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change**: the pointings computed by litebird_sim (`get_pointings`, `precompute_pointings`, the `pointings` written by `write_observations` with `write_full_pointings=True`, …) have the longitude φ in [0, 2π), the HEALPix convention also required by ducc0, instead of (−π, π]. The directions and ψ do not change, so maps are unaffected, but code comparing φ with stored values must wrap them (e.g. with `litebird_sim.utilities.wrap_phi`). Besides, `add_convolved_sky` no longer modifies the precomputed pointings passed to it: φ is wrapped on a copy, only when needed, as `interpolate_alm` already did. Reference PR: [#596](https://github.com/litebird/litebird_sim/pull/596).
+
 -   Add a notebook demonstrating how to use litebird_sim h-maps with SMARTIES [#579](https://github.com/litebird/litebird_sim/pull/579))
 
 -   **Breaking change**: the default `cheby_ripple_dB` of `BandPassInfo` is 0.2 dB instead of 3 dB, the same as in `bandpass_template_module.bandpass_profile` and `lowpass_chebyshev`: a ripple of 3 dB halves the transmission in band. The results of `BandPassInfo(bandtype="cheby")` without an explicit ripple change. The function `bandpass_template_module.beam_throughtput` is renamed `beam_throughput`. Reference PR: [#598](https://github.com/litebird/litebird_sim/pull/598).
