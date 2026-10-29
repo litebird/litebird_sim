@@ -60,6 +60,7 @@ from .mapmaking import (
     make_brahmap_gls_map,
     make_sanepic_gls_map,
     estimate_sanepic_noise,
+    compute_sanepic_beam_templates,
     make_destriped_map,
     make_h_maps,
     make_pair_differenced_map,
@@ -3117,9 +3118,10 @@ class Simulation:
         calibration: "pysanepic.CalibrationParameters | None" = None,
         dipole_component: str | None = None,
         sky_model=None,
-        bandpass_templates: dict | None = None,
-        bandpass_common: bool = False,
+        templates: dict | None = None,
+        template_covariance: bool = False,
         pointing_form: str = "auto",
+        verbose: bool = False,
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
@@ -3142,9 +3144,10 @@ class Simulation:
             calibration=calibration,
             dipole_component=dipole_component,
             sky_model=sky_model,
-            bandpass_templates=bandpass_templates,
-            bandpass_common=bandpass_common,
+            templates=templates,
+            template_covariance=template_covariance,
             pointing_form=pointing_form,
+            verbose=verbose,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -3161,6 +3164,34 @@ class Simulation:
             )
 
         return result
+
+    @_profile
+    def compute_sanepic_beam_templates(
+        self,
+        sky_model,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        offsets: bool = True,
+        ellipticity: bool = True,
+        dtype=np.float64,
+        pointings_dtype=np.float64,
+        nthreads: int | None = None,
+    ) -> dict:
+        """Beam templates (pointing offsets, ellipticity) for the pysanepic
+        map-maker, stored as TOD components of the observations.
+
+        For details, see the low-level interface :func:`.compute_sanepic_beam_templates`.
+        """
+        return compute_sanepic_beam_templates(
+            observations=self.observations,
+            sky_model=sky_model,
+            hwp=self.hwp,
+            output_coordinate_system=output_coordinate_system,
+            offsets=offsets,
+            ellipticity=ellipticity,
+            dtype=dtype,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
 
     @_profile
     def estimate_sanepic_noise(
