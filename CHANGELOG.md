@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fix the beam-convolved dipole (`add_dipole` with `s_params`, `add_dipole_to_observations` with `apply_convolution=True`): the beam frame rotated by ψ in the opposite direction than in ducc0 and `add_convolved_sky`, so the dipole of beams that are not axially symmetric (elliptical, off-axis) was convolved with the beam rotated by −ψ instead of ψ. Moreover, `beam_alms` dictionaries keyed by channel now work when the channel has more than one detector, and `frequency_ghz` can be one value per detector. A new test compares the convolved dipole with a full 4π convolution by ducc0.
+
 -   Fix: with `user_seed`, the noise and the gain drifts of the detectors with the same local index were identical on all the MPI processes; `for_each_observation` now builds the generators with the communicator of the observations. Reference issue: [#585](https://github.com/litebird/litebird_sim/issues/585).
 
 -   `make_sanepic_gls_map` (and `Simulation.make_sanepic_gls_map`) has `templates` (`{name: pysanepic.Template}`) and `template_covariance` arguments, which replace `bandpass_templates` and `bandpass_common` (not in a release): templates fitted with the maps, sky signals (e.g. `Template(sky=dfg_dnu, sum_zero=True)` for the bandpass mismatch of the foregrounds) or TOD components of the observations with the name of the template, with amplitudes per detector, common or per period, in `MapResult.templates`, and their covariance. Needs pysanepic 0.6.0 or later. Reference PR: [#600](https://github.com/litebird/litebird_sim/pull/600).
@@ -8,7 +10,7 @@
 
 -   **Breaking change**: the pointings computed by litebird_sim (`get_pointings`, `precompute_pointings`, the `pointings` written by `write_observations` with `write_full_pointings=True`, …) have the longitude φ in [0, 2π), the HEALPix convention also required by ducc0, instead of (−π, π]. The directions and ψ do not change, so maps are unaffected, but code comparing φ with stored values must wrap them (e.g. with `litebird_sim.utilities.wrap_phi`). Besides, `add_convolved_sky` no longer modifies the precomputed pointings passed to it: φ is wrapped on a copy, only when needed, as `interpolate_alm` already did. Reference PR: [#596](https://github.com/litebird/litebird_sim/pull/596).
 
--   Add a notebook demonstrating how to use litebird_sim h-maps with SMARTIES [#579](https://github.com/litebird/litebird_sim/pull/579))
+-   Add a notebook demonstrating how to use litebird_sim h-maps with SMARTIES. Reference PR: [#579](https://github.com/litebird/litebird_sim/pull/579)
 
 -   **Breaking change**: the default `cheby_ripple_dB` of `BandPassInfo` is 0.2 dB instead of 3 dB, the same as in `bandpass_template_module.bandpass_profile` and `lowpass_chebyshev`: a ripple of 3 dB halves the transmission in band. The results of `BandPassInfo(bandtype="cheby")` without an explicit ripple change. The function `bandpass_template_module.beam_throughtput` is renamed `beam_throughput`. Reference PR: [#598](https://github.com/litebird/litebird_sim/pull/598).
 
