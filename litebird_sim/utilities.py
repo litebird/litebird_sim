@@ -88,3 +88,24 @@ def cos_sin(x: float) -> tuple[float, float]:
         _TRIG_COS[k] * cd - _TRIG_SIN[k] * sd,
         _TRIG_SIN[k] * cd + _TRIG_COS[k] * sd,
     )
+
+
+def wrap_phi(pointings: np.ndarray) -> np.ndarray:
+    """Return the pointings with the longitude φ (``pointings[..., 1]``) in [0, 2π)
+
+    ducc0 (e.g., ``synthesis_general`` and ``totalconvolve.Interpolator``)
+    rejects longitudes outside this range. If all the values are already in
+    range, `pointings` is returned unchanged; otherwise a copy is wrapped, so
+    that the caller's array is never modified.
+    """
+    phi = pointings[..., 1]
+    if not np.any((phi < 0.0) | (phi >= 2.0 * np.pi)):
+        return pointings
+
+    pointings = pointings.copy()
+    phi = pointings[..., 1]
+    np.mod(phi, 2.0 * np.pi, out=phi)
+    # `np.mod` of a tiny negative number (e.g. -1e-17) can round to exactly
+    # 2π, and so can the conversion to float32 of a value just below 2π
+    phi[phi >= 2.0 * np.pi] = 0.0
+    return pointings
