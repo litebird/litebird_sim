@@ -359,6 +359,29 @@ will raise an ``AssertionError``. Similarly, if some detector in the L00 wafer
 does the observation, ``waferL03`` will also raise an ``AssertionError``.
 
 
+Flags
+^^^^^
+
+The parameter `flags` of :func:`.make_binned_map` lists the attributes of
+the :class:`.Observation` objects holding the flags (see
+:ref:`observations`), either per detector, like ``"local_flags"``, or
+common to all the detectors, like ``"global_flags"``. Flagged samples are
+excluded from the map, together with those outside the time split. By
+default, any nonzero flag excludes a sample; with `flag_mask`, only the
+bits it contains do::
+
+    # Exclude only the samples near planets
+    result = lbs.make_binned_map(
+        nside=nside,
+        observations=sim.observations,
+        flags=["local_flags", "global_flags"],
+        flag_mask=lbs.FLAG_PLANET,
+    )
+
+Flags that have never been written (``None``) mean that all the samples
+are good. By default, `flags` is ``None`` and no sample is excluded.
+
+
 .. _mapmaking-pair-differencing:
 
 Pair Differencing (Q/U only)
@@ -754,6 +777,10 @@ The difference is that each split is applied to the TOD before the
 destriper runs. Therefore, the destriper will only use the samples
 within the split to compute the baselines.
 
+The parameters `flags` and `flag_mask` work as in :func:`.make_binned_map`:
+flagged samples are excluded both from the maps and from the estimation
+of the baselines.
+
 
 BrahMap GLS mapmaker
 --------------------
@@ -821,7 +848,8 @@ generated with ``engine="ducc"``. With
 Flagged samples are excluded with ``flags``, the names of the
 :class:`.Observation` attributes that hold them (per detector, like
 ``"local_flags"``, or common to all detectors, like ``"global_flags"``;
-nonzero means excluded). pysanepic fits them with unknowns of their own, so
+nonzero means excluded, or only the bits in ``flag_mask``, as in
+:func:`.make_binned_map`). pysanepic fits them with unknowns of their own, so
 that the maps are the exact GLS solution without them; long gaps split the
 chunks (``flag_method`` and ``split_gap_s`` in ``GLSParameters``).
 

@@ -96,6 +96,8 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
    containing flags that must be associated with *all* the detectors
    in the observation.
 
+   Both are ``None`` until somebody writes them (see below).
+
 Keep in mind that the general rule is that detector-specific
 attributes are collected in arrays. Thus, ``obs.calibration_factors``
 should be a 1-D array of :math:`n_d` elements (one per each detector).
@@ -132,7 +134,9 @@ changed at run-time.
 The coherence between the serial and parallel operations is achieved by
 distributing also the arrays of detector properties:
 each rank keeps in memory only an interval of ``calibration_factors`` or
-``wn_levels``, the same detector interval of ``tod``.
+``wn_levels``, the same detector interval of ``tod``. The flags
+``local_flags`` and ``global_flags`` follow the same blocks of ``tod``,
+also when they are changed with :meth:`.Observation.set_n_blocks`.
 
 The main advantage is that the example operations in the Serial section are
 achieved with the same lines of code.
@@ -556,6 +560,72 @@ The framework encourages to store these flags in the fields
 ``local_flags`` and ``global_flags``: in this way, they can be saved
 correctly in HDF5 files by functions like :func:`.write_observations`.
 
+Flags are bitmasks of dtype :data:`.FLAG_DTYPE` (``uint16``): zero
+means a good sample, and each bit is a different reason why a sample is
+flagged (e.g. :data:`.FLAG_PLANET`). Modules set their own bit without
+touching the others, and consumers choose which reasons to exclude::
+
+    flags = lbs.get_local_flags(obs)  # Allocated on the first call
+    flags[0, 100:200] |= lbs.FLAG_PLANET
+
+    bad = (obs.local_flags & lbs.FLAG_PLANET) != 0
+
+Both fields are ``None`` until somebody writes them, meaning that all the
+samples are good: in this way, simulations that do not flag anything do
+not pay the memory of the flags. Use :func:`.get_local_flags` and
+:func:`.get_global_flags` to allocate them.
+
+Flagging planets
+^^^^^^^^^^^^^^^^
+
+:meth:`.Simulation.flag_planets` sets :data:`.FLAG_PLANET` in
+``local_flags`` for the samples closer than ``radius_fwhm`` times the
+FWHM of the detector to one of the planets visible from L2 (Mars,
+Jupiter, Saturn, Uranus, and Neptune, see :data:`.PLANETS`; Mercury and
+Venus are always too close to the Sun)::
+
+    sim.prepare_pointings()
+    num_of_flagged = sim.flag_planets(radius_fwhm=3.0)
+
+    # A larger radius for Jupiter, which is much brighter
+    sim.flag_planets(radius_fwhm={"mars": 3, "jupiter": 5, "saturn": 3,
+                                  "uranus": 3, "neptune": 3})
+
+The direction of the planets is computed from the position of the
+spacecraft (:meth:`.Simulation.compute_pos_and_vel`, called if needed),
+so that the parallax of the nearest planets (up to ~1° for Mars) is
+taken into account, and the ephemerides of AstroPy; the times of the
+simulation must therefore be ``astropy.time.Time`` objects, and the
+detectors must have ``fwhm_arcmin``. Planets are seen only for a tiny
+fraction of the time: to avoid computing all the pointings, the
+boresight is first sampled every second to find the segments of time in
+which some detector can be close to a planet, and the pointings of the
+detectors are computed only there. The method returns the number of
+flagged samples for each planet and writes it in the report.
+
+A fixed radius treats Jupiter at 400 GHz (a peak of a few K) like Neptune
+at 40 GHz (a few tens of µK). With ``threshold_k_cmb``, only the samples
+within the radius where the signal of the planet predicted by the model
+of :ref:`planets` is larger than ``threshold_k_cmb`` (in K\ :sub:`CMB`) are
+flagged, so that the flagged region depends on the planet, its distance,
+and the band and beam of the detector::
+
+    # Flag where planets are brighter than 1 µK
+    sim.flag_planets(threshold_k_cmb=1e-6)
+
+The signal is computed as in :meth:`.Simulation.add_planets`, with the
+same ``bandpass_integration`` option.
+
+The default radius of 3 FWHM is where the Gaussian beam of
+:meth:`.Simulation.add_planets` is truncated, so that the flagged samples
+are exactly those where ``add_planets`` adds more than ``threshold_k_cmb``.
+
+To exclude these samples from the maps, pass ``flags="local_flags"`` to
+the map-makers (see :ref:`mapmaking`). The low-level functions are
+:func:`.flag_planets_in_observations` and :func:`.flag_planet`.
+The signal of the planets can be added to the TODs with
+:meth:`.Simulation.add_planets` (see :ref:`planets`).
+
 
 API reference
 -------------
@@ -564,6 +634,10 @@ API reference
     :members:
     :undoc-members:
     :show-inheritance:
+
+.. automodule:: litebird_sim.flags
+    :members:
+    :undoc-members:
 
 .. automodule:: litebird_sim.io
     :members:

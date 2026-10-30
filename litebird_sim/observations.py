@@ -193,8 +193,9 @@ class Observation:
     pol_angle_rad: npt.NDArray
     blms: dict | None
 
-    # Dynamic attributes set by io
+    # Flags of the samples, None until somebody writes them (see flags.py)
     local_flags: npt.NDArray | None
+    global_flags: npt.NDArray | None
 
     # Dynamic attributes set by scanning
     sky: SkyInput | None
@@ -279,6 +280,9 @@ class Observation:
                 )
             else:
                 setattr(self, cur_tod.name, None)
+
+        self.local_flags = None
+        self.global_flags = None
 
         self.setattr_det_global("det_idx", np.arange(self._n_detectors_global), root)
 
@@ -592,59 +596,70 @@ class Observation:
         if self.comm is None or self.comm.size == 1:
             return
 
-        for cur_tod_def in self.tod_list:
-            cur_tod = getattr(self, cur_tod_def.name)
-            if cur_tod.dtype == np.float32:
-                from mpi4py.MPI import REAL as mpi_dtype
-            elif cur_tod.dtype == np.float64:
-                from mpi4py.MPI import DOUBLE as mpi_dtype
-            else:
-                raise ValueError("Unsupported MPI dtype")
+        # Flags are allocated lazily: if any process has them, allocate them
+        # on all the others, since all must take part in the redistribution
+        from mpi4py.MPI import LOR
+        from mpi4py.util.dtlib import from_numpy_dtype
+
+        from .flags import get_global_flags, get_local_flags
+
+        if self.comm.allreduce(self.local_flags is not None, op=LOR):
+            get_local_flags(self)
+        if self.comm.allreduce(self.global_flags is not None, op=LOR):
+            get_global_flags(self)
+
+        # Global start indices and number of elements of both the old and new
+        # blocking scheme
+        (
+            det_start_sends,
+            _,
+            time_start_sends,
+            time_num_sends,
+        ) = self._get_start_and_num(self.n_blocks_det, self.n_blocks_time)
+        (
+            det_start_recvs,
+            _,
+            time_start_recvs,
+            time_num_recvs,
+        ) = self._get_start_and_num(n_blocks_det, n_blocks_time)
+
+        # Prepare a matrix with the message sizes to be sent/received
+        # For a given row, ith old block sends counts[i, j] elements to
+        # the jth new block
+        counts = (
+            np.append(time_start_recvs, self._n_samples_global)[1:]
+            - time_start_sends[:, None]
+        )
+        counts = np.where(counts < 0, 0, counts)
+        counts = np.where(
+            counts > time_num_sends[:, np.newaxis],
+            time_num_sends[:, np.newaxis],
+            counts,
+        )
+        counts = np.where(counts > time_num_recvs, time_num_recvs, counts)
+        cum_counts = np.cumsum(counts, 1)
+        excess = cum_counts - time_num_sends[:, np.newaxis]
+        for i in range(self.n_blocks_time):
+            for j in range(n_blocks_time):
+                if excess[i, j] > 0:
+                    counts[i, j] -= excess[i, j]
+                    counts[i, j + 1 :] = 0
+                    break
+
+        assert np.all(counts.sum(0) == time_num_recvs)
+        assert np.all(counts.sum(1) == time_num_sends)
+
+        names = [cur_tod_def.name for cur_tod_def in self.tod_list]
+        if self.local_flags is not None:
+            names.append("local_flags")
+
+        for cur_name in names:
+            cur_tod = getattr(self, cur_name)
+            mpi_dtype = from_numpy_dtype(cur_tod.dtype)
 
             new_tod = np.zeros(
                 self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=cur_tod.dtype
             )
-
-            # Global start indices and number of elements of both the old and new
-            # blocking scheme
-            (
-                det_start_sends,
-                _,
-                time_start_sends,
-                time_num_sends,
-            ) = self._get_start_and_num(self.n_blocks_det, self.n_blocks_time)
-            (
-                det_start_recvs,
-                _,
-                time_start_recvs,
-                time_num_recvs,
-            ) = self._get_start_and_num(n_blocks_det, n_blocks_time)
-
-            # Prepare a matrix with the message sizes to be sent/received
-            # For a given row, ith old block sends counts[i, j] elements to
-            # the jth new block
-            counts = (
-                np.append(time_start_recvs, self._n_samples_global)[1:]
-                - time_start_sends[:, None]
-            )
-            counts = np.where(counts < 0, 0, counts)
-            counts = np.where(
-                counts > time_num_sends[:, np.newaxis],
-                time_num_sends[:, np.newaxis],
-                counts,
-            )
-            counts = np.where(counts > time_num_recvs, time_num_recvs, counts)
-            cum_counts = np.cumsum(counts, 1)
-            excess = cum_counts - time_num_sends[:, np.newaxis]
-            for i in range(self.n_blocks_time):
-                for j in range(n_blocks_time):
-                    if excess[i, j] > 0:
-                        counts[i, j] -= excess[i, j]
-                        counts[i, j + 1 :] = 0
-                        break
-
-            assert np.all(counts.sum(0) == time_num_recvs)
-            assert np.all(counts.sum(1) == time_num_sends)
 
             # Move the tod to the new blocks (new_tod) row by row.
             for d in range(self.n_detectors_global):
@@ -714,7 +729,12 @@ class Observation:
 
                 comm_row.Alltoallv(send_data, recv_data)
 
-            setattr(self, cur_tod_def.name, new_tod)
+            setattr(self, cur_name, new_tod)
+
+        if self.global_flags is not None:
+            self.global_flags = self._redistribute_global_flags(
+                counts, n_blocks_det, n_blocks_time
+            )
 
         is_in_old_fist_col = self.comm.rank % self._n_blocks_time == 0
         is_in_old_fist_col &= self.comm.rank // self._n_blocks_time < self._n_blocks_det
@@ -739,6 +759,43 @@ class Observation:
             self.start_sample,
             self.n_samples,
         ) = self._get_local_start_time_start_and_n_samples()
+
+    def _redistribute_global_flags(self, counts, n_blocks_det, n_blocks_time):
+        """Move ``global_flags`` to the time blocks of the new layout
+
+        The flags are the same for all the detector blocks: the old processes
+        of the first detector block send them to all the new processes.
+        ``counts[i, j]`` is the number of samples that the old time block
+        ``i`` sends to the new time block ``j``.
+        """
+        from mpi4py.util.dtlib import from_numpy_dtype
+
+        mpi_dtype = from_numpy_dtype(self.global_flags.dtype)
+        rank = self.comm.rank
+
+        send_counts = np.zeros(self.comm.size, dtype=np.int32)
+        send_disp = np.zeros_like(send_counts)
+        if rank < self._n_blocks_time:
+            offsets = np.cumsum(counts[rank]) - counts[rank]
+            for new_rank in range(n_blocks_det * n_blocks_time):
+                send_counts[new_rank] = counts[rank, new_rank % n_blocks_time]
+                send_disp[new_rank] = offsets[new_rank % n_blocks_time]
+
+        recv_counts = np.zeros(self.comm.size, dtype=np.int32)
+        recv_disp = np.zeros_like(recv_counts)
+        if rank < n_blocks_det * n_blocks_time:
+            recv_counts[: self._n_blocks_time] = counts[:, rank % n_blocks_time]
+            np.cumsum(recv_counts[:-1], out=recv_disp[1:])
+
+        new_flags = np.zeros(
+            self._get_tod_shape(n_blocks_det, n_blocks_time)[1],
+            dtype=self.global_flags.dtype,
+        )
+        self.comm.Alltoallv(
+            [self.global_flags, send_counts, send_disp, mpi_dtype],
+            [new_flags, recv_counts, recv_disp, mpi_dtype],
+        )
+        return new_flags
 
     def setattr_det(self, name, info):
         """Add a piece of information about the detectors

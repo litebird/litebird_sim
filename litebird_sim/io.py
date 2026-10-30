@@ -12,6 +12,7 @@ import numpy as np
 
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
+from .flags import FLAG_DTYPE
 from .hwp import read_hwp_from_hdf5
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED
 from .observations import Observation, TodDescription
@@ -358,30 +359,24 @@ def write_one_observation(
                 compression=compression,
             )
 
-    try:
+    # The RLE matrices are saved as int64, since the lengths of the runs
+    # do not fit in the dtype of the flags
+    if obs.global_flags is not None:
         output_file.create_dataset(
             "global_flags",
-            data=rle_compress(obs.__getattribute__("global_flags")),
+            data=rle_compress(obs.global_flags).astype(np.int64),
             compression=compression,
         )
-    except (AttributeError, TypeError):
-        pass
 
-    try:
+    if obs.local_flags is not None:
         # We must separate the flags belonging to different detectors because they
         # might have different shapes
-        assert obs.local_flags is not None
         for det_idx in range(obs.local_flags.shape[0]):
-            flags = obs.__getattribute__("local_flags")
-            compressed_flags = rle_compress(flags[det_idx, :])
             output_file.create_dataset(
                 f"flags_{det_idx:04d}",
-                data=compressed_flags,
-                dtype=flags.dtype,
+                data=rle_compress(obs.local_flags[det_idx, :]).astype(np.int64),
                 compression=compression,
             )
-    except (AttributeError, TypeError):
-        pass
 
     output_file.attrs["mpi_rank"] = MPI_COMM_WORLD.rank
     output_file.attrs["mpi_size"] = MPI_COMM_WORLD.size
@@ -569,7 +564,7 @@ def __find_flags(inpf, expected_num_of_dets: int, expected_num_of_samples: int):
     # for those detectors that do not have a "flags_NNNN" dataset in the HDF5 file
     flags = np.zeros(
         (expected_num_of_dets, expected_num_of_samples),
-        dtype=inpf[flags_matches[0].string].dtype,
+        dtype=FLAG_DTYPE,
     )
 
     for match in flags_matches:
@@ -741,12 +736,10 @@ def read_one_observation(
         for i in range(len(tod_full_fields)):
             result.tod_list[i].description = tod_full_fields[i].description
 
-        # If it is required, read other optional datasets
-        for attr, attr_type, should_read in [
-            ("global_flags", None, read_global_flags_if_present),
-        ]:
-            if (attr in inpf) and should_read:
-                result.__setattr__(attr, inpf[attr].astype(attr_type)[:])
+        if ("global_flags" in inpf) and read_global_flags_if_present:
+            result.global_flags = rle_decompress(inpf["global_flags"][:]).astype(
+                FLAG_DTYPE
+            )
 
         if read_quaternions_if_present:
             pointing_provider = read_pointing_provider_from_hdf5(

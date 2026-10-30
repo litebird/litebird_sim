@@ -47,15 +47,21 @@ def _sum_components(obs, components, det_idx):
     return tod
 
 
-def _detector_flags(obs, names, det_idx):
+def _detector_flags(obs, names, det_idx, flag_mask=None):
     """Boolean flags of one detector, True where any of the `names` attributes
-    (per detector or common to all) is nonzero; None without names."""
+    (per detector or common to all) has any of the bits in `flag_mask` (any
+    nonzero value if `flag_mask` is None); None without names. Attributes
+    set to None (flags never written) mean that all the samples are good."""
     if not names:
         return None
     out = np.zeros(obs.n_samples, dtype=bool)
     for name in names:
-        f = np.asarray(getattr(obs, name))
-        out |= (f[det_idx] if f.ndim == 2 else f) != 0
+        f = getattr(obs, name)
+        if f is None:
+            continue
+        f = np.asarray(f)
+        f = f[det_idx] if f.ndim == 2 else f
+        out |= (f if flag_mask is None else f & flag_mask) != 0
     return out
 
 
@@ -102,6 +108,7 @@ def _detector_data(
     flag_names,
     noise,
     correlation=None,
+    flag_mask=None,
     dipole_component=None,
     angles=False,
     tod_templates=(),
@@ -147,6 +154,7 @@ def _detector_data(
                     noise_model,
                     flag_names,
                     noise,
+                    flag_mask=flag_mask,
                     dipole_component=dipole_component,
                     angles=angles,
                     tod_templates=tod_templates,
@@ -203,7 +211,7 @@ def _detector_data(
                 noise=det_noise,
                 pol_angle_rad=obs.pol_angle_rad[det_idx],
                 pol_efficiency=gamma[det_idx],
-                flags=_detector_flags(obs, flag_names, det_idx),
+                flags=_detector_flags(obs, flag_names, det_idx, flag_mask),
                 **extra,
             )
 
@@ -281,6 +289,7 @@ def make_sanepic_gls_map(
     nthreads: int | None = None,
     noise_model: str = "toast",
     flags: str | list[str] | None = None,
+    flag_mask: int | None = None,
     noise: dict | None = None,
     correlation: dict | None = None,
     calibration: "pysanepic.CalibrationParameters | None" = None,
@@ -334,6 +343,9 @@ def make_sanepic_gls_map(
         samples with a nonzero flag in any of them are excluded from the maps
         (see ``flag_method`` and ``split_gap_s`` in ``pysanepic.GLSParameters``).
         By default no sample is excluded.
+    flag_mask : int, optional
+        Bits of the flags that exclude a sample (e.g. ``FLAG_PLANET``); by
+        default any nonzero flag excludes it.
     noise : dict, optional
         Noise of the detectors, ``{detector name: pysanepic noise object}``,
         e.g. the spectra estimated by :func:`.estimate_sanepic_noise`; the
@@ -488,6 +500,7 @@ def make_sanepic_gls_map(
         flag_names,
         noise,
         correlation,
+        flag_mask=flag_mask,
         dipole_component=dipole_component if calibration is not None else None,
         angles=angles,
         tod_templates=tod_templates,
@@ -661,6 +674,7 @@ def estimate_sanepic_noise(
     hwp: HWP | None = None,
     components: str | list[str] = "tod",
     flags: str | list[str] | None = None,
+    flag_mask: int | None = None,
     chunk_s: float = 86400.0,
     nbins: int = 60,
     fit: str | None = None,
@@ -673,7 +687,8 @@ def estimate_sanepic_noise(
     Noise spectrum of each detector from the residual of a pysanepic map.
 
     The residual between the TOD and the maps of `result` (e.g. a first call
-    of :func:`.make_sanepic_gls_map`, with the same `components` and `flags`)
+    of :func:`.make_sanepic_gls_map`, with the same `components`, `flags` and
+    `flag_mask`)
     is cut in chunks of `chunk_s` seconds and its periodogram is averaged
     over all the observations of each detector (also across MPI processes),
     in `nbins` logarithmic bins. See ``pysanepic.estimate_noise``.
@@ -725,6 +740,7 @@ def estimate_sanepic_noise(
         [flags] if isinstance(flags, str) else list(flags or []),
         None,
         correlation,
+        flag_mask=flag_mask,
     )
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
     return pysanepic.estimate_noise(

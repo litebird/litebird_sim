@@ -273,6 +273,12 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: b
 
     assert np.all(ref_flags == obs.local_flags)
 
+    ref_global_flags = np.zeros(obs.tod1.shape[1], dtype="uint16")
+    ref_global_flags[12:15] = 15
+
+    assert obs.global_flags.dtype == lbs.FLAG_DTYPE
+    np.testing.assert_array_equal(obs.global_flags, ref_global_flags)
+
 
 def test_read_complex_observation_mjd(tmp_path):
     __test_read_complex_observation(
@@ -288,6 +294,31 @@ def test_read_complex_observation_no_mjd(tmp_path):
         use_mjd=False,
         gzip_compression=False,
     )
+
+
+def test_flags_with_long_runs(tmp_path):
+    # Runs longer than the maximum value of FLAG_DTYPE must survive the RLE
+    sim = lbs.Simulation(
+        base_path=tmp_path / "sim", start_time=0.0, duration_s=10_000, random_seed=1
+    )
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(name=name, sampling_rate_hz=10.0, bandcenter_ghz=100.0)
+            for name in ("a", "b")
+        ]
+    )
+    obs = sim.observations[0]
+    assert obs.local_flags is None and obs.global_flags is None
+
+    lbs.get_local_flags(obs)[1, 70_000:] |= lbs.FLAG_PLANET
+    lbs.get_global_flags(obs)[:80_000] |= 4
+
+    file_name = lbs.write_list_of_observations(observations=[obs], path=tmp_path)[0]
+    read_obs = lbs.io.read_one_observation(file_name, read_quaternions_if_present=False)
+
+    assert read_obs.local_flags.dtype == lbs.FLAG_DTYPE
+    np.testing.assert_array_equal(read_obs.local_flags, obs.local_flags)
+    np.testing.assert_array_equal(read_obs.global_flags, obs.global_flags)
 
 
 def test_gzip_compression_in_obs(tmp_path):
