@@ -1,7 +1,7 @@
-Using Singularity
+Using Apptainer (Singularity)
 =================
 
-`Singularity <https://sylabs.io/docs/>`_ is a container platform that
+`Apptainer <https://apptainer.org/docs/user/latest/>`_ (previously known as Singularity) is a container platform that
 helps users create isolated environments where programs can be run
 without interfering with other libraries installed on the system. You
 can consider a container as a zipped file containing a Linux
@@ -45,7 +45,7 @@ some significant advantages:
 
 - No need to mess with virtual environments;
 
-- Existing Python versions won’t conflict with Singularity containers
+- Existing Python versions won’t conflict with Apptainer containers
   (but see below for some caveats);
 
 - All the framework, its dependencies, and the Python compiler itself
@@ -54,13 +54,13 @@ some significant advantages:
 
 - It supports MPI, and thus it can be used on HPC clusters.
 
-Typically, you might want to use our Singularity container if you just
+Typically, you might want to use our Apptainer container if you just
 want to run a Python script that calls ``litebird_sim`` but do not
 want/cannot install the framework because of conflicts on your system.
 
-To use the Singularity container, you must follow these steps:
+To use the Apptainer container, you must follow these steps:
 
-1. Build a ``Singularity`` file; using the scripts provided by the
+1. Build a ``Apptainer`` file; using the scripts provided by the
    LiteBIRD Simulation Framework is a matter of an instant;
 
 2. Build the container; this requires a working internet connection
@@ -72,22 +72,22 @@ To use the Singularity container, you must follow these steps:
 
 Let’s see the details of each step.
 
-Build a ``Singularity`` file
+Build a ``Apptainer`` file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To build a file for Singularity, you must first clone the
+To build a file for Apptainer, you must first clone the
 ``litebird_sim`` repository:
 
 .. code-block:: text
 
    git clone https://github.com/litebird/litebird_sim litebird_sim
 
-Enter the directory ``litebird_sim/singularity`` and run the script
-``create-singularity-file.sh``. It takes the following arguments:
+Enter the directory ``litebird_sim/apptainer`` and run the script
+``create-apptainer-file.sh``. It takes the following arguments:
 
 - The version number of the Ubuntu Linux distribution to use. Some
-    possible choices are ``22.04``, ``24.04``, …; you should use the
-    most recent LTS release, which is currently ``24.04``.
+    possible choices are ``24.04``, ``26.04``, …; you should use the
+    most recent LTS release, which is currently ``26.04``.
 
 - A flag telling which version of MPI to install. Possible choices
   are:
@@ -101,30 +101,30 @@ Enter the directory ``litebird_sim/singularity`` and run the script
   You should choose the same MPI implementation you are running on
   your system.
 
-Here are a few usage examples; each of them creates a ``Singularity``
-file in the current directory (i.e., ``litebird_sim/singularity``):
+Here are a few usage examples; each of them creates a ``Apptainer``
+file in the current directory (i.e., ``litebird_sim/apptainer``):
 
 .. code-block:: text
 
    # Use Ubuntu Linux 24.04 and OpenMPI
-   $ ./create-singularity-file.sh 24.04 openmpi
+   $ ./create-apptainer-file.sh 24.04 openmpi
 
    # Use Ubuntu Linux 22.04 and MPICH
-   $ ./create-singularity-file.sh 22.04 mpich
+   $ ./create-apptainer-file.sh 22.04 mpich
 
    # Use Ubuntu Linux 20.04 without MPI
-   $ ./create-singularity-file.sh 20.04 none
+   $ ./create-apptainer-file.sh 20.04 none
 
 Build the container
 ~~~~~~~~~~~~~~~~~~~
 
-Once you have executed ``create-singularity-file.sh``, you will have a
-``Singularity`` file. It's time to run ``singularity`` and create the
+Once you have executed ``create-apptainer-file.sh``, you will have a
+``Apptainer`` file. It's time to run ``apptainer`` and create the
 container:
 
 .. code-block:: text
 
-   singularity build --fakeroot litebird_sim.img Singularity
+   apptainer build --fakeroot litebird_sim.img Apptainer
 
 (The file name ``litebird_sim.img`` is the container to create. Of
 course, you can pick the name you want; for example, if you are
@@ -141,7 +141,7 @@ To check that the container works correctly, run a self-test on it:
 
 .. code-block:: text
 
-   singularity test litebird_sim.img
+   apptainer test litebird_sim.img
 
 
 Running the container
@@ -151,17 +151,17 @@ Once the container has been created, you can run it directly: the
 IPython prompt will appear, and you can use ``litebird_sim``
 immediately.
 
-.. asciinema:: singularity_demo1.cast
+.. asciinema:: apptainer_demo1.cast
 
 You can use it to run scripts as well:
 
-.. asciinema:: singularity_demo2.cast
+.. asciinema:: apptainer_demo2.cast
 
 .. note::
 
    You might wonder how the container could run the script
    ``test.py`` if the file was created outside the container. The
-   reason is that Singularity, by default, mounts the home directory
+   reason is that Apptainer, by default, mounts the home directory
    and the current directory in the container, so you can always
    access whatever you have in these directories while running stuff
    from the container.
@@ -172,27 +172,27 @@ You can use it to run scripts as well:
    container and Anaconda might happen!
 
    In this case, you can run the container using the syntax
-   ``singularity run -H /tmp/$USER``: this will mount the home
+   ``apptainer run -H /tmp/$USER``: this will mount the home
    directory on a directory under ``/tmp``. (You can specify another
    directory, of course.)
 
 To use MPI, you must call ``mpirun`` *outside* the container:
 
-.. asciinema:: singularity_demo3.cast
+.. asciinema:: apptainer_demo3.cast
 
 To obtain a short help about how to use the container, you can use the
-command ``singularity run-help``:
+command ``apptainer run-help``:
 
-.. asciinema:: singularity_help.cast
+.. asciinema:: apptainer_help.cast
 
 Finally, the following demo shows how to test the correctness of the
 LiteBIRD Simulation Framework and browse a local copy of the
 documentation. The key feature shown here is that running
-``singularity shell litebird_sim.img`` starts a shell within the
+``apptainer shell litebird_sim.img`` starts a shell within the
 container; you can then move to ``/opt/litebird_sim`` (the directory
 where the framework has been installed) and run commands from there.
 
-.. asciinema:: singularity_shell.cast
+.. asciinema:: apptainer_shell.cast
 
 Running ``python3 -m http.server`` starts an HTTP server connected to
 http://0.0.0.0:8000/: browsing to that URL will open your own local
