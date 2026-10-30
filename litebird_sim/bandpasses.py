@@ -31,13 +31,13 @@ class BandPassInfo:
 
         - bandcenter_ghz (float):  center frequency in GHz
 
-        - bandwidth_ghz (float):  width of the band (default=0.)
+        - bandwidth_ghz (float):  width of the band in GHz (default=0.)
 
-        - bandlow_ghz (float): lowest frequency to sample the band,
+        - bandlow_ghz (float): lowest frequency to sample the band in GHz,
           i.e. the first element of the frequency array considered
           (default: bandcenter_ghz - bandwidth_ghz)
 
-        - bandhigh_ghz (float): highest frequency to sample the band,
+        - bandhigh_ghz (float): highest frequency to sample the band in GHz,
           i.e. the last element of frequency array considered
           (default: bandcenter_ghz + bandwidth_ghz)
 
@@ -47,7 +47,8 @@ class BandPassInfo:
         - name (str) : ID of the band
 
         - normalize(bool) : If set to true bandpass weights will be
-          normalized to 1
+          normalized so that their integral over the frequency is 1 (the
+          weights are then in 1/GHz; otherwise, they are dimensionless)
 
         - bandtype (str): a string describing the band profile. It can be
           one of the following:
@@ -62,18 +63,22 @@ class BandPassInfo:
 
             - ``cheby``: the bandpass encodes a Chebyshev profile
 
-        - alpha_exp (float): out-of-band exponential decay index for
-          low freq edge.
+        - alpha_exp (float): out-of-band exponential decay rate for the
+          low freq edge, in 1/GHz: below `f0`, the weight is
+          ``exp(alpha_exp * (freq - f0))`` (default: 1)
 
-        - beta_exp (float) : out-of-band exponential decay index for
-          high freq edge
+        - beta_exp (float) : out-of-band exponential decay rate for the
+          high freq edge, in 1/GHz: above `f1`, the weight is
+          ``exp(-beta_exp * (freq - f1))`` (default: 1)
 
-        - cosine_apo_length (int): the numerical factor related to
-          the cosine apodization length
+        - cosine_apo_length (float): dimensionless factor that sets the
+          width of each cosine tail to ``bandwidth_ghz / cosine_apo_length``
+          GHz (default: 5)
 
-        - cheby_poly_order (int): chebyshev filter order.
+        - cheby_poly_order (int): chebyshev filter order (default: 3)
 
-        - cheby_ripple_dB (int): maximum ripple amplitude in decibels.
+        - cheby_ripple_dB (float): maximum ripple amplitude in decibels
+          (default: 0.2)
     """
 
     bandcenter_ghz: float = 0.0
@@ -90,7 +95,7 @@ class BandPassInfo:
     beta_exp: float = 1
     cosine_apo_length: float = 5
     cheby_poly_order: int = 3
-    cheby_ripple_dB: int | float = 3
+    cheby_ripple_dB: int | float = 0.2
 
     def __post_init__(self):
         """
@@ -189,17 +194,14 @@ class BandPassInfo:
         """
 
         apolength = self.bandwidth_ghz / self.cosine_apo_length
-        f_above = self.bandcenter_ghz * (1 + self.bandwidth_ghz / 2 + apolength)
-        f_below = self.bandcenter_ghz * (1 - self.bandwidth_ghz / 2 - apolength)
+        f_above = self.f1 + apolength
+        f_below = self.f0 - apolength
+
         mask_above = np.ma.masked_inside(self.freqs_ghz, self.f1, f_above).mask
-
-        x_ab = np.linspace(self.f1, f_above, self.freqs_ghz[mask_above].size)
-
-        self.weights[mask_above] = _apod(x_ab, self.f1, f_above)
+        self.weights[mask_above] = _apod(self.freqs_ghz[mask_above], self.f1, f_above)
 
         mask_below = np.ma.masked_inside(self.freqs_ghz, f_below, self.f0).mask
-        x_bel = np.linspace(f_below, self.f0, self.freqs_ghz[mask_below].size)
-        self.weights[mask_below] = _apod(x_bel, self.f0, f_below)
+        self.weights[mask_below] = _apod(self.freqs_ghz[mask_below], self.f0, f_below)
 
     # Chebyshev profile bandpass
     def _get_chebyshev_bandpass(self, normalize=False):

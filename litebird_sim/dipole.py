@@ -345,12 +345,14 @@ def _calculate_beta(theta, phi, v_km_s):
 def _rotate_velocity_to_beam_frame(theta, phi, psi, v_km_s):
     """Rotate a velocity vector from the sky frame into the beam frame.
 
-    The beam frame is defined such that its z-axis points along the boresight
-    direction (theta, phi), and its x-axis is rotated by psi from the local
-    co-latitude unit vector ê_θ = (cos θ cos φ, cos θ sin φ, -sin θ):
+    The beam frame is the one used by ducc0's ``totalconvolve`` (and thus by
+    :func:`.add_convolved_sky`), i.e. the ZYZ rotation R_z(φ) R_y(θ) R_z(ψ):
+    its z-axis points along the boresight direction (theta, phi), and its
+    x-axis is rotated by psi from the local co-latitude unit vector
+    ê_θ = (cos θ cos φ, cos θ sin φ, -sin θ) towards ê_φ = (-sin φ, cos φ, 0):
 
-        x̂_beam = cos ψ ê_θ - sin ψ ê_φ
-        ŷ_beam = sin ψ ê_θ + cos ψ ê_φ
+        x̂_beam =  cos ψ ê_θ + sin ψ ê_φ
+        ŷ_beam = -sin ψ ê_θ + cos ψ ê_φ
         ẑ_beam = ê_r = (sin θ cos φ, sin θ sin φ, cos θ)
 
     Returns a 3-tuple (v_x_beam, v_y_beam, v_z_beam).
@@ -368,14 +370,14 @@ def _rotate_velocity_to_beam_frame(theta, phi, psi, v_km_s):
 
     # ê_θ = (ct*cp, ct*sp, -st),  ê_φ = (-sp, cp, 0)
     vx = (
-        (cpsi * ct * cp + spsi * sp) * v0
-        + (cpsi * ct * sp - spsi * cp) * v1
+        (cpsi * ct * cp - spsi * sp) * v0
+        + (cpsi * ct * sp + spsi * cp) * v1
         + (-cpsi * st) * v2
     )
     vy = (
-        (spsi * ct * cp - cpsi * sp) * v0
-        + (spsi * ct * sp + cpsi * cp) * v1
-        + (-spsi * st) * v2
+        (-spsi * ct * cp - cpsi * sp) * v0
+        + (-spsi * ct * sp + cpsi * cp) * v1
+        + (spsi * st) * v2
     )
     vz = st * cp * v0 + st * sp * v1 + ct * v2
 
@@ -672,7 +674,7 @@ def add_dipole_for_one_detector_convolved(
         q_x = _compute_q_x(x)
         r_x = _compute_r_x(x)
     else:
-        print("Convolved Dipole Type not implemented!!!")
+        raise ValueError("Dipole type not supported under beam convolution")
 
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         tod_det[i] += compute_dipole_for_one_sample_convolved(
@@ -732,11 +734,14 @@ def add_dipole(
         ``TOTAL_EXACT`` and ``TOTAL_FROM_LIN_T`` are not.
     pointings_dtype:
         Data type for pointings if generated on the fly.
+    input_detector_names:
+        Keys of ``s_params`` to use for each detector (one per detector),
+        required when ``s_params`` is a dictionary.
     s_params:
         Beam S-parameters (:class:`BeamSParams`). When given, the dipole is
         beam-convolved by moment expansion. Pass a single :class:`BeamSParams`
-        to use the same beam for all detectors, or a dictionary keyed by
-        detector index strings (``"0"``, ``"1"``, ...) for per-detector beams.
+        to use the same beam for all detectors, or a dictionary for
+        per-detector beams, looked up with ``input_detector_names``.
         If ``None`` (default), the pencil-beam dipole is computed.
     """
 
@@ -753,12 +758,12 @@ def add_dipole(
     ):
         raise ValueError(
             f"dipole_type={dipole_type.name} is not supported under beam "
-            "convolution. Use LINEAR, QUADRATIC_FROM_LIN_T or CUBIC_FROM_LIN_T."
+            "convolution. Use LINEAR, QUADRATIC_EXACT, CUBIC_EXACT, "
+            "QUADRATIC_FROM_LIN_T or CUBIC_FROM_LIN_T."
         )
 
     if s_params is not None:
         if isinstance(s_params, dict):
-            assert len(s_params.values()) == n_detectors
             assert all(isinstance(v, BeamSParams) for v in s_params.values())
 
             assert isinstance(input_detector_names, list)
@@ -867,7 +872,8 @@ def add_dipole_to_observations(
         ``TOTAL_FROM_LIN_T`` are not supported by the moment-expanded
         convolution.
     frequency_ghz : np.ndarray | None, default=None
-        Frequencies in GHz for each detector. If None, taken from observation.
+        Frequency in GHz, either one for all detectors or one per detector.
+        If None, taken from observation.
     component : str, default="tod"
         TOD component name to modify.
     pointings_dtype : dtype, default=np.float64
@@ -926,8 +932,8 @@ def add_dipole_to_observations(
                     )
                 beam_alms_dict = cast(dict[str, SphericalHarmonics], cur_beam_alms)
                 cur_s_params = {
-                    key: BeamSParams.from_beam_alm(alm)
-                    for key, alm in beam_alms_dict.items()
+                    key: BeamSParams.from_beam_alm(beam_alms_dict[key])
+                    for key in set(input_detector_names)
                 }
             else:
                 assert isinstance(cur_beam_alms, SphericalHarmonics), (
@@ -949,7 +955,7 @@ def add_dipole_to_observations(
             # Assumes cur_obs has bandcenter_ghz, otherwise user must provide frequency_ghz
             frequency_ghz_arr = cur_obs.bandcenter_ghz
         else:
-            frequency_ghz_arr = np.repeat(frequency_ghz, tod.shape[0])
+            frequency_ghz_arr = np.broadcast_to(frequency_ghz, (tod.shape[0],))
 
         add_dipole(
             tod=tod,

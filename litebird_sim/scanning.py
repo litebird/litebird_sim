@@ -188,6 +188,13 @@ def compute_pointing_and_orientation(result, quaternion):
         theta_rad=theta_pointing, phi_rad=phi_pointing, ordir=result
     )
 
+    # Use the HEALPix convention φ ∈ [0, 2π); ψ does not change, as it depends
+    # only on cos φ and sin φ
+    if phi_pointing < 0.0:
+        phi_pointing += 2 * np.pi
+    if phi_pointing >= 2 * np.pi:  # e.g., -1e-17 + 2π rounds to 2π
+        phi_pointing = 0.0
+
     # Finally, set "result" to the true result of the computation
     result[0] = theta_pointing
     result[1] = phi_pointing

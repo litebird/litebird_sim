@@ -111,6 +111,7 @@ def _detector_data(
     flag_mask=None,
     dipole_component=None,
     angles=False,
+    tod_templates=(),
 ):
     """pysanepic.DetectorData for each detector of each observation, as a
     generator: pointings are computed for one detector at a time and turned
@@ -118,7 +119,8 @@ def _detector_data(
     map-makers (or, with `angles`, passed as angles in the output
     coordinates: pointing_form, needed by sky models given as alm); pysanepic keeps only pixels
     and angles (no copy of the TODs). With `dipole_component`, that TOD
-    component is DetectorData.dipole (for calibration).
+    component is DetectorData.dipole (for calibration); the TOD components
+    in `tod_templates` are DetectorData.templates.
     The noise is `noise[name]` if given, else the 1/f model of the detector.
     With `correlation` (the common-mode model of add_noise), the detectors of
     each group of an observation are yielded as one pysanepic.DetectorGroup,
@@ -155,6 +157,7 @@ def _detector_data(
                     flag_mask=flag_mask,
                     dipole_component=dipole_component,
                     angles=angles,
+                    tod_templates=tod_templates,
                 ),
             )
             continue
@@ -186,6 +189,10 @@ def _detector_data(
             extra = {"name": name} if named else {}
             if dipole_component is not None:
                 extra["dipole"] = getattr(obs, dipole_component)[det_idx]
+            if tod_templates:
+                extra["templates"] = {
+                    k: getattr(obs, k)[det_idx] for k in tod_templates
+                }
             if noise is not None and name in noise:
                 det_noise = noise[name]
             else:
@@ -288,9 +295,10 @@ def make_sanepic_gls_map(
     calibration: "pysanepic.CalibrationParameters | None" = None,
     dipole_component: str | None = None,
     sky_model=None,
-    bandpass_templates: dict | None = None,
-    bandpass_common: bool = False,
+    templates: dict | None = None,
+    template_covariance: bool = False,
     pointing_form: str = "auto",
+    verbose: bool = False,
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -381,33 +389,41 @@ def make_sanepic_gls_map(
         put back: given as alm it is interpolated at the pointing, so its
         structure below the pixel size does not leak through the 1/f weights.
         Needs pysanepic 0.5.0 or later.
-    bandpass_templates : dict, optional
-        ``{name: template}``, maps or alm as `sky_model` (e.g. the derivative
-        of the foregrounds with respect to frequency, at the frequency of the
-        foregrounds in `sky_model`): one amplitude per template and detector,
-        summing to zero over the detectors, fitted with the maps (and the
-        gains); in ``MapResult.bandpass``. Needs pysanepic 0.5.0 or later.
-    bandpass_common : bool, optional
-        Fit also the common part of the bandpass templates (free amplitudes
-        instead of summing to zero): with calibration, a mean band of the
-        detectors away from the frequency of `sky_model` would otherwise bias
-        the absolute calibration. Needs the templates as alm; see the
-        pysanepic documentation for its limits. False by default.
+    templates : dict, optional
+        ``{name: pysanepic.Template}``, templates fitted with the maps (and
+        the gains), with amplitudes per detector (also summing to zero, or
+        common to all) or per period; in ``MapResult.templates``. A template
+        with ``sky`` is a sky signal, maps or alm as `sky_model` (e.g.
+        ``Template(sky=dfg_dnu, sum_zero=True)`` for the bandpass mismatch of
+        the foregrounds, the derivative with respect to frequency at the
+        frequency of the foregrounds in `sky_model`); one without ``sky`` is
+        the TOD component of the observations with its name (e.g. a
+        thermometer reading, or the beam templates of
+        :func:`.compute_sanepic_beam_templates`, which returns their
+        ``Template`` objects). Needs pysanepic 0.6.0 or later.
+    template_covariance : bool, optional
+        Also compute the covariance of the amplitudes per detector and common
+        (``MapResult.template_covariance``): one more PCG solve per
+        amplitude. False by default. Needs pysanepic 0.6.0 or later.
     pointing_form : str, optional
         How the pointings are passed to pysanepic, always in
         `output_coordinate_system`: ``"pixels"`` (HEALPix pixels at `nside`,
         computed here as in the other map-makers), ``"angles"`` (θ, φ, ψ,
         pixelized by pysanepic) or ``"auto"`` (default): angles if
-        `sky_model` or some bandpass template is given as alm, which are
+        `sky_model` or some template is given as alm, which are
         interpolated at the pointing and need the angles, pixels otherwise.
         The maps are the same; pixels keep less memory per detector.
+    verbose : bool, optional
+        Print the progress of pysanepic on the first MPI process: the PCG
+        iterations and, with calibration, the largest gain correction of
+        each iteration. False by default.
 
     Returns
     -------
     pysanepic.MapResult
         Output maps (``maps``, ``hp.UNSEEN`` where not solved), ``hit_map``,
-        the PCG convergence information, and ``gains`` and ``bandpass`` with
-        calibration and bandpass templates
+        the PCG convergence information, and ``gains``, ``templates`` and
+        ``template_covariance`` with calibration and templates
     """
     pysanepic = _import_pysanepic()
     if correlation is not None:
@@ -421,21 +437,25 @@ def make_sanepic_gls_map(
             )
         extra["calibration"] = calibration
     if sky_model is not None:
+        if not hasattr(pysanepic, "CalibrationParameters"):
+            raise ImportError(
+                f"pysanepic {pysanepic.__version__} is too old for sky_model: "
+                "version 0.5.0 or later is needed"
+            )
         extra["sky_model"] = _sky_array(sky_model)
-    if bandpass_templates:
-        extra["bandpass_templates"] = {
-            k: _sky_array(v) for k, v in bandpass_templates.items()
+    tod_templates = []
+    if templates or template_covariance:
+        pysanepic = _import_pysanepic("Template", "0.6.0")
+        extra["templates"] = {
+            k: t if t.sky is None else dataclasses.replace(t, sky=_sky_array(t.sky))
+            for k, t in (templates or {}).items()
         }
-    if bandpass_common:
-        extra["bandpass_common"] = True
-    if ("sky_model" in extra or "bandpass_templates" in extra) and not hasattr(
-        pysanepic.MapResult, "bandpass"
-    ):
-        raise ImportError(
-            f"pysanepic {pysanepic.__version__} is too old for sky_model and "
-            "bandpass_templates: version 0.5.0 or later is needed"
-        )
-    models = [extra.get("sky_model"), *extra.get("bandpass_templates", {}).values()]
+        extra["template_covariance"] = template_covariance
+        tod_templates = [k for k, t in extra["templates"].items() if t.sky is None]
+    models = [
+        extra.get("sky_model"),
+        *(t.sky for t in extra.get("templates", {}).values()),
+    ]
     alm = any(m is not None and np.iscomplexobj(m) for m in models)
     if pointing_form not in ("auto", "pixels", "angles"):
         raise ValueError(
@@ -443,7 +463,7 @@ def make_sanepic_gls_map(
         )
     if pointing_form == "pixels" and alm:
         raise ValueError(
-            "pointing_form='pixels' with sky_model or bandpass_templates as alm: "
+            "pointing_form='pixels' with sky_model or templates as alm: "
             "they are interpolated at the pointing and need the angles "
             "(use 'angles' or 'auto', or pass them as maps)"
         )
@@ -459,6 +479,13 @@ def make_sanepic_gls_map(
         observations=observations, pointings=pointings
     )
     nthreads = resolve_nthreads(nthreads)
+    for k in tod_templates:
+        if any(not hasattr(obs, k) for obs in obs_list):
+            raise ValueError(
+                f"template '{k}' has no sky: the observations need a TOD "
+                f"component '{k}' (for the beam templates, call "
+                "compute_sanepic_beam_templates first)"
+            )
     data = _detector_data(
         pysanepic,
         obs_list,
@@ -476,6 +503,7 @@ def make_sanepic_gls_map(
         flag_mask=flag_mask,
         dipole_component=dipole_component if calibration is not None else None,
         angles=angles,
+        tod_templates=tod_templates,
     )
 
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
@@ -486,8 +514,157 @@ def make_sanepic_gls_map(
         params=params,
         comm=comm,
         nthreads=nthreads,
+        verbose=verbose,
         **extra,
     )
+
+
+def compute_sanepic_beam_templates(
+    observations,
+    sky_model,
+    pointings: npt.NDArray | list[npt.NDArray] | None = None,
+    hwp: HWP | None = None,
+    output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+    offsets: bool = True,
+    ellipticity: bool = True,
+    dtype=np.float64,
+    pointings_dtype=np.float64,
+    nthreads: int | None = None,
+) -> dict:
+    """
+    Beam templates for :func:`.make_sanepic_gls_map`: pointing offsets and
+    ellipticity of the beams, as TOD components of the observations.
+
+    For each detector, the derivatives of `sky_model` along the axes of the
+    detector at its pointing (``pysanepic.beam_tods``): the TODs
+    ``offset_x``, ``offset_y`` (first derivatives) and ``ell_plus``,
+    ``ell_cross`` (second derivatives) are stored in each observation, as
+    arrays ``(n_detectors, n_samples)``, and fitted by
+    :func:`.make_sanepic_gls_map` with the templates returned here. The
+    amplitudes are the offsets of the beam centres [rad] and the changes of
+    the second moments of the beams [rad²]; ``pysanepic.beam_parameters``
+    turns them into beam axes. See the beam section of the pysanepic
+    documentation for the frame of the detector and what is fitted. The FWHM
+    is a sky template, ``pysanepic.fwhm_template``.
+
+    Use with the map-maker:
+
+    1. call this function before :func:`.make_sanepic_gls_map`, with the same
+       observations (and `pointings`, `hwp`) and `output_coordinate_system`;
+    2. pass the returned dict as (part of) its ``templates``, with the keys
+       unchanged: they are the names of the TOD components that the
+       map-maker reads, e.g. ``templates={**beam, "fwhm":
+       pysanepic.fwhm_template(sky_alm.values)}``;
+    3. pass the same `sky_model` as its ``sky_model``: the templates are
+       derivatives of that model, and its TOD is subtracted;
+    4. keep the dict for ``pysanepic.beam_parameters(result, templates)``,
+       which needs to know which amplitudes sum to zero.
+
+    The components take the memory of 2 (offsets) or 4 TODs per detector:
+    delete them (``del obs.offset_x``, ...) when no longer needed.
+
+    Parameters
+    ----------
+    observations : Observation | list[Observation]
+        Observations to use; with MPI, every process must call this function
+    sky_model : np.ndarray or SphericalHarmonics
+        The sky model through the mean beam of the detectors, alm (T or
+        T/E/B, mmax = lmax) in `output_coordinate_system`: the `sky_model` of
+        :func:`.make_sanepic_gls_map`
+    pointings : np.ndarray | list[np.ndarray], optional
+        Pointings (θ, φ, ψ); by default they are taken from `observations`
+    hwp : HWP, optional
+        An instance of :class:`.HWP`; by default the one in the observations
+    output_coordinate_system : CoordinateSystem, optional
+        Coordinate system of `sky_model` and of the maps, by default Galactic
+    offsets, ellipticity : bool, optional
+        Which templates to compute (by default both)
+    dtype : dtype, optional
+        dtype of the TOD components, by default `np.float64`
+    pointings_dtype : dtype, optional
+        dtype used to compute pointings on the fly, by default `np.float64`
+    nthreads : int, optional
+        Threads per process; by default resolved with :func:`.resolve_nthreads`
+
+    Returns
+    -------
+    dict
+        ``{name: pysanepic.Template}`` for the ``templates`` of
+        :func:`.make_sanepic_gls_map`: one offset per detector, one
+        ellipticity per detector, summing to zero without HWP (a common
+        ellipticity is then degenerate with Q/U) and free with an HWP.
+        Needs pysanepic 0.6.0 or later.
+    """
+    pysanepic = _import_pysanepic("beam_tods", "0.6.0")
+    alm = _sky_array(sky_model)
+    if not np.iscomplexobj(alm):
+        raise ValueError("compute_sanepic_beam_templates: sky_model must be alm")
+    coordinates = _COORDINATES[output_coordinate_system]
+    nthreads = resolve_nthreads(nthreads)
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=observations, pointings=pointings
+    )
+    noise = pysanepic.OneOverFNoise(net_ukrts=1.0)  # not used
+    has_hwp = set()
+    for obs, cur_ptg in zip(obs_list, ptg_list):
+        hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        has_hwp.add(hwp_angle is not None)
+        gamma = get_pol_efficiency(obs)
+        out = {}
+        for det_idx in range(obs.n_detectors):
+            ptg_det, hwp_det = _get_pointings_array(
+                detector_idx=det_idx,
+                pointings=cur_ptg,
+                hwp_angle=hwp_angle,
+                output_coordinate_system=output_coordinate_system,
+                pointings_dtype=pointings_dtype,
+                nthreads=nthreads,
+            )
+            d = pysanepic.DetectorData(
+                tod=np.broadcast_to(0.0, (obs.n_samples,)),
+                pointing=pysanepic.Pointing(
+                    theta=ptg_det[:, 0],
+                    phi=ptg_det[:, 1],
+                    psi=ptg_det[:, 2],
+                    coordinates=coordinates,
+                ),
+                hwp_angle=hwp_det,
+                sampling_rate_hz=obs.sampling_rate_hz,
+                noise=noise,
+                pol_angle_rad=obs.pol_angle_rad[det_idx],
+                pol_efficiency=gamma[det_idx],
+            )
+            tods = pysanepic.beam_tods(
+                d,
+                alm,
+                coordinates,
+                offsets=offsets,
+                ellipticity=ellipticity,
+                nthreads=nthreads,
+            )
+            for k, v in tods.items():
+                if k not in out:
+                    out[k] = np.empty((obs.n_detectors, obs.n_samples), dtype=dtype)
+                out[k][det_idx] = v
+        for k, v in out.items():
+            setattr(obs, k, v)
+    if MPI_ENABLED and MPI_COMM_WORLD.size > 1:
+        has_hwp = set().union(*MPI_COMM_WORLD.allgather(has_hwp))
+    if len(has_hwp) > 1:
+        raise ValueError(
+            "compute_sanepic_beam_templates: observations with and without HWP "
+            "(the ellipticity constraints differ)"
+        )
+    has_hwp = True in has_hwp
+    templates = {}
+    if offsets:
+        templates.update(offset_x=pysanepic.Template(), offset_y=pysanepic.Template())
+    if ellipticity:
+        templates.update(
+            ell_plus=pysanepic.Template(sum_zero=not has_hwp),
+            ell_cross=pysanepic.Template(sum_zero=not has_hwp),
+        )
+    return templates
 
 
 def estimate_sanepic_noise(

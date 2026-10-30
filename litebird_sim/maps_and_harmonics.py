@@ -12,7 +12,7 @@ from astropy.io import fits
 
 from .coordinates import ECL_TO_GAL_EULER, GAL_TO_ECL_EULER, CoordinateSystem
 from .units import Units
-from .utilities import resolve_nthreads
+from .utilities import resolve_nthreads, wrap_phi
 
 # ======================================================================
 # SphericalHarmonics
@@ -2456,20 +2456,9 @@ def interpolate_alm(
         )
     N = loc.shape[0]
 
-    # `ducc0.sht.synthesis_general` requires phi in [0, 2*pi). Pointings in
-    # Galactic coordinates already satisfy this (`rotate_coordinates_e2g`
-    # returns phi in [0, 2*pi)), but pointings left in Ecliptic (or any other
-    # frame) typically have phi in [-pi, pi] and would make it crash with a
-    # "phi out of range" assertion. Wrap into range on a copy: `np.asarray`
-    # above may have returned the caller's own array unchanged.
-    phi = loc[:, 1]
-    if np.any((phi < 0.0) | (phi >= 2.0 * np.pi)):
-        loc = loc.copy()
-        phi = loc[:, 1]
-        np.mod(phi, 2.0 * np.pi, out=phi)
-        # `np.mod` of a tiny negative number (e.g. -1e-17) can round to
-        # exactly 2*pi; fold that back into range.
-        phi[phi >= 2.0 * np.pi] = 0.0
+    # `ducc0.sht.synthesis_general` requires phi in [0, 2*pi); `wrap_phi` works
+    # on a copy, as `np.asarray` above may have returned the caller's own array
+    loc = wrap_phi(loc)
 
     # Choose epsilon if not given, respecting ducc constraints
     dtype = alm.dtype if alm.ndim == 2 else alm.dtype

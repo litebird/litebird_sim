@@ -371,7 +371,7 @@ def test_sanepic_calibration_keep_solar_dipole():
     # The solar dipole kept in the maps: only the orbital dipole in the
     # component, the solar one in the sky model (alm); the maps are the sky
     # plus the solar dipole
-    if not hasattr(pysanepic.MapResult, "bandpass"):
+    if not hasattr(pysanepic, "CalibrationParameters"):
         pytest.skip("pysanepic without sky_model")
     sim, sky_alm = _calibration_sim(lmax=16)
     # LINEAR: the dipole of solar + orbital velocity is exactly the sum of the two
@@ -418,12 +418,13 @@ def test_sanepic_calibration_keep_solar_dipole():
     assert np.abs((r.maps - binned)[:, seen]).max() < 1e-6 * amp
 
 
-def test_sanepic_sky_model_and_bandpass():
+def test_sanepic_sky_model_and_templates():
     # A sky model as zero alm (pointings passed as angles) or as the sky map
     # leaves the maps unchanged; a foreground seen with a different amplitude
-    # by each detector is fitted with a bandpass template
-    if not hasattr(pysanepic.MapResult, "bandpass"):
-        pytest.skip("pysanepic without sky_model and bandpass_templates")
+    # by each detector is fitted with a sky template, and a TOD component
+    # with a coupling per detector with a TOD template
+    if not hasattr(pysanepic, "Template"):
+        pytest.skip("pysanepic without templates")
     sim, sky = _calibration_sim(n_days=4)
     params = pysanepic.GLSParameters(chunk_s=86400.0, tol=1e-20, min_pol_rcond=0.0)
     ref = sim.make_sanepic_gls_map(nside=8, params=params, append_to_report=False)
@@ -463,10 +464,130 @@ def test_sanepic_sky_model_and_bandpass():
         )
         for i, name in enumerate(obs.name):
             obs.tod[i] = signal[i] + (1 + amp[name]) * obs.tod[i]
+    fg_tmpl = pysanepic.Template(sky=fg, sum_zero=True)
     r = sim.make_sanepic_gls_map(
-        nside=8, params=params, bandpass_templates={"fg": fg}, append_to_report=False
+        nside=8, params=params, templates={"fg": fg_tmpl}, append_to_report=False
     )
-    assert all(abs(r.bandpass["fg"][k] - (v - mean)) < 1e-6 for k, v in amp.items())
+    assert all(abs(r.templates["fg"][k] - (v - mean)) < 1e-6 for k, v in amp.items())
     err = (r.maps - ref.maps - (1 + mean) * fg)[:, seen]
     err[0] -= err[0].mean()
     assert np.abs(err).max() < 1e-6 * np.abs(sky).max()
+
+    # a TOD component (e.g. a thermometer) seen with a coupling per detector
+    rng = np.random.default_rng(11)
+    coupling = {"a": 2e-4, "b": -1e-4, "c": 5e-5, "d": 3e-4}
+    for obs in sim.observations:
+        obs.thermal = rng.normal(size=obs.tod.shape)
+        for i, name in enumerate(obs.name):
+            obs.tod[i] += coupling[name] * obs.thermal[i]
+    r = sim.make_sanepic_gls_map(
+        nside=8,
+        params=params,
+        templates={"fg": fg_tmpl, "thermal": pysanepic.Template()},
+        template_covariance=True,
+        append_to_report=False,
+    )
+    assert all(abs(r.templates["thermal"][k] - v) < 1e-9 for k, v in coupling.items())
+    assert all(abs(r.templates["fg"][k] - (v - mean)) < 1e-6 for k, v in amp.items())
+    assert r.template_covariance["labels"][-1] == ("thermal", "d")
+
+
+def _beam_sim(quats, hwp, lmax=16, n_days=4):
+    """Noiseless, as _calibration_sim, with detector quaternions `quats` and
+    optionally an ideal HWP; returns (sim, sky as SphericalHarmonics)."""
+    sim = lbs.Simulation(
+        start_time=astropy.time.Time("2030-01-01T00:00:00"),
+        duration_s=n_days * 86400.0,
+        random_seed=5,
+    )
+    sim.set_instrument(lbs.InstrumentInfo(name="instr", spin_boresight_angle_rad=0.87))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name=n,
+                sampling_rate_hz=0.05,
+                net_ukrts=50.0,
+                fknee_mhz=0.5,
+                alpha=1.0,
+                fmin_hz=1e-5,
+                pol_angle_rad=a,
+                bandcenter_ghz=140.0,
+                quat=q,
+            )
+            for (n, a), q in zip(
+                (("a", 0.0), ("b", np.pi / 4), ("c", np.pi / 8), ("d", 0.3)), quats
+            )
+        ],
+        num_of_obs_per_detector=n_days,
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(0.785, 1 / 3600 / 3.2, 0.05 / 60),
+        delta_time_s=60,
+    )
+    if hwp:
+        sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=2 * np.pi / 600))
+    sim.prepare_pointings()
+    sky = hp.smoothing(
+        np.random.default_rng(5).normal(0, 1e-4, (3, 12 * 8**2)), fwhm=np.radians(10)
+    )
+    alm = np.array(hp.map2alm(sky, lmax=lmax))
+    return sim, lbs.SphericalHarmonics(
+        values=alm, lmax=lmax, coordinates=lbs.CoordinateSystem.Galactic
+    )
+
+
+def test_sanepic_beam_templates():
+    # Detectors whose quaternions are off by 0.3-0.6 deg, mapped with the
+    # nominal ones: the beam templates recover the offsets. A rotation of the
+    # quaternion about x (y) moves the beam along the axis at psi (psi + 90
+    # deg), so the offsets in the frame of the templates, at psi +
+    # pol_angle, are those rotated by -pol_angle; with and without HWP
+    if not hasattr(pysanepic, "beam_tods"):
+        pytest.skip("pysanepic without template helpers")
+    from litebird_sim.quaternions import quat_rotation_x, quat_rotation_y
+
+    rho = np.radians(0.3)
+    quats = [
+        np.array(quat_rotation_x(rho)),
+        np.array(quat_rotation_y(rho)),
+        np.array(quat_rotation_x(-rho)),
+        np.array(quat_rotation_y(-2 * rho)),
+    ]
+    uv = {"a": (rho, 0), "b": (0, rho), "c": (-rho, 0), "d": (0, -2 * rho)}
+    pols = {"a": 0.0, "b": np.pi / 4, "c": np.pi / 8, "d": 0.3}
+    params = pysanepic.GLSParameters(chunk_s=86400.0, tol=1e-20, min_pol_rcond=0.0)
+    for hwp, ellipticity in ((False, False), (True, True)):
+        data, sky = _beam_sim(quats, hwp)
+        data.fill_tods(maps=sky, append_to_report=False)
+        sim, _ = _beam_sim([np.array([0.0, 0.0, 0.0, 1.0])] * 4, hwp)
+        for obs, obs_data in zip(sim.observations, data.observations):
+            obs.tod[:] = obs_data.tod
+        templates = sim.compute_sanepic_beam_templates(
+            sky_model=sky, ellipticity=ellipticity
+        )
+        names = ["offset_x", "offset_y"] + (
+            ["ell_plus", "ell_cross"] if ellipticity else []
+        )
+        assert list(templates) == names
+        assert not any(t.sum_zero for t in templates.values())  # offsets; HWP
+        assert sim.observations[0].offset_x.shape == sim.observations[0].tod.shape
+        r = sim.make_sanepic_gls_map(
+            nside=8,
+            params=params,
+            sky_model=sky,
+            templates=templates,
+            append_to_report=False,
+        )
+        par = pysanepic.beam_parameters(r, templates)
+        for name, (u, v) in uv.items():
+            c, s = np.cos(pols[name]), np.sin(pols[name])
+            expect = (c * u + s * v, -s * u + c * v)
+            got = (r.templates["offset_x"][name], r.templates["offset_y"][name])
+            assert np.hypot(*np.subtract(got, expect)) < 0.02 * rho, (hwp, name, got)
+            assert par[name]["offset_x"] == got[0]
+    # a TOD template needs its component in the observations
+    del sim.observations[0].offset_x
+    with pytest.raises(ValueError, match="compute_sanepic_beam_templates"):
+        sim.make_sanepic_gls_map(
+            nside=8, params=params, sky_model=sky, templates=templates
+        )
