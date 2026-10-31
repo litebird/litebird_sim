@@ -116,7 +116,8 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
     #   d_T - d_B = Q·(γ_T·cos(2ψ_T) - γ_B·cos(2ψ_B)) + U·(γ_T·sin(2ψ_T) - γ_B·sin(2ψ_B))
     #
     # where γ is the polarization efficiency of each detector.
-    # The pair weight is defined as the average of the two detector weights
+    # Detector weights are sample variances (sampling_rate_hz * net_ukrts**2).
+    # For independent detector noise, Var(d_T - d_B) = weight_t + weight_b.
     # ψ is the proper sum of the detector polarization angle and the HWP angle (if present)
 
     assert (
@@ -128,7 +129,7 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
         == t_mask.shape
     )
 
-    pair_weight = 0.5 * (weight_t + weight_b)
+    pair_weight = weight_t + weight_b
     inv_sigma = 1.0 / np.sqrt(pair_weight)
     inv_sigma2 = inv_sigma * inv_sigma
 

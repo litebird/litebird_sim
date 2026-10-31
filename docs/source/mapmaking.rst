@@ -377,11 +377,16 @@ of the two detectors in the pair, the model used in map-making is
 
    d_T - d_B = Q\,[\gamma_T\cos(2\psi_T) - \gamma_B\cos(2\psi_B)] + U\,[\gamma_T\sin(2\psi_T) - \gamma_B\sin(2\psi_B)].
 
-The pair weight is the average of the detector weights:
+The detector weights returned by ``get_map_making_weights`` are
+sample noise variances, :math:`w_i = \sigma_i^2 = f_{\mathrm{samp}}\,\mathrm{NET}_i^2`.
+For independent detector noise, the variance of the differenced timeline is
+the sum of the detector variances:
 
 .. math::
 
-   w_{\mathrm{pair}} = \frac{w_T + w_B}{2}.
+   w_{\mathrm{pair}} = \sigma_T^2 + \sigma_B^2 = w_T + w_B.
+
+The normal matrix and right-hand side use :math:`1/w_{\mathrm{pair}}`.
 
 This is the low-level usage::
 
