@@ -132,15 +132,8 @@ def load_h_maps_from_file(
 
 @njit(parallel=True)
 def _solve_binning(nobs_matrix, atd):
-    # Solve the map-making equation
-    #
-    # This method alters the parameter `nobs_matrix`, so that after its completion
-    # each 3×3 matrix in nobs_matrix[idx, :, :] will be the *inverse*.
-
-    # Expected shape:
-    # - `nobs_matrix`: array of shape (Ndet,N_p,3), where
-    #   N_p is the number of pixels in the map and Ndet the number of detectors
-    # - `atd`: (Ndet,N_p, 2)
+    # Normalize the accumulated cosine/sine sums, in place in `atd`.
+    # Shapes are (Npix, 3) for nobs_matrix and (Npix, 2) for atd.
     npix = atd.shape[0]
     for ipix in prange(npix):  # type: ignore[not-iterable]
         if nobs_matrix[ipix, 0] != 0:
@@ -170,9 +163,9 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
 
             cos_n_m, sin_n_m = cos_sin(n * cur_psi + m * cur_hwp_angle)
             if (n, m) == (0, 0):
-                info_pix[0] = (
-                    1  # if n=m=0 we compute the hit count, beceause it is useful to combine h maps later on
-                )
+                # Keep the normalization at one across all observations so
+                # the cosine sum remains a hit count after solving.
+                info_pix[0] = 1
             else:
                 info_pix[0] += 1
             info_pix[1] += cos_n_m
@@ -181,17 +174,14 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
 
 @njit
 def _numba_extract_rhs(nobs_matrix: npt.NDArray, rhs: npt.NDArray) -> None:
-    # This is used internally by _extract_map_and_fill_info.
     for idx in range(nobs_matrix.shape[0]):
-        # Extract the vector from the lower left triangle of the 3×3 matrix
-        # nobs_matrix[idx, :, :]
+        # Extract the accumulated cosine and sine sums.
         rhs[idx, 0] = nobs_matrix[idx, 1]
         rhs[idx, 1] = nobs_matrix[idx, 2]
 
 
 def _extract_rhs(n_obs: npt.NDArray) -> npt.NDArray:
-    # Extract the RHS of the mapmaking equation from the lower triangle of info
-    # The RHS has a shape (Ndet,Np,2)
+    # The RHS contains the spin sums and has shape (Npix, 2).
     rhs = np.empty((n_obs.shape[0], 2), dtype=n_obs.dtype)
 
     # The implementation in Numba of this code is ~5 times faster than the older
@@ -209,11 +199,16 @@ def _build_nobs_matrix(
     polang: npt.NDArray,
     hwp_angle: npt.NDArray | None,
     time_mask: npt.NDArray,
+    nobs_matrix: npt.NDArray | None = None,
 ) -> npt.NDArray:
-    """Build the nobs matrix for all detectors and pixels, it has shape (Npix,3) and contains the accumulated spin terms and hit counts of each pixel for the considered detector."""
-    n_pix = HealpixMap.nside_to_npix(nside)
+    """Accumulate one detector's spin terms and normalization in a (Npix, 3)
+    matrix. Pass an existing matrix to include another observation before
+    solving; otherwise a zero-filled matrix is allocated.
+    """
+    if nobs_matrix is None:
+        n_pix = HealpixMap.nside_to_npix(nside)
+        nobs_matrix = np.zeros((n_pix, 3))
 
-    nobs_matrix = np.zeros((n_pix, 3))
     if hwp_angle is None:
         hwp_angle = np.zeros_like(polang)
     _accumulate_spin_terms_and_build_nobs_matrix(
@@ -246,6 +241,8 @@ def make_h_maps(
     """Generate complex harmonic maps :math:`h_{n,m}` from observations.
 
     The map for ``(n, m) = (0, 0)`` contains hit counts per pixel.
+    Observations with the same detector name contribute to one map: their
+    spin terms and normalizations are accumulated before solving.
 
     :param observations: Observation object or list of observations used to build
         the maps.
@@ -288,45 +285,53 @@ def make_h_maps(
 
     assert detector_split == "full", "detectors split over wafers is not implemented"
 
-    h_maps = {}
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
     )
-    all_dets_list = np.concatenate([obs.name for obs in obs_list])
+    if not obs_list:
+        raise ValueError("At least one observation is required to compute h maps")
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
-
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
-    h_maps = {det: {} for det in all_dets_list}
-
-    for cur_obs, cur_ptg, cur_d_mask, cur_t_mask in zip(
-        obs_list, ptg_list, detector_mask_list, time_mask_list
-    ):
+    # Store local indices with their observation; detector order and membership
+    # may change between observations. Grouping also bounds the working matrices
+    # to one detector, rather than keeping matrices for the whole focal plane.
+    detector_observations = {}
+    for obs_idx, (cur_obs, cur_d_mask) in enumerate(zip(obs_list, detector_mask_list)):
         assert cur_d_mask.ravel().any(), (
             "No detectors is selected by the current detector split"
         )
         assert cur_obs.n_blocks_time == 1, (
             "The current implementation of make_h_maps only supports one time block per observation, you can set several detector blocks though."
         )
+        duration_s = cur_obs.get_time_span()
+        if isinstance(duration_s, TimeDelta):
+            duration_s = duration_s.to_value("sec")
+        assert isinstance(duration_s, float)
+        sampling_rate = cur_obs.sampling_rate_hz
         for idet in range(cur_obs.n_detectors):
             if not cur_d_mask[idet]:
                 log.info(f"skipping detector {idet}")
                 continue
+            det = cur_obs.name[idet]
+            detector_observations.setdefault(det, []).append((obs_idx, idet))
 
-            log.info(
-                f" Computing pixel indices and angles for detector {all_dets_list[idet]}"
-            )
+    # Repeated spin pairs must not accumulate the same samples twice.
+    spin_pairs = list(dict.fromkeys(map(tuple, n_m_couples)))
+    h_maps = {det: {} for det in detector_observations}
+    hpx = Healpix_Base(nside, "RING")
+    for det, entries in detector_observations.items():
+        nobs_matrices = {}
+        for obs_idx, idet in entries:
+            cur_obs = obs_list[obs_idx]
+            cur_ptg = ptg_list[obs_idx]
+            cur_t_mask = time_mask_list[obs_idx]
+            log.info(f"Computing pixel indices and angles for detector {det}")
 
-            hpx = Healpix_Base(nside, "RING")
             hwp_angle = _get_hwp_angle(
                 obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
             )
-            duration_s = cur_obs.get_time_span()
-            if isinstance(duration_s, TimeDelta):
-                duration_s = duration_s.to_value("sec")
-            assert isinstance(duration_s, float)
-            sampling_rate = cur_obs.sampling_rate_hz
             pixidx, polang = _compute_pixel_indices_single_detector(
                 hpx=hpx,
                 pointings=cur_ptg,
@@ -340,14 +345,11 @@ def make_h_maps(
                 nthreads=nthreads,
             )
             log.info(
-                f"Pixel indices and angles for detector {all_dets_list[idet]} computed, now building nobs matrices"
+                f"Pixel indices and angles for detector {det} computed, now accumulating nobs matrices"
             )
 
-            for i in range(n_m_couples.shape[0]):
-                n = n_m_couples[i, 0]
-                m = n_m_couples[i, 1]
-
-                nobs_matrix = _build_nobs_matrix(
+            for n, m in spin_pairs:
+                nobs_matrices[n, m] = _build_nobs_matrix(
                     n,
                     m,
                     nside=nside,
@@ -355,24 +357,27 @@ def make_h_maps(
                     polang=polang,
                     hwp_angle=hwp_angle,
                     time_mask=cur_t_mask,
+                    nobs_matrix=nobs_matrices.get((n, m)),
                 )
-                rhs = _extract_rhs(nobs_matrix)
-                _solve_binning(nobs_matrix, rhs)
-                h_maps[all_dets_list[idet]][n, m] = h_map_Re_and_Im(
-                    real=rhs.T[0].copy(),
-                    imag=rhs.T[1].copy(),
-                    det_info=all_dets_list[idet],
-                    n=n,
-                    m=m,
-                )
-                log.info(
-                    f"  h_map n={n} m={m} for detector {all_dets_list[idet]} computed."
-                )
-                del rhs
-                del nobs_matrix
-                gc.collect()
             del pixidx
             del polang
+            gc.collect()
+
+        # Solve once, after every observation of this detector has contributed.
+        for n, m in spin_pairs:
+            nobs_matrix = nobs_matrices.pop((n, m))
+            rhs = _extract_rhs(nobs_matrix)
+            _solve_binning(nobs_matrix, rhs)
+            h_maps[det][n, m] = h_map_Re_and_Im(
+                real=rhs.T[0].copy(),
+                imag=rhs.T[1].copy(),
+                det_info=det,
+                n=n,
+                m=m,
+            )
+            log.info(f"h_map n={n} m={m} for detector {det} computed.")
+            del rhs
+            del nobs_matrix
             gc.collect()
 
     result = HMapsResult(
