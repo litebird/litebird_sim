@@ -28,31 +28,6 @@ from .utilities import cos_sin, resolve_nthreads
 
 
 @njit
-def vec_stokes(stokes, T, Q, U):
-    stokes[0] = T
-    stokes[1] = Q
-    stokes[2] = U
-
-
-@njit
-def vec_polarimeter(angle, gamma):
-    # (1,0,0,0) x Mpol x Rpol
-    vec = np.empty(4, dtype=np.float64)
-    vec[0] = 1
-    vec[1] = gamma * np.cos(2 * angle)
-    vec[2] = gamma * np.sin(2 * angle)
-    vec[3] = 0
-    return vec
-
-
-@njit
-def rot_matrix(mat, angle):
-    ca, sa = cos_sin(2 * angle)
-    mat[1, 1:3] = ca, sa
-    mat[2, 1:3] = -sa, ca
-
-
-@njit
 def compute_signal_for_one_sample(T, Q, U, co, si, gamma):
     """Bolometric equation"""
     return T + gamma * (co * Q + si * U)
@@ -74,14 +49,6 @@ def scan_map_for_one_detector(
         )
 
 
-@njit
-def compute_signal_generic_hwp_for_one_sample(Stokes, Vpol, Rhwp, Mhwp, Rtel):
-    """Bolometric equation for generic HWP Mueller matrix
-    (1,0,0,0) x Mpol x Rpol x Rhwp^T x Mhwp x Rhwp x Rtel x Stokes
-    """
-    return Vpol @ Rhwp.T @ Mhwp @ Rhwp @ Rtel @ Stokes
-
-
 @njit(parallel=True)
 def scan_map_generic_hwp_for_one_detector(
     tod_det,
@@ -94,24 +61,54 @@ def scan_map_generic_hwp_for_one_detector(
     hwp_angle,
     mueller_hwp,
 ):
-    polarimeter = vec_polarimeter(pol_angle_det, pol_eff_det)
+    """Bolometric equation for a generic HWP Mueller matrix
+
+    (1,0,0,0) x Mpol x Rpol x Rhwp^T x Mhwp x Rhwp x Rtel x Stokes
+
+    The products are expanded in scalars, so that the parallel loop
+    allocates nothing and shares no mutable state. The input V is zero
+    and the polarimeter has no V component, so the last row and column
+    of Mhwp do not contribute.
+    """
+    co_pol, si_pol = cos_sin(2 * pol_angle_det)
+    pol_q = pol_eff_det * co_pol
+    pol_u = pol_eff_det * si_pol
 
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-        # Keep mutable scratch arrays private to each parallel iteration.
-        vec_S = np.zeros(4, dtype=np.float64)
-        rot_hwp = np.eye(4, dtype=np.float64)
-        rot_tel = np.eye(4, dtype=np.float64)
+        T = input_T[i]
 
-        vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
-        rot_matrix(rot_hwp, hwp_angle[i])
-        rot_matrix(rot_tel, orientation_telescope[i])
+        # Rtel x Stokes
+        co_tel, si_tel = cos_sin(2 * orientation_telescope[i])
+        q_tel = co_tel * input_Q[i] + si_tel * input_U[i]
+        u_tel = -si_tel * input_Q[i] + co_tel * input_U[i]
 
-        tod_det[i] += compute_signal_generic_hwp_for_one_sample(
-            Stokes=vec_S,
-            Vpol=polarimeter,
-            Rhwp=rot_hwp,
-            Mhwp=mueller_hwp,
-            Rtel=rot_tel,
+        # Rhwp x (...)
+        co_hwp, si_hwp = cos_sin(2 * hwp_angle[i])
+        q_hwp = co_hwp * q_tel + si_hwp * u_tel
+        u_hwp = -si_hwp * q_tel + co_hwp * u_tel
+
+        # Mhwp x (...)
+        t_m = (
+            mueller_hwp[0, 0] * T
+            + mueller_hwp[0, 1] * q_hwp
+            + mueller_hwp[0, 2] * u_hwp
+        )
+        q_m = (
+            mueller_hwp[1, 0] * T
+            + mueller_hwp[1, 1] * q_hwp
+            + mueller_hwp[1, 2] * u_hwp
+        )
+        u_m = (
+            mueller_hwp[2, 0] * T
+            + mueller_hwp[2, 1] * q_hwp
+            + mueller_hwp[2, 2] * u_hwp
+        )
+
+        # (1,0,0,0) x Mpol x Rpol x Rhwp^T x (...)
+        tod_det[i] += (
+            t_m
+            + pol_q * (co_hwp * q_m - si_hwp * u_m)
+            + pol_u * (si_hwp * q_m + co_hwp * u_m)
         )
 
 
