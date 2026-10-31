@@ -6,6 +6,8 @@
 
 -   Fix the beam-convolved dipole (`add_dipole` with `s_params`, `add_dipole_to_observations` with `apply_convolution=True`): the beam frame rotated by ψ in the opposite direction than in ducc0 and `add_convolved_sky`, so the dipole of beams that are not axially symmetric (elliptical, off-axis) was convolved with the beam rotated by −ψ instead of ψ. Moreover, `beam_alms` dictionaries keyed by channel now work when the channel has more than one detector, and `frequency_ghz` can be one value per detector. A new test compares the convolved dipole with a full 4π convolution by ducc0.
 
+-   Fix the HWP state of observations read from HDF5: the reader now restores `has_hwp` from the pointing provider immediately, so map-making uses the HWP modulation without requiring a prior call to compute pointings or HWP angles.
+
 -   Fix: with `user_seed`, the noise and the gain drifts of the detectors with the same local index were identical on all the MPI processes; `for_each_observation` now builds the generators with the communicator of the observations. Reference issue: [#585](https://github.com/litebird/litebird_sim/issues/585).
 
 -   `make_sanepic_gls_map` (and `Simulation.make_sanepic_gls_map`) has `templates` (`{name: pysanepic.Template}`) and `template_covariance` arguments, which replace `bandpass_templates` and `bandpass_common` (not in a release): templates fitted with the maps, sky signals (e.g. `Template(sky=dfg_dnu, sum_zero=True)` for the bandpass mismatch of the foregrounds) or TOD components of the observations with the name of the template, with amplitudes per detector, common or per period, in `MapResult.templates`, and their covariance. Needs pysanepic 0.6.0 or later. Reference PR: [#600](https://github.com/litebird/litebird_sim/pull/600).
