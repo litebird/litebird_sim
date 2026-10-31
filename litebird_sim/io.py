@@ -678,6 +678,9 @@ def read_one_observation(
                 start_time_global = astropy.time.Time(start_time_global, format="mjd")
             else:
                 start_time = hdf5_tod.attrs["start_time"]
+                # HWP angle computation expects a native numeric scalar; HDF5
+                # integer attributes are returned as NumPy integer scalars.
+                start_time_global = np.asarray(start_time_global).item()
 
             tod_full_fields[cur_field_idx].description = hdf5_tod.attrs.get(
                 "description", ""
@@ -754,6 +757,7 @@ def read_one_observation(
                 field_name="pointing_provider",
             )
             result.pointing_provider = pointing_provider
+            result.has_hwp = pointing_provider.has_hwp()
 
         # Checking if local flags are present is trickier because there should be N
         # datasets, where N is the number of detectors
