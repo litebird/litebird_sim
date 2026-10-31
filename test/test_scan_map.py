@@ -1,8 +1,10 @@
 # -*- encoding: utf-8 -*-
 import astropy
 import healpy as hp
+import numba
 import numpy as np
 import numpy.typing as npt
+import pytest
 from ducc0.healpix import Healpix_Base
 
 import litebird_sim as lbs
@@ -21,6 +23,81 @@ def get_map_values(map_obj):
     if hasattr(map_obj, "binned_map"):
         return map_obj.binned_map
     return map_obj
+
+
+@pytest.mark.parametrize("num_threads", [1, 2, 4])
+@pytest.mark.parametrize("tod_dtype", [np.float32, np.float64])
+def test_scan_map_generic_hwp_matches_mueller_equation(num_threads, tod_dtype):
+    if num_threads > numba.config.NUMBA_NUM_THREADS:
+        pytest.skip(f"Numba supports fewer than {num_threads} threads")
+
+    rng = np.random.default_rng(91)
+    n_samples = 8192
+    nside = 8
+    maps = HealpixMap(
+        values=rng.normal(size=(3, hp.nside2npix(nside))),
+        coordinates=lbs.CoordinateSystem.Ecliptic,
+    )
+    pixels = rng.integers(0, maps.npix, size=n_samples)
+    theta, phi = hp.pix2ang(nside, pixels)
+    psi = rng.uniform(-np.pi, np.pi, n_samples)
+    pointings = np.column_stack((theta, phi, psi))[None, :, :]
+    hwp_angle = rng.uniform(0, 2 * np.pi, n_samples)
+    pol_angle, pol_efficiency = 0.37, 0.83
+    mueller = np.array(
+        [
+            [0.96, 0.02, -0.03, 0.0],
+            [0.01, 0.92, 0.04, 0.02],
+            [-0.02, 0.03, -0.87, 0.09],
+            [0.0, 0.02, -0.09, -0.90],
+        ]
+    )
+    hwp = lbs.NonIdealHWP(
+        ang_speed_radpsec=1.0,
+        harmonic_expansion=False,
+        calculus=lbs.HWPFormalism.MUELLER,
+    )
+
+    def rotation(angle):
+        c, s = np.cos(2 * angle), np.sin(2 * angle)
+        return np.array([[1, 0, 0, 0], [0, c, s, 0], [0, -s, c, 0], [0, 0, 0, 1]])
+
+    polarimeter = np.array(
+        [
+            1.0,
+            pol_efficiency * np.cos(2 * pol_angle),
+            pol_efficiency * np.sin(2 * pol_angle),
+            0.0,
+        ]
+    )
+    initial_tod = rng.normal(size=(1, n_samples)).astype(tod_dtype)
+    expected = initial_tod.astype(np.float64)
+    for i in range(n_samples):
+        stokes = np.append(maps.values[:, pixels[i]], 0.0)
+        r_hwp, r_tel = rotation(hwp_angle[i]), rotation(psi[i])
+        expected[0, i] += polarimeter @ r_hwp.T @ mueller @ r_hwp @ r_tel @ stokes
+
+    previous_threads = numba.get_num_threads()
+    try:
+        numba.set_num_threads(num_threads)
+        # Repeat with a fresh nonzero TOD to check accumulation and determinism.
+        for _ in range(3):
+            tod = initial_tod.copy()
+            lbs.scan_map(
+                tod=tod,
+                pointings=pointings,
+                maps=maps,
+                pol_angle_detectors=np.array([pol_angle]),
+                pol_eff_detectors=np.array([pol_efficiency]),
+                hwp=hwp,
+                hwp_angle=hwp_angle,
+                mueller_hwp=mueller[None, :, :],
+                nthreads=1,
+            )
+            tolerance = 1e-6 if tod_dtype == np.float32 else 1e-12
+            np.testing.assert_allclose(tod, expected, rtol=tolerance, atol=tolerance)
+    finally:
+        numba.set_num_threads(previous_threads)
 
 
 def test_scan_map_no_interpolation():

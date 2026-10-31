@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fix a race in the generic Mueller HWP path of `scan_map`: shared temporary Stokes vectors and rotation matrices could corrupt the TOD when running with multiple Numba threads. The kernel now expands the Mueller products in scalars, so it shares no mutable state and allocates nothing per sample; this also makes it ~20× faster.
+
 -   Fix the noise normalization of the pair-differencing map-maker: the variance of the detector difference is the sum of the two detector variances. The Q/U maps are unchanged up to roundoff, while their covariance is twice the previous value and the corresponding residual chi-square is halved.
 
 -   Fix the beam-convolved dipole (`add_dipole` with `s_params`, `add_dipole_to_observations` with `apply_convolution=True`): the beam frame rotated by ψ in the opposite direction than in ducc0 and `add_convolved_sky`, so the dipole of beams that are not axially symmetric (elliptical, off-axis) was convolved with the beam rotated by −ψ instead of ψ. Moreover, `beam_alms` dictionaries keyed by channel now work when the channel has more than one detector, and `frequency_ghz` can be one value per detector. A new test compares the convolved dipole with a full 4π convolution by ducc0.
