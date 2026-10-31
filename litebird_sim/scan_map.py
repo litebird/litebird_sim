@@ -96,11 +96,12 @@ def scan_map_generic_hwp_for_one_detector(
 ):
     polarimeter = vec_polarimeter(pol_angle_det, pol_eff_det)
 
-    vec_S = np.zeros(4, dtype=np.float64)
-    rot_hwp = np.eye(4, dtype=np.float64)
-    rot_tel = np.eye(4, dtype=np.float64)
-
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
+        # Keep mutable scratch arrays private to each parallel iteration.
+        vec_S = np.zeros(4, dtype=np.float64)
+        rot_hwp = np.eye(4, dtype=np.float64)
+        rot_tel = np.eye(4, dtype=np.float64)
+
         vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
         rot_matrix(rot_hwp, hwp_angle[i])
         rot_matrix(rot_tel, orientation_telescope[i])
