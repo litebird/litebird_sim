@@ -2,11 +2,12 @@
 
 -   **Breaking change**: observation time references are now explicit:
     `start_time`, `start_time_global` and `end_time_global` are renamed to
-    `start_time_local`, `start_time_observation` and `end_time_observation`,
-    with no aliases.
+    `start_time_local`, `start_time_observation` and `end_time_observation`.
     Sample metadata follows the same naming: `n_samples_global`, `n_samples`
     and `start_sample` become `n_samples_observation`, `n_samples_local` and
-    `start_sample_observation`. HDF5 files preserve the complete-observation
+    `start_sample_observation`. The old attribute names and the
+    `n_samples_global`/`start_time_global` arguments of `Observation` still
+    work, with a `DeprecationWarning`. HDF5 files preserve the complete-observation
     sample count and the local block's starting index; reading an MPI fragment
     allocates only its stored samples and retains its normalized sample times.
     `Observation` also accepts `start_time_simulation` (defaults to the
@@ -16,7 +17,10 @@
     continuous phase across observation and MPI boundaries. Outputs of
     simulations split into multiple observations change. Observation HDF5 files
     use the new time names and store Astropy times as `(jd1, jd2)` with their
-    scale, replacing the old MJD metadata; old files require conversion.
+    scale, replacing the old MJD metadata. Files written by previous versions
+    are still readable: their HWP phase stays referred to the start of each
+    observation, as when they were simulated, so that the angles match the
+    stored TOD.
     Time-dependent detector rotations are interpolated on the detector sample
     grid before composition with the spacecraft rotation, allowing HWP wedge
     disturbances on observations whose time grids differ from the spacecraft.

@@ -262,7 +262,10 @@ class DetectorInfo:
                 if isinstance(time_dependent_quat, dict):
                     start_time = time_dependent_quat["start_time"]
                     if isinstance(start_time, str):
-                        start_time = astrotime.Time(start_time)
+                        start_time = astrotime.Time(
+                            start_time,
+                            scale=time_dependent_quat.get("start_time_scale", "utc"),
+                        )
 
                     if "quats" in time_dependent_quat:
                         quats = np.array(time_dependent_quat["quats"])

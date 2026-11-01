@@ -43,11 +43,12 @@ directly, the optional ``start_time_simulation`` defaults to
 ``start_time_observation``. Both must be numeric times in seconds or both
 ``astropy.time.Time`` objects.
 
-These names replace ``start_time``, ``start_time_global`` and ``end_time_global``; the old
-attributes and constructor keyword are no longer supported.
+These names replace ``start_time``, ``start_time_global`` and ``end_time_global``.
 Similarly, ``n_samples_global``, ``n_samples`` and ``start_sample`` are replaced
 by ``n_samples_observation``, ``n_samples_local`` and
-``start_sample_observation``, with no aliases.
+``start_sample_observation``. The old attribute names and the
+``n_samples_global``/``start_time_global`` arguments of ``Observation`` are
+deprecated: they still work, but emit a ``DeprecationWarning``.
 
 Serial applications
 -------------------
@@ -541,9 +542,12 @@ file contains the following datasets:
     sample relative to the complete observation. The local sample count is
     given by the second dimension of the TOD dataset.
 
-    This format replaces the previous ``start_time_global``/``mjd_time``
-    metadata. Files written with the previous format require conversion before
-    reading with this version.
+    This format replaces the previous ``start_time``/``start_time_global``/``mjd_time``
+    metadata. Files written with the previous format can still be read: the
+    sample index is derived from the two start times, the complete observation
+    is assumed to end with the samples in the file, and ``start_time_simulation``
+    is set to the start of the observation, because the HWP phase of those
+    simulations restarted at each observation.
 
   - ``sampling_rate_hz`` (Float)
 

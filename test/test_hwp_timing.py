@@ -2,6 +2,7 @@
 
 from decimal import Decimal, localcontext
 
+import h5py
 import numpy as np
 import pytest
 from astropy.time import Time
@@ -170,15 +171,12 @@ def test_standalone_observation_time_reference():
     assert obs.start_time_simulation == 25.0
     assert obs.start_time_observation == 25.0
     assert obs.start_time_local == 25.0
-    assert not hasattr(obs, "start_time")
     assert obs.end_time_observation == 27.5
-    assert not hasattr(obs, "start_time_global")
-    assert not hasattr(obs, "end_time_global")
     assert obs.n_samples_observation == obs.n_samples_local == 10
     assert obs.start_sample_observation == 0
-    assert not hasattr(obs, "n_samples_global")
-    assert not hasattr(obs, "n_samples")
-    assert not hasattr(obs, "start_sample")
+    # The old names are deprecated aliases (see test_observations.py)
+    with pytest.warns(DeprecationWarning):
+        assert obs.start_time == obs.start_time_local
 
 
 @pytest.mark.parametrize("use_astropy", [False, True])
@@ -274,3 +272,71 @@ def test_hwp_phase_one_year_after_epoch():
         )
     # ~1.3e8 rad accumulated phase: float64 argument rounding dominates.
     _assert_phase(obs.get_hwp_angle(), expected, atol=5e-8)
+
+
+def _downgrade_to_legacy_format(path):
+    """Rewrite the time metadata of a file as it was written before #609"""
+    with h5py.File(path, "r+") as inpf:
+        # Quaternions stored their Astropy start time as an ISO string
+        for dataset in inpf.values():
+            if "start_time_scale" in dataset.attrs:
+                start_time = lbs.io._read_time_attribute(dataset, "start_time").utc
+                start_time.precision = 9
+                dataset.attrs["start_time"] = start_time.isot
+                del dataset.attrs["start_time_scale"]
+
+        tod = inpf["tod"]
+        start_time = lbs.io._read_time_attribute(tod, "start_time_local")
+        start_time_global = lbs.io._read_time_attribute(tod, "start_time_observation")
+        for name in (
+            "start_time_local",
+            "start_time_observation",
+            "end_time_observation",
+            "start_time_simulation",
+        ):
+            del tod.attrs[name]
+            if f"{name}_scale" in tod.attrs:
+                del tod.attrs[f"{name}_scale"]
+        del tod.attrs["n_samples_observation"]
+        del tod.attrs["start_sample_observation"]
+
+        if isinstance(start_time, Time):
+            tod.attrs["start_time"] = start_time.utc.to_value("mjd", subfmt="bytes")
+            tod.attrs["start_time_global"] = start_time_global.utc.to_value(
+                "mjd", subfmt="bytes"
+            )
+            tod.attrs["mjd_time"] = True
+        else:
+            tod.attrs["start_time"] = start_time
+            tod.attrs["start_time_global"] = start_time_global
+            tod.attrs["mjd_time"] = False
+
+
+@pytest.mark.parametrize("use_astropy", [False, True])
+def test_read_legacy_observation(tmp_path, use_astropy):
+    start = Time("2026-01-01T00:00:00.125", scale="utc") if use_astropy else 100.125
+    sim = _make_simulation(tmp_path, start, 3, duration_s=12.75)
+    original = sim.observations[-1]
+    files = lbs.write_list_of_observations(
+        original,
+        path=tmp_path,
+        collective_mpi_call=False,
+        file_name_mask="legacy_{mpi_rank}.h5",
+    )
+    _downgrade_to_legacy_format(files[0])
+
+    loaded = read_one_observation(files[0])
+    assert loaded is not None
+    assert loaded.start_sample_observation == original.start_sample_observation
+    assert loaded.n_samples_local == original.n_samples_local
+    assert _elapsed_s(loaded.start_time_local, original.start_time_local) == (
+        pytest.approx(0.0, abs=1e-6)
+    )
+    np.testing.assert_allclose(
+        loaded.get_pointings(0)[0], original.get_pointings(0)[0], atol=1e-8
+    )
+
+    # The HWP phase of old simulations was referred to the observation start
+    elapsed = _elapsed_s(loaded.start_time_local, original.start_time_observation)
+    expected = 0.37 + 0.73 * (elapsed + np.arange(loaded.n_samples_local) / 4.0)
+    _assert_phase(loaded.get_hwp_angle(), expected, atol=1e-8)

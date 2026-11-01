@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, cast
@@ -32,6 +33,35 @@ def _center_pointings(
     pointings[..., 0:2] = hpx.pix2ang(
         hpx.ang2pix(pointings[..., 0:2], nthreads=nthreads), nthreads=nthreads
     )
+
+
+# Attributes of `Observation` renamed when the time references were made
+# explicit; the old names still work for reading, with a DeprecationWarning
+_DEPRECATED_OBSERVATION_ATTRIBUTES = {
+    "start_time": "start_time_local",
+    "start_time_global": "start_time_observation",
+    "end_time_global": "end_time_observation",
+    "n_samples": "n_samples_local",
+    "n_samples_global": "n_samples_observation",
+    "start_sample": "start_sample_observation",
+}
+
+
+def _deprecated_argument(old_name: str, old_value, new_name: str, new_value):
+    """Return the value of a constructor argument that might use its old name"""
+    if old_value is not None:
+        if new_value is not None:
+            raise TypeError(f"Pass either {new_name} or {old_name}, not both")
+        warnings.warn(
+            f"Observation({old_name}=...) is deprecated, use {new_name}",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        return old_value
+
+    if new_value is None:
+        raise TypeError(f"Observation() missing required argument '{new_name}'")
+    return new_value
 
 
 @dataclass
@@ -211,9 +241,11 @@ class Observation:
     def __init__(
         self,
         detectors: int | list[dict],
-        n_samples_observation: int,
-        start_time_observation: float | astropy.time.Time,
-        sampling_rate_hz: float,
+        # The defaults only permit the deprecated names below; these three
+        # arguments are required
+        n_samples_observation: int | None = None,
+        start_time_observation: float | astropy.time.Time | None = None,
+        sampling_rate_hz: float | None = None,
         allocate_tod=True,
         tods=None,
         det_blocks_attributes: list[str] | None = None,
@@ -222,7 +254,26 @@ class Observation:
         comm=None,
         root=0,
         start_time_simulation: float | astropy.time.Time | None = None,
+        n_samples_global: int | None = None,
+        start_time_global: float | astropy.time.Time | None = None,
     ):
+        n_samples_observation = _deprecated_argument(
+            "n_samples_global",
+            n_samples_global,
+            "n_samples_observation",
+            n_samples_observation,
+        )
+        start_time_observation = _deprecated_argument(
+            "start_time_global",
+            start_time_global,
+            "start_time_observation",
+            start_time_observation,
+        )
+        if sampling_rate_hz is None:
+            raise TypeError(
+                "Observation() missing required argument 'sampling_rate_hz'"
+            )
+
         if tods is None:
             tods = [
                 TodDescription(
@@ -332,6 +383,22 @@ class Observation:
         # By default this is set to False, prepare_pointings() can change its value
         self.has_hwp = False
         self.hwp = None
+
+    def __getattr__(self, name):
+        # Only called when `name` is not found: existing attributes are not slowed
+        # down, and `hasattr` keeps returning False for the missing ones
+        new_name = _DEPRECATED_OBSERVATION_ATTRIBUTES.get(name)
+        if new_name is None:
+            raise AttributeError(
+                f"'{type(self).__name__}' object has no attribute '{name}'"
+            )
+
+        warnings.warn(
+            f"Observation.{name} is deprecated, use Observation.{new_name}",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return getattr(self, new_name)
 
     @property
     def sampling_rate_hz(self):

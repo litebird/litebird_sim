@@ -1532,7 +1532,7 @@ class Simulation:
         span = distribute_optimally(
             elements=observations,
             num_of_groups=self.mpi_comm.size,
-            weight_fn=lambda obs: obs.n_samples_local,
+            weight_fn=lambda obs: obs.n_samples_observation,
         )[cur_rank]
 
         self.observations = observations[

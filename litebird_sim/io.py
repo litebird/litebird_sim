@@ -62,18 +62,72 @@ def _read_time_attribute(dataset: h5py.Dataset, name: str) -> float | astropy.ti
     scale = dataset.attrs.get(f"{name}_scale")
     if scale is not None:
         return astropy.time.Time(value[0], value[1], format="jd", scale=scale)
+    if isinstance(value, (str, bytes)):
+        # Older files store the Astropy times of quaternions as ISO strings
+        return astropy.time.Time(value.decode() if isinstance(value, bytes) else value)
     return float(value)
+
+
+def _read_observation_times(hdf5_tod: h5py.Dataset, path) -> dict:
+    """Return the time and sample references of a TOD dataset.
+
+    Files written before the explicit time references only store the local
+    start time and, since #597, the start of the observation. The HWP phase of
+    those simulations was referred to the start of each observation, so this
+    is used as ``start_time_simulation`` to keep the angles consistent with the
+    stored TOD. The complete length of the observation is unknown and is set
+    to the end of the samples in the file.
+    """
+    if "start_time_local" in hdf5_tod.attrs:
+        return {
+            "start_time_observation": _read_time_attribute(
+                hdf5_tod, "start_time_observation"
+            ),
+            "start_time_simulation": _read_time_attribute(
+                hdf5_tod, "start_time_simulation"
+            ),
+            "n_samples_observation": int(hdf5_tod.attrs["n_samples_observation"]),
+            "start_sample_observation": int(hdf5_tod.attrs["start_sample_observation"]),
+        }
+
+    log.warning(
+        "File %s uses the old time metadata: the HWP phase is referred to "
+        "the start of the observation, as when it was simulated",
+        path,
+    )
+    start_time = hdf5_tod.attrs["start_time"]
+    start_time_observation = hdf5_tod.attrs.get("start_time_global", start_time)
+    if hdf5_tod.attrs["mjd_time"]:
+        start_time = astropy.time.Time(start_time, format="mjd")
+        start_time_observation = astropy.time.Time(start_time_observation, format="mjd")
+        offset_s = (start_time - start_time_observation).to("s").value
+    else:
+        start_time = np.asarray(start_time).item()
+        start_time_observation = np.asarray(start_time_observation).item()
+        offset_s = start_time - start_time_observation
+
+    start_sample = int(round(offset_s * hdf5_tod.attrs["sampling_rate_hz"]))
+    return {
+        "start_time_observation": start_time_observation,
+        "start_time_simulation": start_time_observation,
+        "n_samples_observation": start_sample + hdf5_tod.shape[1],
+        "start_sample_observation": start_sample,
+    }
 
 
 class DetectorJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, RotQuaternion):
             result = {
-                "start_time": o.start_time
-                if isinstance(o.start_time, float) or o.start_time is None
-                else str(o.start_time),
+                "start_time": o.start_time,
                 "sampling_rate_hz": o.sampling_rate_hz,
             }
+            if isinstance(o.start_time, astropy.time.Time):
+                # `str()` would round the time to the millisecond
+                full_precision_time = o.start_time.copy()
+                full_precision_time.precision = 9
+                result["start_time"] = full_precision_time.isot
+                result["start_time_scale"] = o.start_time.scale
 
             if o.quats.nbytes < 1024:
                 # Only save the quaternions if they do not occupy too much memory
@@ -674,18 +728,7 @@ def read_one_observation(
             )
             hdf5_tod = inpf[cur_field_name]
 
-            start_time_local = _read_time_attribute(hdf5_tod, "start_time_local")
-            n_samples_observation = int(hdf5_tod.attrs["n_samples_observation"])
-            start_sample_observation = int(hdf5_tod.attrs["start_sample_observation"])
-            start_time_observation = _read_time_attribute(
-                hdf5_tod, "start_time_observation"
-            )
-            start_time_simulation = _read_time_attribute(
-                hdf5_tod, "start_time_simulation"
-            )
-            end_time_observation = _read_time_attribute(
-                hdf5_tod, "end_time_observation"
-            )
+            times = _read_observation_times(hdf5_tod, path)
 
             tod_full_fields[cur_field_idx].description = hdf5_tod.attrs.get(
                 "description", ""
@@ -722,9 +765,9 @@ def read_one_observation(
 
                 result = Observation(
                     detectors=[asdict(d) for d in detectors],
-                    n_samples_observation=n_samples_observation,
-                    start_time_observation=start_time_observation,
-                    start_time_simulation=start_time_simulation,
+                    n_samples_observation=times["n_samples_observation"],
+                    start_time_observation=times["start_time_observation"],
+                    start_time_simulation=times["start_time_simulation"],
                     n_blocks_det=1,
                     n_blocks_time=1,
                     allocate_tod=False,
@@ -733,10 +776,11 @@ def read_one_observation(
                     tods=tod_full_fields,
                 )
                 # Keep full-observation counts and sample indices while storing
-                # only the fragment available in this file.
-                result._set_sample_range(start_sample_observation, hdf5_tod.shape[1])
-                result.start_time_local = start_time_local
-                result.end_time_observation = end_time_observation
+                # only the fragment available in this file. The local start
+                # time is derived from the observation start and the index.
+                result._set_sample_range(
+                    times["start_sample_observation"], hdf5_tod.shape[1]
+                )
                 result.det_idx = np.array(json.loads(inpf.attrs["det_idx"]))
                 # Copy the TOD in the newly created observation
                 result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])

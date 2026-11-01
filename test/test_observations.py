@@ -3,6 +3,7 @@
 import astropy.time as astrotime
 import numpy as np
 import numpy.testing as nptest
+import pytest
 
 import litebird_sim as lbs
 
@@ -62,3 +63,40 @@ def test_observation_tod_array():
 
     assert obs.tod.shape == (3, 10)
     assert obs.tod.dtype == np.float32
+
+
+def test_deprecated_observation_names():
+    with pytest.warns(DeprecationWarning, match="n_samples_global"):
+        obs = lbs.Observation(
+            detectors=1,
+            n_samples_global=10,
+            start_time_global=2.0,
+            sampling_rate_hz=5.0,
+        )
+    assert obs.n_samples_observation == 10
+    assert obs.start_time_observation == 2.0
+
+    for old_name, new_name in [
+        ("start_time", "start_time_local"),
+        ("start_time_global", "start_time_observation"),
+        ("end_time_global", "end_time_observation"),
+        ("n_samples", "n_samples_local"),
+        ("n_samples_global", "n_samples_observation"),
+        ("start_sample", "start_sample_observation"),
+    ]:
+        with pytest.warns(DeprecationWarning, match=new_name):
+            assert getattr(obs, old_name) == getattr(obs, new_name)
+
+    # Unknown attributes must still be missing, as code relies on `hasattr`
+    assert not hasattr(obs, "hwp_angle")
+
+    with pytest.raises(TypeError):
+        lbs.Observation(
+            detectors=1,
+            n_samples_observation=10,
+            n_samples_global=10,
+            start_time_observation=0.0,
+            sampling_rate_hz=5.0,
+        )
+    with pytest.raises(TypeError):
+        lbs.Observation(detectors=1, start_time_observation=0.0, sampling_rate_hz=5.0)

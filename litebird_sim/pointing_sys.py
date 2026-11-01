@@ -460,6 +460,14 @@ class HWPCoord:
         expected pointing direction far from a angular distance of `self.tilt_angle_rad`.
         The pointing rotation frequency is determined by `self.ang_speed_radpsec`.
 
+        The phase is referred to :attr:`.Observation.start_time_simulation`, like the
+        HWP angle, so it is continuous across observations and MPI processes.
+
+        Memory: the disturbance is sampled at the sampling rate of the detectors and
+        multiplied into the quaternion of each detector, which then stores four 64-bit
+        numbers per sample (32 bytes, i.e., 8 times a 32-bit TOD); these quaternions
+        are also saved by :func:`.write_observations`.
+
         Args:
             tilt_angle_rad (`float`): The tilted pointing angle from the expected pointing direction.
 

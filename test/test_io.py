@@ -412,3 +412,23 @@ def test_rot_quaternion_start_time_roundtrip(tmp_path):
 
         assert result.start_time == start_time
         assert result.start_time.scale == start_time.scale
+
+
+def test_detector_json_quaternion_start_time():
+    # The JSON metadata must keep the precision and the scale of the start time
+    start_time = AstroTime("2021-01-01T01:19:59.333333333", scale="tdb")
+    quat = lbs.RotQuaternion(
+        quats=np.array([[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]]),
+        start_time=start_time,
+        sampling_rate_hz=3.0,
+    )
+    record = json.loads(
+        json.dumps(
+            {"name": "det", "bandcenter_ghz": 100.0, "quat": quat},
+            cls=lbs.io.DetectorJSONEncoder,
+        )
+    )
+    result = lbs.DetectorInfo.from_dict(record).quat
+
+    assert result.start_time == start_time
+    assert result.start_time.scale == "tdb"
