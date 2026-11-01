@@ -923,6 +923,67 @@ def test_binner_split_list_over_processes():
     assert np.allclose(invnpp[0], invnpp[1])
 
 
+def test_h_maps_observations_split_over_processes(mpi_tmp_path):
+    # With num_of_obs_per_detector > 1 the observations of each detector are
+    # spread over the processes: the h maps of a detector must sum all of
+    # them, as if its samples were in one observation
+    from litebird_sim.mapmaking.h_maps import load_h_maps_from_file
+
+    comm = lbs.MPI_COMM_WORLD
+    sim = lbs.Simulation(start_time=0.0, duration_s=600.0, random_seed=1, mpi_comm=comm)
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45),
+            precession_rate_hz=1 / 3600 / 3.2,
+            spin_rate_hz=0.05 / 60,
+        )
+    )
+    sim.set_instrument(lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50)))
+    dets = [
+        lbs.DetectorInfo(name=n, sampling_rate_hz=1.0, pol_angle_rad=angle)
+        for n, angle in (("a", 0.0), ("b", 0.4))
+    ]
+    sim.create_observations(detectors=dets, num_of_obs_per_detector=2 * comm.size)
+    sim.prepare_pointings()
+
+    n_m_couples = np.array([[0, 0], [2, 0], [4, 0]])
+    kwargs = dict(
+        nside=4,
+        n_m_couples=n_m_couples,
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+    )
+    result = sim.make_h_maps(output_directory=str(mpi_tmp_path), **kwargs)
+
+    # Reference: one serial observation with the samples of all processes
+    local = [(obs.start_time, obs.get_pointings("all")[0]) for obs in sim.observations]
+    all_local = comm.allgather(local) if lbs.MPI_ENABLED else [local]
+    chunks = sorted(sum(all_local, []), key=lambda x: x[0])
+    ref_pointings = np.concatenate([ptg for _, ptg in chunks], axis=1)
+    ref_obs = lbs.Observation(
+        detectors=[{"name": d.name, "pol_angle_rad": d.pol_angle_rad} for d in dets],
+        n_samples_global=ref_pointings.shape[1],
+        start_time_global=0.0,
+        sampling_rate_hz=1.0,
+        allocate_tod=False,
+    )
+    reference = lbs.make_h_maps(
+        observations=ref_obs, pointings=ref_pointings, save_to_file=False, **kwargs
+    )
+
+    # The first process observes both detectors, so it owns (and saves) their maps
+    if comm.rank != 0:
+        assert result.h_maps == {}
+        return
+    assert set(result.h_maps) == {"a", "b"}
+    for name in ("a", "b"):
+        loaded = load_h_maps_from_file(mpi_tmp_path / f"h_maps_det_{name}.h5")
+        for pair, ref_map in reference.h_maps[name].items():
+            for cur_map in (result.h_maps[name][pair], loaded.h_maps[name][pair]):
+                np.testing.assert_allclose(cur_map.real, ref_map.real, atol=1e-12)
+                np.testing.assert_allclose(cur_map.imag, ref_map.imag, atol=1e-12)
+    assert result.h_maps["a"][0, 0].real.sum() == ref_pointings.shape[1]
+
+
 def test_describe_mpi_layout():
     # A compact summary of the distribution, consistent on every process
     size = lbs.MPI_COMM_WORLD.size

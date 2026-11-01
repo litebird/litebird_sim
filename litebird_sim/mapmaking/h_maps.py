@@ -25,6 +25,7 @@ from .common import (
     _build_mask_detector_split,
     _build_mask_time_split,
     _compute_pixel_indices_single_detector,
+    _get_reduction_comm,
 )
 
 log = logging.getLogger(__name__)
@@ -317,13 +318,38 @@ def make_h_maps(
             det = cur_obs.name[idet]
             detector_observations.setdefault(det, []).append((obs_idx, idet))
 
+    # Observations split in time over the MPI processes put the same detector
+    # on several processes. Each detector is owned by the lowest rank that
+    # observes it: its partial sums are reduced there, and only the owner
+    # solves, keeps and saves the maps of that detector.
+    comm = _get_reduction_comm(obs_list)
+    rank = comm.rank if comm is not None else 0
+    if comm is not None and comm.size > 1:
+        dets_per_rank = comm.allgather(list(detector_observations))
+    else:
+        dets_per_rank = [list(detector_observations)]
+    owner = {}
+    shared_dets = set()
+    for cur_rank, dets in enumerate(dets_per_rank):
+        for det in dets:
+            if det in owner:
+                shared_dets.add(det)
+            else:
+                owner[det] = cur_rank
+
     # Repeated spin pairs must not accumulate the same samples twice.
     spin_pairs = list(dict.fromkeys(map(tuple, n_m_couples)))
-    h_maps = {det: {} for det in detector_observations}
+    h_maps = {det: {} for det in owner if owner[det] == rank}
     hpx = Healpix_Base(nside, "RING")
-    for det, entries in detector_observations.items():
-        nobs_matrices = {}
-        for obs_idx, idet in entries:
+    n_pix = HealpixMap.nside_to_npix(nside)
+    # Same order on all processes, as the reductions are collective
+    for det in sorted(owner, key=str):
+        is_shared = det in shared_dets
+        if owner[det] != rank and not is_shared:
+            continue
+
+        nobs_matrices = {pair: np.zeros((n_pix, 3)) for pair in spin_pairs}
+        for obs_idx, idet in detector_observations.get(det, []):
             cur_obs = obs_list[obs_idx]
             cur_ptg = ptg_list[obs_idx]
             cur_t_mask = time_mask_list[obs_idx]
@@ -357,11 +383,27 @@ def make_h_maps(
                     polang=polang,
                     hwp_angle=hwp_angle,
                     time_mask=cur_t_mask,
-                    nobs_matrix=nobs_matrices.get((n, m)),
+                    nobs_matrix=nobs_matrices[n, m],
                 )
             del pixidx
             del polang
             gc.collect()
+
+        if is_shared:
+            from litebird_sim.mpi import MPI
+
+            for (n, m), nobs_matrix in nobs_matrices.items():
+                if rank == owner[det]:
+                    comm.Reduce(MPI.IN_PLACE, nobs_matrix, op=MPI.SUM, root=rank)
+                    if (n, m) == (0, 0):
+                        # Each process set the normalization to one in the
+                        # pixels it observed: keep it at one after the sum
+                        np.minimum(nobs_matrix[:, 0], 1.0, out=nobs_matrix[:, 0])
+                else:
+                    comm.Reduce(nobs_matrix, None, op=MPI.SUM, root=owner[det])
+
+        if owner[det] != rank:
+            continue
 
         # Solve once, after every observation of this detector has contributed.
         for n, m in spin_pairs:
@@ -408,8 +450,8 @@ def save_h_maps(result, output_directory: str) -> None:
     :rtype: None
     """
 
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
+    # Several MPI processes may create the directory at the same time
+    os.makedirs(output_directory, exist_ok=True)
     for det in result.h_maps.keys():
         with h5py.File(
             os.path.join(output_directory, f"h_maps_det_{det}.h5"), "w"
