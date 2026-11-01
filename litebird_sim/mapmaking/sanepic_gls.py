@@ -631,7 +631,9 @@ def compute_sanepic_beam_templates(
             )
             for k, v in tods.items():
                 if k not in out:
-                    out[k] = np.empty((obs.n_detectors, obs.n_samples_local), dtype=dtype)
+                    out[k] = np.empty(
+                        (obs.n_detectors, obs.n_samples_local), dtype=dtype
+                    )
                 out[k][det_idx] = v
         for k, v in out.items():
             setattr(obs, k, v)
