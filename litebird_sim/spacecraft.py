@@ -353,15 +353,15 @@ def compute_start_and_span_for_obs(
 
     start_time, end_time = None, None
     for cur_obs in obs_list:
-        assert isinstance(cur_obs.start_time, astropy.time.Time), (
+        assert isinstance(cur_obs.start_time_local, astropy.time.Time), (
             "You must use astropy.time.Time in Observation objects"
         )
 
-        cur_start_time = cur_obs.start_time
+        cur_start_time = cur_obs.start_time_local
         if (start_time is None) or (cur_start_time < start_time):
             start_time = cur_start_time
 
-        cur_end_time = cur_obs.start_time + cur_obs.get_time_span()
+        cur_end_time = cur_obs.start_time_local + cur_obs.get_time_span()
         if (end_time is None) or (end_time > cur_end_time):
             end_time = cur_end_time
 

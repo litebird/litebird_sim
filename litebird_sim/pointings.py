@@ -4,6 +4,7 @@ import numpy.typing as npt
 
 from .coordinates import ECL_TO_GAL_QUAT, CoordinateSystem
 from .hwp import HWP
+from .quaternions import multiply_quaternions_list_x_list
 from .scanning import (
     all_compute_pointing_and_orientation,
     RotQuaternion,
@@ -105,7 +106,7 @@ class PointingProvider:
         pointings, hwp = provider.get_pointings(
         ...     detector_quat=det_q,
         ...     start_time=0.0,
-        ...     start_time_global=0.0,
+        ...     start_time_simulation=0.0,
         ...     sampling_rate_hz=10.0,
         ...     nsamples=1000
         ... )
@@ -163,7 +164,7 @@ class PointingProvider:
         self,
         detector_quat: RotQuaternion,
         start_time: int | float | astropy.time.Time,
-        start_time_global: int | float | astropy.time.Time,
+        start_time_simulation: int | float | astropy.time.Time,
         sampling_rate_hz: float,
         nsamples: int,
         pointing_buffer: npt.NDArray | None = None,
@@ -187,7 +188,7 @@ class PointingProvider:
                 The timestamp of the first sample for which pointings are required. Can be either
                 a float (in seconds) or an `astropy.time.Time` object.
 
-            start_time_global (float or astropy.time.Time):
+            start_time_simulation (float or astropy.time.Time):
                 The absolute start time of the simulation. Must be of the same type as `start_time`.
 
             sampling_rate_hz (float):
@@ -225,20 +226,20 @@ class PointingProvider:
 
         Raises:
             AssertionError:
-                If `start_time` and `start_time_global` are of different types (i.e.,
+                If `start_time` and `start_time_simulation` are of different types (i.e.,
                 one is a float and the other is an `astropy.time.Time`).
         """
 
         if isinstance(start_time, astropy.time.Time):
-            assert isinstance(start_time_global, astropy.time.Time), (
-                "The start_time is a astropy.time.Time object, so start_time_global must also be an astropy.time.Time object."
+            assert isinstance(start_time_simulation, astropy.time.Time), (
+                "The start_time is a astropy.time.Time object, so start_time_simulation must also be an astropy.time.Time object."
             )
-            start_time_s = (start_time - start_time_global).to("s").value
+            start_time_s = (start_time - start_time_simulation).to("s").value
         else:
-            assert isinstance(start_time_global, (int, float)), (
-                "The start_time is a float, so start_time_global must also be a float."
+            assert isinstance(start_time_simulation, (int, float)), (
+                "The start_time is a float, so start_time_simulation must also be a float."
             )
-            start_time_s = start_time - start_time_global
+            start_time_s = start_time - start_time_simulation
 
         # The HWP angle does not depend on the detector: callers looping over the
         # detectors of an observation should compute it only once
@@ -272,16 +273,41 @@ class PointingProvider:
             )
             if output_coordinate_system == CoordinateSystem.Galactic:
                 bore2output_quats = RotQuaternion(ECL_TO_GAL_QUAT) * bore2output_quats
-            det_to_output_quats = bore2output_quats * _slice_quaternions(
+            detector_block = _slice_quaternions(
                 detector_quat,
                 start_time=cur_time,
                 time_span_s=cur_block_length / sampling_rate_hz,
             )
-            cur_quaternions = det_to_output_quats.slerp(
-                start_time=cur_time,
-                sampling_rate_hz=sampling_rate_hz,
-                nsamples=cur_block_length,
-            )
+            if detector_block.start_time is None:
+                det_to_output_quats = bore2output_quats * detector_block
+                cur_quaternions = det_to_output_quats.slerp(
+                    start_time=cur_time,
+                    sampling_rate_hz=sampling_rate_hz,
+                    nsamples=cur_block_length,
+                )
+            else:
+                # Time-dependent detector rotations (e.g. HWP wedge) can use
+                # a different grid from the spacecraft. Interpolate each on
+                # the requested sample grid before composing the rotations.
+                detector_samples = detector_block.slerp(
+                    start_time=cur_time,
+                    sampling_rate_hz=sampling_rate_hz,
+                    nsamples=cur_block_length,
+                )
+                if bore2output_quats.start_time is None:
+                    bore_samples = np.broadcast_to(
+                        bore2output_quats.quats, detector_samples.shape
+                    )
+                else:
+                    bore_samples = bore2output_quats.slerp(
+                        start_time=cur_time,
+                        sampling_rate_hz=sampling_rate_hz,
+                        nsamples=cur_block_length,
+                    )
+                cur_quaternions = np.empty_like(detector_samples)
+                multiply_quaternions_list_x_list(
+                    bore_samples, detector_samples, cur_quaternions
+                )
             all_compute_pointing_and_orientation(
                 result_matrix=pointing_buffer[
                     start_sample : (start_sample + cur_block_length), :
@@ -303,7 +329,7 @@ class PointingProvider:
     def get_hwp_angle(
         self,
         start_time: int | float | astropy.time.Time,
-        start_time_global: int | float | astropy.time.Time,
+        start_time_simulation: int | float | astropy.time.Time,
         sampling_rate_hz: float,
         nsamples: int,
         hwp_buffer: npt.NDArray | None = None,
@@ -320,7 +346,7 @@ class PointingProvider:
                 Time of the first sample for which the HWP angle is computed.
                 Can be a float (in seconds) or an `astropy.time.Time` object.
 
-            start_time_global (float or astropy.time.Time):
+            start_time_simulation (float or astropy.time.Time):
                 Absolute start time of the simulation. Must be the same type as `start_time`.
 
             sampling_rate_hz (float):
@@ -343,7 +369,7 @@ class PointingProvider:
 
         Raises:
             AssertionError:
-                If `start_time` and `start_time_global` are not of the same type.
+                If `start_time` and `start_time_simulation` are not of the same type.
         """
 
         if self.hwp is not None:
@@ -351,15 +377,15 @@ class PointingProvider:
                 hwp_buffer = np.empty(nsamples, dtype=pointings_dtype)
 
             if isinstance(start_time, astropy.time.Time):
-                assert isinstance(start_time_global, astropy.time.Time), (
-                    "The start_time is a astropy.time.Time object, so start_time_global must also be an astropy.time.Time object."
+                assert isinstance(start_time_simulation, astropy.time.Time), (
+                    "The start_time is a astropy.time.Time object, so start_time_simulation must also be an astropy.time.Time object."
                 )
-                start_time_s = (start_time - start_time_global).to("s").value
+                start_time_s = (start_time - start_time_simulation).to("s").value
             else:
-                assert isinstance(start_time_global, (int, float)), (
-                    "The start_time is a float, so start_time_global must also be a float."
+                assert isinstance(start_time_simulation, (int, float)), (
+                    "The start_time is a float, so start_time_simulation must also be a float."
                 )
-                start_time_s = start_time - start_time_global
+                start_time_s = start_time - start_time_simulation
 
             self.hwp.get_hwp_angle(
                 output_buffer=hwp_buffer,

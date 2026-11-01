@@ -3,6 +3,13 @@
 Half Wave Plate
 ===============
 
+The initial mechanical angle ``start_angle_rad`` is defined at
+``obs.start_time_simulation``. For constant angular speed, the angle is
+``start_angle_rad + ang_speed_radpsec * (t - start_time_simulation)``, wrapped
+to the angular range returned by the HWP model. This reference is shared by
+all observations and MPI processes, so splitting a simulation does not reset
+the HWP phase. See :ref:`observations` for the observation time references.
+
 The rotation of the polarization angle induced by a HWP can be
 included in the returned pointing information by passing an instance
 of IdealHWP, a descendant of the class :class:`.HWP`, to the method

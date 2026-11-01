@@ -450,7 +450,7 @@ number generator provided by the :class:`.Simulation` and seeded with
 
   sim.fill_tods(maps=maps)
 
-  times = sim.observations[0].get_times() - sim.observations[0].start_time.cxcsec
+  times = sim.observations[0].get_times() - sim.observations[0].start_time_local.cxcsec
 
   plt.plot(times,sim.observations[0].tod[0,:])
   plt.xlabel("Time [s]")

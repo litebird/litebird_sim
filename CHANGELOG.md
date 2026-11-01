@@ -1,5 +1,26 @@
 # HEAD
 
+-   **Breaking change**: observation time references are now explicit:
+    `start_time`, `start_time_global` and `end_time_global` are renamed to
+    `start_time_local`, `start_time_observation` and `end_time_observation`,
+    with no aliases.
+    Sample metadata follows the same naming: `n_samples_global`, `n_samples`
+    and `start_sample` become `n_samples_observation`, `n_samples_local` and
+    `start_sample_observation`. HDF5 files preserve the complete-observation
+    sample count and the local block's starting index; reading an MPI fragment
+    allocates only its stored samples and retains its normalized sample times.
+    `Observation` also accepts `start_time_simulation` (defaults to the
+    observation start for standalone observations); `Simulation` sets it to
+    `sim.start_time`. `PointingProvider` uses `start_time_simulation` instead of
+    `start_time_global`. HWP angles and HWP wedge disturbances now keep a
+    continuous phase across observation and MPI boundaries. Outputs of
+    simulations split into multiple observations change. Observation HDF5 files
+    use the new time names and store Astropy times as `(jd1, jd2)` with their
+    scale, replacing the old MJD metadata; old files require conversion.
+    Time-dependent detector rotations are interpolated on the detector sample
+    grid before composition with the spacecraft rotation, allowing HWP wedge
+    disturbances on observations whose time grids differ from the spacecraft.
+
 -   Fix a race in the generic Mueller HWP path of `scan_map`: shared temporary Stokes vectors and rotation matrices could corrupt the TOD when running with multiple Numba threads. The kernel now expands the Mueller products in scalars, so it shares no mutable state and allocates nothing per sample; this also makes it ~20× faster.
 
 -   Fix the noise normalization of the pair-differencing map-maker: the variance of the detector difference is the sum of the two detector variances. The Q/U maps are unchanged up to roundoff, while their covariance is twice the previous value and the corresponding residual chi-square is halved.

@@ -73,7 +73,7 @@ sim.prepare_pointings()
 start = time.perf_counter_ns()
 
 pointings_and_orientation = np.empty(
-    shape=(len(sim.detectors), sim.observations[0].n_samples, 3),
+    shape=(len(sim.detectors), sim.observations[0].n_samples_local, 3),
     dtype=np.float64,
 )
 for cur_obs in sim.observations:

@@ -1012,7 +1012,7 @@ def get_quaternion_buffer_shape(observations, num_of_detectors=None):
     if not num_of_detectors:
         num_of_detectors = observations.n_detectors
 
-    return (observations.n_samples, num_of_detectors, 4)
+    return (observations.n_samples_local, num_of_detectors, 4)
 
 
 def get_det2ecl_quaternions(
@@ -1029,7 +1029,7 @@ def get_det2ecl_quaternions(
     quaternions that convert a vector in detector's coordinates
     into the frame of reference of the Ecliptic. The number of
     quaternions is equal to the number of samples hold in this
-    observation, ``observations.n_samples``.
+    observation, ``observations.n_samples_local``.
     Given that the z axis in the frame of reference of a detector
     points along the main beam axis, this means that if you use
     these quaternions to rotate the vector `z = [0, 0, 1]`, you
@@ -1062,9 +1062,9 @@ def get_det2ecl_quaternions(
     for idx, detector_quat in enumerate(detector_quats):
         complete_quaternion = spin2ecliptic_quats * bore2spin_quat * detector_quat
         quaternion_buffer[:, idx, :] = complete_quaternion.slerp(
-            start_time=observations.start_time,
+            start_time=observations.start_time_local,
             sampling_rate_hz=observations.sampling_rate_hz,
-            nsamples=observations.n_samples,
+            nsamples=observations.n_samples_local,
         )
 
     return quaternion_buffer

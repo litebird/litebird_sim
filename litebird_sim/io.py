@@ -44,6 +44,27 @@ __OBSERVATION_FILE_NAME_MASK = "litebird_tod{global_index:04d}.h5"
 __FLAGS_GROUP_NAME_REGEXP = re.compile("flags_([0-9]+)")
 
 
+def _write_time_attribute(
+    dataset: h5py.Dataset,
+    name: str,
+    value: float | astropy.time.Time,
+) -> None:
+    """Store a numeric time or an Astropy time without losing its scale or precision."""
+    if isinstance(value, astropy.time.Time):
+        dataset.attrs[name] = (value.jd1, value.jd2)
+        dataset.attrs[f"{name}_scale"] = value.scale
+    else:
+        dataset.attrs[name] = float(value)
+
+
+def _read_time_attribute(dataset: h5py.Dataset, name: str) -> float | astropy.time.Time:
+    value = dataset.attrs[name]
+    scale = dataset.attrs.get(f"{name}_scale")
+    if scale is not None:
+        return astropy.time.Time(value[0], value[1], format="jd", scale=scale)
+    return float(value)
+
+
 class DetectorJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, RotQuaternion):
@@ -84,17 +105,7 @@ def write_rot_quaternion_to_hdf5(
     )
 
     if rot_matrix.start_time is not None:
-        if isinstance(rot_matrix.start_time, astropy.time.Time):
-            # Save the time with nanosecond precision: `str()` rounds it to the
-            # millisecond (the start of a slice of quaternions is not always a
-            # round number), and it would not be readable if the format is MJD
-            full_precision_time = rot_matrix.start_time.copy()
-            full_precision_time.precision = 9
-            start_time = full_precision_time.isot
-        else:
-            start_time = float(rot_matrix.start_time)
-
-        new_dataset.attrs["start_time"] = start_time
+        _write_time_attribute(new_dataset, "start_time", rot_matrix.start_time)
 
     if rot_matrix.sampling_rate_hz is not None:
         new_dataset.attrs["sampling_rate_hz"] = float(rot_matrix.sampling_rate_hz)
@@ -108,9 +119,11 @@ def read_rot_quaternion_from_hdf5(
 ) -> RotQuaternion:
     dataset = input_file[field_name]
 
-    start_time = dataset.attrs.get("start_time", None)
-    if isinstance(start_time, str):
-        start_time = astropy.time.Time(start_time)
+    start_time = (
+        _read_time_attribute(dataset, "start_time")
+        if "start_time" in dataset.attrs
+        else None
+    )
 
     sampling_rate_hz = dataset.attrs.get("sampling_rate_hz", None)
 
@@ -207,7 +220,7 @@ def write_one_observation(
 
     # Save only the quaternions that cover this observation: the pointing
     # provider is usually shared by all the observations of the simulation
-    time_span_s = obs.n_samples / obs.sampling_rate_hz
+    time_span_s = obs.n_samples_local / obs.sampling_rate_hz
 
     if obs.pointing_provider is not None:
         write_pointing_provider_to_hdf5(
@@ -216,7 +229,7 @@ def write_one_observation(
             pointing_provider=PointingProvider(
                 bore2ecliptic_quats=_slice_quaternions(
                     obs.pointing_provider.bore2ecliptic_quats,
-                    start_time=obs.start_time,
+                    start_time=obs.start_time_local,
                     time_span_s=time_span_s,
                 ),
                 hwp=obs.pointing_provider.hwp,
@@ -273,7 +286,7 @@ def write_one_observation(
             field_name=f"rot_quaternion_{det_idx:04d}",
             rot_matrix=_slice_quaternions(
                 obs.quat[det_idx],
-                start_time=obs.start_time,
+                start_time=obs.start_time_local,
                 time_span_s=time_span_s,
             ),
             compression=compression,
@@ -299,21 +312,15 @@ def write_one_observation(
             dtype=tod_dtype if tod_dtype else cur_field.dtype,
             compression=compression,
         )
-        if isinstance(obs.start_time, astropy.time.Time):
-            cur_dataset.attrs["start_time"] = obs.start_time.to_value(
-                format="mjd", subfmt="bytes"
-            )
-            # The HWP angle is computed from the time elapsed since
-            # `start_time_global`, which differs from `start_time` if the
-            # observation is split in time among several processes
-            cur_dataset.attrs["start_time_global"] = obs.start_time_global.to_value(
-                format="mjd", subfmt="bytes"
-            )
-            cur_dataset.attrs["mjd_time"] = True
-        else:
-            cur_dataset.attrs["start_time"] = obs.start_time
-            cur_dataset.attrs["start_time_global"] = obs.start_time_global
-            cur_dataset.attrs["mjd_time"] = False
+        for name in (
+            "start_time_local",
+            "start_time_observation",
+            "end_time_observation",
+            "start_time_simulation",
+        ):
+            _write_time_attribute(cur_dataset, name, getattr(obs, name))
+        cur_dataset.attrs["n_samples_observation"] = obs.n_samples_observation
+        cur_dataset.attrs["start_sample_observation"] = obs.start_sample_observation
 
         cur_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
         cur_dataset.attrs["detectors"] = detectors_json
@@ -328,7 +335,7 @@ def write_one_observation(
     # Save pointing information only if it is available
     if obs.pointing_provider and write_full_pointings:
         n_detectors = obs.n_detectors
-        n_samples = obs.n_samples
+        n_samples = obs.n_samples_local
 
         pointing_matrix = np.empty(shape=(n_detectors, n_samples, 3))
 
@@ -667,20 +674,18 @@ def read_one_observation(
             )
             hdf5_tod = inpf[cur_field_name]
 
-            # Files written by older versions do not have `start_time_global`
-            start_time_global = hdf5_tod.attrs.get(
-                "start_time_global", hdf5_tod.attrs["start_time"]
+            start_time_local = _read_time_attribute(hdf5_tod, "start_time_local")
+            n_samples_observation = int(hdf5_tod.attrs["n_samples_observation"])
+            start_sample_observation = int(hdf5_tod.attrs["start_sample_observation"])
+            start_time_observation = _read_time_attribute(
+                hdf5_tod, "start_time_observation"
             )
-            if hdf5_tod.attrs["mjd_time"]:
-                start_time = astropy.time.Time(
-                    hdf5_tod.attrs["start_time"], format="mjd"
-                )
-                start_time_global = astropy.time.Time(start_time_global, format="mjd")
-            else:
-                start_time = hdf5_tod.attrs["start_time"]
-                # HWP angle computation expects a native numeric scalar; HDF5
-                # integer attributes are returned as NumPy integer scalars.
-                start_time_global = np.asarray(start_time_global).item()
+            start_time_simulation = _read_time_attribute(
+                hdf5_tod, "start_time_simulation"
+            )
+            end_time_observation = _read_time_attribute(
+                hdf5_tod, "end_time_observation"
+            )
 
             tod_full_fields[cur_field_idx].description = hdf5_tod.attrs.get(
                 "description", ""
@@ -717,18 +722,21 @@ def read_one_observation(
 
                 result = Observation(
                     detectors=[asdict(d) for d in detectors],
-                    n_samples_global=hdf5_tod.shape[1],
-                    start_time_global=start_time,
+                    n_samples_observation=n_samples_observation,
+                    start_time_observation=start_time_observation,
+                    start_time_simulation=start_time_simulation,
                     n_blocks_det=1,
                     n_blocks_time=1,
-                    allocate_tod=True,
+                    allocate_tod=False,
                     sampling_rate_hz=hdf5_tod.attrs["sampling_rate_hz"],
                     comm=None if limit_mpi_rank else MPI_COMM_WORLD,
                     tods=tod_full_fields,
                 )
-                # The observation contains only the samples in this file, but
-                # its start time must still be referred to the original one
-                result.start_time_global = start_time_global
+                # Keep full-observation counts and sample indices while storing
+                # only the fragment available in this file.
+                result._set_sample_range(start_sample_observation, hdf5_tod.shape[1])
+                result.start_time_local = start_time_local
+                result.end_time_observation = end_time_observation
                 result.det_idx = np.array(json.loads(inpf.attrs["det_idx"]))
                 # Copy the TOD in the newly created observation
                 result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])

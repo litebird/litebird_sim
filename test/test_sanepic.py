@@ -138,9 +138,9 @@ def test_sanepic_flags(monkeypatch):
     sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.785, 0.0, 0.01))
     sim.prepare_pointings()
     obs = sim.observations[0]
-    obs.local_flags = np.zeros((2, obs.n_samples), dtype=np.uint16)
+    obs.local_flags = np.zeros((2, obs.n_samples_local), dtype=np.uint16)
     obs.local_flags[1, 3] = 4
-    obs.global_flags = np.zeros(obs.n_samples, dtype=np.uint8)
+    obs.global_flags = np.zeros(obs.n_samples_local, dtype=np.uint8)
     obs.global_flags[7] = 1
     lbs.make_sanepic_gls_map(
         nside=8, observations=sim.observations, flags=["local_flags", "global_flags"]
@@ -320,8 +320,8 @@ def _apply_gains(sim, seed=7):
     true = {}
     for obs in sim.observations:
         for i, name in enumerate(obs.name):
-            true[name, obs.start_time.jd] = 1 + 0.01 * rng.normal()
-            obs.tod[i] *= true[name, obs.start_time.jd]
+            true[name, obs.start_time_local.jd] = 1 + 0.01 * rng.normal()
+            obs.tod[i] *= true[name, obs.start_time_local.jd]
     return true
 
 
@@ -329,7 +329,7 @@ def _check_gains(result, sim, true, tol):
     k = 0
     for obs in sim.observations:
         for name in obs.name:
-            assert abs(result.gains[k][0] - true[name, obs.start_time.jd]) < tol
+            assert abs(result.gains[k][0] - true[name, obs.start_time_local.jd]) < tol
             k += 1
 
 
@@ -405,7 +405,9 @@ def test_sanepic_calibration_keep_solar_dipole():
     # expected: the binned map of the signal (sky + solar dipole) of the samples
     for obs in sim.observations:
         for i, name in enumerate(obs.name):
-            obs.tod[i] = obs.tod[i] / true[name, obs.start_time.jd] - obs.dipole[i]
+            obs.tod[i] = (
+                obs.tod[i] / true[name, obs.start_time_local.jd] - obs.dipole[i]
+            )
     binned = sim.make_binned_map(nside=8).binned_map
     seen = r.maps[1] != hp.UNSEEN
     assert np.abs((r.maps - binned)[:, seen]).max() < 1e-6 * amp

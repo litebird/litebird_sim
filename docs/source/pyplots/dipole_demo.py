@@ -44,7 +44,7 @@ sim.prepare_pointings()
 
 # Simulate the orbit of the spacecraft and compute positions and
 # velocities
-orbit = lbs.SpacecraftOrbit(obs.start_time)
+orbit = lbs.SpacecraftOrbit(obs.start_time_local)
 pos_vel = lbs.spacecraft_pos_and_vel(orbit, obs, delta_time_s=60.0)
 
 t = obs.get_times()

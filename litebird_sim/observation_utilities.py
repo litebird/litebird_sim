@@ -128,7 +128,7 @@ def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     `hwp`.
     """
 
-    start_time = observations.start_time - observations.start_time_global
+    start_time = observations.start_time_local - observations.start_time_simulation
     if isinstance(start_time, astropy.time.TimeDelta):
         start_time_s = start_time.to("s").value
     else:
@@ -178,14 +178,14 @@ def _get_hwp_angle(
             return None
     else:
         # Compute HWP angle from HWP object
-        start_time = obs.start_time - obs.start_time_global
+        start_time = obs.start_time_local - obs.start_time_simulation
         start_time_s = (
             start_time.to("s").value
             if isinstance(start_time, astropy.time.TimeDelta)
             else start_time
         )
 
-        hwp_angle = np.empty(obs.n_samples, dtype=pointing_dtype)
+        hwp_angle = np.empty(obs.n_samples_local, dtype=pointing_dtype)
         hwp.get_hwp_angle(
             hwp_angle,
             start_time_s,

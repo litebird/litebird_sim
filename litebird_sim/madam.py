@@ -72,7 +72,7 @@ def _save_pointings_to_fits(
         if output_coordinate_system == CoordinateSystem.Ecliptic
         else "GALACTIC"
     )
-    primary_hdu.header["TIME0"] = _format_time_for_fits(observation.start_time)
+    primary_hdu.header["TIME0"] = _format_time_for_fits(observation.start_time_local)
     primary_hdu.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
     primary_hdu.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
 
@@ -96,7 +96,7 @@ def _save_tod_to_fits(
     assert observations.name is not None
     primary_hdu.header["DET_NAME"] = observations.name[det_idx]
     primary_hdu.header["DET_IDX"] = det_idx
-    primary_hdu.header["TIME0"] = _format_time_for_fits(observations.start_time)
+    primary_hdu.header["TIME0"] = _format_time_for_fits(observations.start_time_local)
     primary_hdu.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
     primary_hdu.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
 

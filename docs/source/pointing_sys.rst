@@ -146,7 +146,7 @@ It is possible to operate :class:`.FocalplaneCoord`, :class:`.SpacecraftCoord`, 
 
     # Initialize the pointing systematics object
     pntsys = lbs.PointingSys(sim, obs, dets)
-    nquats = obs.n_samples + 1
+    nquats = obs.n_samples_local + 1
     axes = ["x", "y"]
     noise_sigma_deg = 1.0
 
@@ -219,8 +219,8 @@ To avoid this issue, a simple trick to distribute the quaternion calculations is
 
     # Calculate quaternions for each process
     sim.spin2ecliptic_quats = scanning_strategy.generate_spin2ecl_quaternions(
-        start_time=obs.start_time,
-        time_span_s=obs.n_samples/obs.sampling_rate_hz,
+        start_time=obs.start_time_local,
+        time_span_s=obs.n_samples_local/obs.sampling_rate_hz,
         delta_time_s=1.0/19.0,
     )
 
