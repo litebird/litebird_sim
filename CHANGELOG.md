@@ -1,10 +1,37 @@
 # HEAD
 
+-   **Breaking change**: observation time references are now explicit:
+    `start_time`, `start_time_global` and `end_time_global` are renamed to
+    `start_time_local`, `start_time_observation` and `end_time_observation`.
+    Sample metadata follows the same naming: `n_samples_global`, `n_samples`
+    and `start_sample` become `n_samples_observation`, `n_samples_local` and
+    `start_sample_observation`. The old attribute names and the
+    `n_samples_global`/`start_time_global` arguments of `Observation` still
+    work, with a `DeprecationWarning`. HDF5 files preserve the complete-observation
+    sample count and the local block's starting index; reading an MPI fragment
+    allocates only its stored samples and retains its normalized sample times.
+    `Observation` also accepts `start_time_simulation` (defaults to the
+    observation start for standalone observations); `Simulation` sets it to
+    `sim.start_time`. `PointingProvider` uses `start_time_simulation` instead of
+    `start_time_global`. HWP angles and HWP wedge disturbances now keep a
+    continuous phase across observation and MPI boundaries. Outputs of
+    simulations split into multiple observations change. Observation HDF5 files
+    use the new time names and store Astropy times as `(jd1, jd2)` with their
+    scale, replacing the old MJD metadata. Files written by previous versions
+    are still readable: their HWP phase stays referred to the start of each
+    observation, as when they were simulated, so that the angles match the
+    stored TOD.
+    Time-dependent detector rotations are interpolated on the detector sample
+    grid before composition with the spacecraft rotation, allowing HWP wedge
+    disturbances on observations whose time grids differ from the spacecraft.
+
 -   Fix a race in the generic Mueller HWP path of `scan_map`: shared temporary Stokes vectors and rotation matrices could corrupt the TOD when running with multiple Numba threads. The kernel now expands the Mueller products in scalars, so it shares no mutable state and allocates nothing per sample; this also makes it ~20× faster.
 
 -   Fix the noise normalization of the pair-differencing map-maker: the variance of the detector difference is the sum of the two detector variances. The Q/U maps are unchanged up to roundoff, while their covariance is twice the previous value and the corresponding residual chi-square is halved.
 
 -   Fix the beam-convolved dipole (`add_dipole` with `s_params`, `add_dipole_to_observations` with `apply_convolution=True`): the beam frame rotated by ψ in the opposite direction than in ducc0 and `add_convolved_sky`, so the dipole of beams that are not axially symmetric (elliptical, off-axis) was convolved with the beam rotated by −ψ instead of ψ. Moreover, `beam_alms` dictionaries keyed by channel now work when the channel has more than one detector, and `frequency_ghz` can be one value per detector. A new test compares the convolved dipole with a full 4π convolution by ducc0.
+
+-   Fix the HWP state of observations read from HDF5: the reader now restores `has_hwp` from the pointing provider immediately, so map-making uses the HWP modulation without requiring a prior call to compute pointings or HWP angles.
 
 -   Fix: with `user_seed`, the noise and the gain drifts of the detectors with the same local index were identical on all the MPI processes; `for_each_observation` now builds the generators with the communicator of the observations. Reference issue: [#585](https://github.com/litebird/litebird_sim/issues/585).
 

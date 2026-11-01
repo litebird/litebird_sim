@@ -52,7 +52,7 @@ def _detector_flags(obs, names, det_idx):
     (per detector or common to all) is nonzero; None without names."""
     if not names:
         return None
-    out = np.zeros(obs.n_samples, dtype=bool)
+    out = np.zeros(obs.n_samples_local, dtype=bool)
     for name in names:
         f = np.asarray(getattr(obs, name))
         out |= (f[det_idx] if f.ndim == 2 else f) != 0
@@ -608,7 +608,7 @@ def compute_sanepic_beam_templates(
                 nthreads=nthreads,
             )
             d = pysanepic.DetectorData(
-                tod=np.broadcast_to(0.0, (obs.n_samples,)),
+                tod=np.broadcast_to(0.0, (obs.n_samples_local,)),
                 pointing=pysanepic.Pointing(
                     theta=ptg_det[:, 0],
                     phi=ptg_det[:, 1],
@@ -631,7 +631,9 @@ def compute_sanepic_beam_templates(
             )
             for k, v in tods.items():
                 if k not in out:
-                    out[k] = np.empty((obs.n_detectors, obs.n_samples), dtype=dtype)
+                    out[k] = np.empty(
+                        (obs.n_detectors, obs.n_samples_local), dtype=dtype
+                    )
                 out[k][det_idx] = v
         for k, v in out.items():
             setattr(obs, k, v)

@@ -6,6 +6,7 @@ import numpy as np
 from astropy.time import Time as AstroTime
 
 import litebird_sim as lbs
+from litebird_sim.observation_utilities import _get_hwp_angle
 
 NUMPY_TYPES = [
     (np.float32, "float32"),
@@ -172,14 +173,21 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         ]:
             if use_mjd:
                 assert (
-                    AstroTime(cur_dataset.attrs["start_time"], format="mjd")
-                    == original_obs.start_time
+                    AstroTime(
+                        *cur_dataset.attrs["start_time_local"],
+                        format="jd",
+                        scale=cur_dataset.attrs["start_time_local_scale"],
+                    )
+                    == original_obs.start_time_local
                 )
             else:
-                assert cur_dataset.attrs["start_time"] == original_obs.start_time
+                assert (
+                    cur_dataset.attrs["start_time_local"]
+                    == original_obs.start_time_local
+                )
 
             assert cur_dataset.attrs["description"] == description
-            assert cur_dataset.attrs["mjd_time"] == use_mjd
+            assert ("start_time_local_scale" in cur_dataset.attrs) == use_mjd
             assert (
                 cur_dataset.attrs["sampling_rate_hz"] == original_obs.sampling_rate_hz
             )
@@ -245,7 +253,13 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: b
 
     obs = observations[0]
     assert isinstance(obs, lbs.Observation)
-    assert obs.start_time == original_obs.start_time
+    # Map-makers query the HWP before computing pointings: reading alone must
+    # restore its state and make the modulation angles available.
+    assert obs.has_hwp
+    hwp_angle = _get_hwp_angle(obs)
+    assert hwp_angle is not None
+    np.testing.assert_allclose(hwp_angle, original_obs.get_hwp_angle())
+    assert obs.start_time_local == original_obs.start_time_local
     assert obs.sampling_rate_hz == original_obs.sampling_rate_hz
 
     # Check that the TodDescription objects have been restored correctly
@@ -357,6 +371,8 @@ def __test_write_sliced_pointing_provider(
     )
     assert len(observations) == 4
     for obs, ref in zip(observations, expected):
+        assert not obs.has_hwp
+        assert _get_hwp_angle(obs) is None
         np.testing.assert_allclose(obs.get_pointings(0)[0], ref, atol=1e-10)
 
 
@@ -378,6 +394,7 @@ def test_rot_quaternion_start_time_roundtrip(tmp_path):
     for start_time in [
         AstroTime("2021-01-01T01:19:59.333333333"),
         AstroTime(59215.123456789, format="mjd"),
+        AstroTime("2021-01-01T01:19:59.333333333", scale="tdb"),
     ]:
         quats = lbs.RotQuaternion(
             quats=np.array([[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]]),
@@ -393,4 +410,25 @@ def test_rot_quaternion_start_time_roundtrip(tmp_path):
                 input_file=inpf, field_name="q"
             )
 
-        assert abs((result.start_time - start_time).to("s").value) < 1e-8
+        assert result.start_time == start_time
+        assert result.start_time.scale == start_time.scale
+
+
+def test_detector_json_quaternion_start_time():
+    # The JSON metadata must keep the precision and the scale of the start time
+    start_time = AstroTime("2021-01-01T01:19:59.333333333", scale="tdb")
+    quat = lbs.RotQuaternion(
+        quats=np.array([[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]]),
+        start_time=start_time,
+        sampling_rate_hz=3.0,
+    )
+    record = json.loads(
+        json.dumps(
+            {"name": "det", "bandcenter_ghz": 100.0, "quat": quat},
+            cls=lbs.io.DetectorJSONEncoder,
+        )
+    )
+    result = lbs.DetectorInfo.from_dict(record).quat
+
+    assert result.start_time == start_time
+    assert result.start_time.scale == "tdb"

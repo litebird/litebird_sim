@@ -115,7 +115,7 @@ shows:
        maps,
    )
 
-   for i in range(obs.n_samples):
+   for i in range(obs.n_samples_local):
        # + 0. removes leading minus from negative zero
        value = np.round(obs.tod[0][i], 5) + 0.
        print(f"{value:.5f}")

@@ -18,16 +18,15 @@ class NonIdealHWP(HWP):
 
     This class represents a non-ideal HWP that spins with constant angular velocity.
     The constructor accepts the angular speed, expressed in rad/sec, and the
-    start angle (in radians). The latter should be referred to the first time
-    sample in the simulation, i.e., the earliest sample simulated in any of the
-    MPI processes used for the simulation. The constructor also accepts two booleans:
+    start angle (in radians), defined at ``obs.start_time_simulation``.
+    This time reference is common to all observations and MPI processes.
+    The constructor also accepts:
     "harmonic_expansion", which indicates if the hwp matrices are expanded into harmonics
     of the rotation frequency, and "calculus" which selects between jones or mueller calculus.
 
-    Given a polarization angle :math:`\psi`, this class turns it into
-    :math:`\psi + \psi_\text{hwp,0} + 2 \omega_\text{hwp} t`, where
-    :math:`\psi_\text{hwp,0}` is the start angle specified in the constructor
-    and :math:`\omega_\text{hwp}` is the angular speed of the HWP.
+    :meth:`.get_hwp_angle` returns the mechanical angle
+    :math:`\alpha(t) = \alpha_0 + \omega_\text{hwp}(t - t_\text{simulation})`,
+    wrapped to :math:`[-\pi, \pi]`, separately from the detector orientation.
     """
 
     def __init__(

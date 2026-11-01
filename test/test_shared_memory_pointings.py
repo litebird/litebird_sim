@@ -77,6 +77,7 @@ def test_shared_prepare_pointings(tmp_path, split_list_over_processes):
             n_blocks_time=1 if split_list_over_processes else comm_size,
             split_list_over_processes=split_list_over_processes,
         )
+        sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=0.73, start_angle_rad=0.37))
         sim.prepare_pointings(append_to_report=False, shared_memory=shared_memory)
         sims.append(sim)
 
@@ -91,9 +92,18 @@ def test_shared_prepare_pointings(tmp_path, split_list_over_processes):
 
     # Shared memory must not change the pointings
     for obs_std, obs_shared in zip(sim_std.observations, sim_shared.observations):
-        pointings_std, _ = obs_std.get_pointings()
-        pointings_shared, _ = obs_shared.get_pointings()
+        pointings_std, hwp_std = obs_std.get_pointings()
+        pointings_shared, hwp_shared = obs_shared.get_pointings()
         np.testing.assert_array_equal(pointings_std, pointings_shared)
+        np.testing.assert_array_equal(hwp_std, hwp_shared)
+        expected_hwp = 0.37 + 0.73 * (
+            obs_shared.start_time_local
+            - sim_shared.start_time
+            + np.arange(obs_shared.n_samples_local) / obs_shared.sampling_rate_hz
+        )
+        np.testing.assert_allclose(
+            np.angle(np.exp(1j * (hwp_shared - expected_hwp))), 0.0, atol=1e-10
+        )
 
 
 def test_shared_memory_windows_freed_at_exit(tmp_path):

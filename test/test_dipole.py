@@ -124,8 +124,8 @@ def test_solar_dipole_fit(tmpdir):
     lbs.prepare_pointings(obs_s_o, sim.instrument, sim.spin2ecliptic_quats, hwp=None)
     pointings = obs_s_o.get_pointings("all")[0]
 
-    orbit_s_o = lbs.SpacecraftOrbit(obs_s_o.start_time)
-    orbit_o = lbs.SpacecraftOrbit(obs_o.start_time, solar_velocity_km_s=0.0)
+    orbit_s_o = lbs.SpacecraftOrbit(obs_s_o.start_time_local)
+    orbit_o = lbs.SpacecraftOrbit(obs_o.start_time_local, solar_velocity_km_s=0.0)
 
     assert orbit_s_o.solar_velocity_km_s == 369.8160
     assert orbit_o.solar_velocity_km_s == 0.0

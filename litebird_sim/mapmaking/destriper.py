@@ -469,7 +469,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
             pointings=cur_ptg,
             pol_angle_detectors=cur_obs.pol_angle_rad,
             num_of_detectors=cur_obs.n_detectors,
-            num_of_samples=cur_obs.n_samples,
+            num_of_samples=cur_obs.n_samples_local,
             hwp_angle=hwp_angle,
             output_coordinate_system=output_coordinate_system,
             nthreads=nthreads,

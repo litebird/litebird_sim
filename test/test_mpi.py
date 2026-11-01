@@ -45,17 +45,17 @@ def test_observation_time():
 
     obs_no_mjd = lbs.Observation(
         detectors=1,
-        start_time_global=0.0,
+        start_time_observation=0.0,
         sampling_rate_hz=5.0,
-        n_samples_global=5,
+        n_samples_observation=5,
         n_blocks_time=comm_world.size,
         comm=comm_world,
     )
     obs_mjd_astropy = lbs.Observation(
         detectors=1,
-        start_time_global=ref_time,
+        start_time_observation=ref_time,
         sampling_rate_hz=5.0,
-        n_samples_global=5,
+        n_samples_observation=5,
         n_blocks_time=comm_world.size,
         comm=comm_world,
     )
@@ -141,8 +141,8 @@ def test_construction_from_detectors():
 
     obs = lbs.Observation(
         detectors=[det1, det2],
-        n_samples_global=100,
-        start_time_global=0.0,
+        n_samples_observation=100,
+        start_time_observation=0.0,
         sampling_rate_hz=1.0,
         n_blocks_time=comm_world.size,
         comm=comm_world,
@@ -191,8 +191,8 @@ def test_observation_invalid_n_blocks():
     with pytest.raises(ValueError):
         obs = lbs.Observation(
             detectors=3,
-            n_samples_global=comm_world.size - 1,
-            start_time_global=0.0,
+            n_samples_observation=comm_world.size - 1,
+            start_time_observation=0.0,
             sampling_rate_hz=1.0,
             n_blocks_time=comm_world.size,
             n_blocks_det=1,
@@ -203,8 +203,8 @@ def test_observation_invalid_n_blocks():
     with pytest.raises(ValueError):
         obs = lbs.Observation(
             detectors=comm_world.size - 1,
-            n_samples_global=9,
-            start_time_global=0.0,
+            n_samples_observation=9,
+            start_time_observation=0.0,
             sampling_rate_hz=1.0,
             n_blocks_time=1,
             n_blocks_det=comm_world.size,
@@ -215,8 +215,8 @@ def test_observation_invalid_n_blocks():
     with pytest.raises(ValueError):
         obs = lbs.Observation(
             detectors=3,
-            n_samples_global=9,
-            start_time_global=0.0,
+            n_samples_observation=9,
+            start_time_observation=0.0,
             sampling_rate_hz=1.0,
             n_blocks_time=comm_world.size,
             n_blocks_det=2,
@@ -227,8 +227,8 @@ def test_observation_invalid_n_blocks():
     with pytest.raises(ValueError):
         obs = lbs.Observation(
             detectors=3,
-            n_samples_global=9,
-            start_time_global=0.0,
+            n_samples_observation=9,
+            start_time_observation=0.0,
             sampling_rate_hz=1.0,
             n_blocks_time=comm_world.size,
             n_blocks_det=1,
@@ -247,8 +247,8 @@ def test_observation_tod_time_blocks():
     nsamples_global = 9
     obs = lbs.Observation(
         detectors=3,
-        n_samples_global=nsamples_global,
-        start_time_global=0.0,
+        n_samples_observation=nsamples_global,
+        start_time_observation=0.0,
         sampling_rate_hz=1.0,
         n_blocks_time=comm_world.size,
         comm=comm_world,
@@ -268,8 +268,8 @@ def test_observation_tod_two_block_det():
     try:
         obs = lbs.Observation(
             detectors=3,
-            n_samples_global=9,
-            start_time_global=0.0,
+            n_samples_observation=9,
+            start_time_observation=0.0,
             sampling_rate_hz=1.0,
             n_blocks_det=2,
             comm=comm_world,
@@ -290,15 +290,15 @@ def test_observation_tod_set_blocks():
 
     def assert_det_info():
         assert np.all(
-            obs.row_int == (obs.tod[:, 0] // obs._n_samples_global).astype(int)
+            obs.row_int == (obs.tod[:, 0] // obs._n_samples_observation).astype(int)
         )
         assert np.all(obs.row_int.astype(str) == obs.row_str)
 
     if comm_world.size == 2:
         obs = lbs.Observation(
             detectors=3,
-            n_samples_global=9,
-            start_time_global=0.0,
+            n_samples_observation=9,
+            start_time_observation=0.0,
             sampling_rate_hz=1.0,
             n_blocks_time=2,
             comm=comm_world,
@@ -327,8 +327,8 @@ def test_observation_tod_set_blocks():
     elif comm_world.size == 3:
         obs = lbs.Observation(
             detectors=3,
-            n_samples_global=9,
-            start_time_global=0.0,
+            n_samples_observation=9,
+            start_time_observation=0.0,
             sampling_rate_hz=1.0,
             n_blocks_time=3,
             comm=comm_world,
@@ -361,8 +361,8 @@ def test_observation_tod_set_blocks():
     elif comm_world.size == 4:
         obs = lbs.Observation(
             detectors=3,
-            n_samples_global=9,
-            start_time_global=0.0,
+            n_samples_observation=9,
+            start_time_observation=0.0,
             sampling_rate_hz=1.0,
             n_blocks_time=4,
             comm=comm_world,
@@ -399,8 +399,8 @@ def test_observation_tod_set_blocks():
     elif comm_world.size == 6:
         obs = lbs.Observation(
             detectors=3,
-            n_samples_global=9,
-            start_time_global=0.0,
+            n_samples_observation=9,
+            start_time_observation=0.0,
             sampling_rate_hz=1.0,
             n_blocks_time=6,
             comm=comm_world,
@@ -735,11 +735,11 @@ def test_read_hwp_angle_of_observation_split_in_time(mpi_tmp_path, use_mjd):
     assert len(file_list) == 1
 
     obs = lbs.io.read_one_observation(file_list[0], limit_mpi_rank=True)
-    assert obs.start_time == sim.observations[0].start_time
+    assert obs.start_time_local == sim.observations[0].start_time_local
     if use_mjd:
-        assert abs((obs.start_time_global - start_time).to("s").value) < 1e-6
+        assert abs((obs.start_time_observation - start_time).to("s").value) < 1e-6
     else:
-        assert obs.start_time_global == start_time
+        assert obs.start_time_observation == start_time
     _, hwp_angle = obs.get_pointings(0)
     np.testing.assert_allclose(hwp_angle, expected_hwp_angle, atol=1e-8)
 

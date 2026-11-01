@@ -40,7 +40,7 @@ def test_observation_get_hitmap():
         )
         hitmap = obs.get_hitmap(nside, output_coordinate_system=coords)
         np.testing.assert_array_equal(hitmap, expected)
-        assert hitmap.sum() == obs.n_detectors * obs.n_samples
+        assert hitmap.sum() == obs.n_detectors * obs.n_samples_local
 
     # A single detector, by index
-    assert obs.get_hitmap(nside, detector_idx=1).sum() == obs.n_samples
+    assert obs.get_hitmap(nside, detector_idx=1).sum() == obs.n_samples_local

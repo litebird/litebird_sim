@@ -184,7 +184,7 @@ def test_PointingSys_add_uncommon_disturb_to_FP(
     sim, dets = gen_simulation_and_dets(telescope)
     (obs,) = sim.create_observations(detectors=dets)
 
-    nquats = obs.n_samples + 1
+    nquats = obs.n_samples_local + 1
     noise_rad_matrix = np.zeros([len(dets), nquats])
     sigmas = np.linspace(0, np.deg2rad(1), len(dets))
     sim.init_random(random_seed=12_345, num_detectors=len(dets))
@@ -229,7 +229,7 @@ def test_PointingSys_add_common_disturb_to_FP(
     func = test_PointingSys_add_common_disturb_to_FP
     sim, dets = gen_simulation_and_dets(telescope)
     (obs,) = sim.create_observations(detectors=dets)
-    nquats = obs.n_samples + 1
+    nquats = obs.n_samples_local + 1
     noise_rad_1d_array = np.zeros(nquats)
 
     sim.init_random(random_seed=12_345, num_detectors=len(dets))
@@ -310,7 +310,7 @@ def test_PointingSys_add_common_disturb_to_spacecraft(
     func = test_PointingSys_add_common_disturb_to_spacecraft
     sim, dets = gen_simulation_and_dets(telescope)
     (obs,) = sim.create_observations(detectors=dets)
-    nquats = obs.n_samples + 1
+    nquats = obs.n_samples_local + 1
 
     noise_rad_1d_array = np.zeros(nquats)
     sim.init_random(random_seed=12_345, num_detectors=len(dets))

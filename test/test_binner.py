@@ -138,8 +138,8 @@ def test_make_binned_map_basic_mpi():
     # Craft the observation with the attributes needed for map-making
     obs = lbs.Observation(
         detectors=ndets,
-        n_samples_global=18,
-        start_time_global=0.0,
+        n_samples_observation=18,
+        start_time_observation=0.0,
         sampling_rate_hz=1.0,
         comm=lbs.MPI_COMM_WORLD,
     )
@@ -281,12 +281,12 @@ def test_build_mask_time_split():
 
     assert len(masks) == len(sim.observations)
     for mask, obs in zip(masks, sim.observations):
-        assert mask.shape == (obs.n_samples,)
+        assert mask.shape == (obs.n_samples_local,)
         assert mask.all()
         assert mask.strides == (0,)  # a view on a single value
 
     # The other splits still return real boolean masks
-    n = sim.observations[0].n_samples
+    n = sim.observations[0].n_samples_local
     expected = {
         "odd": np.arange(n) % 2 == 0,
         "even": np.arange(n) % 2 == 1,

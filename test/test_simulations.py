@@ -255,7 +255,7 @@ def test_distribute_observation(tmp_path):
         assert len(obs_list) == 5
         assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
         assert (
-            sum([o.n_samples for o in obs_list])
+            sum([o.n_samples_local for o in obs_list])
             == sim.duration_s * det.sampling_rate_hz
         )
 
@@ -305,7 +305,7 @@ def test_distribute_observation_many_tods(tmp_path):
         == 10
     )
     assert (
-        sum([o.n_samples for o in sim.observations])
+        sum([o.n_samples_local for o in sim.observations])
         == sim.duration_s * det.sampling_rate_hz
     )
 
@@ -322,7 +322,10 @@ def test_distribute_observation_astropy(tmp_path):
 
     assert len(obs_list) == 5
     assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
-    assert sum([o.n_samples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
+    assert (
+        sum([o.n_samples_local for o in obs_list])
+        == sim.duration_s * det.sampling_rate_hz
+    )
 
 
 def test_describe_distribution(tmp_path):
@@ -491,8 +494,8 @@ def test_smart_pointings_consistency_with_hwp(tmp_path):
 
         for det_idx in range(obs.n_detectors):
             (pointings, hwp_angle) = obs.get_pointings(det_idx)
-            assert pointings.shape == (obs.n_samples, 3)
-            assert hwp_angle.shape == (obs.n_samples,)
+            assert pointings.shape == (obs.n_samples_local, 3)
+            assert hwp_angle.shape == (obs.n_samples_local,)
 
 
 def test_smart_pointings_skip_hwp_angle(tmp_path):
@@ -549,7 +552,7 @@ def test_smart_pointings_consistency_without_hwp(tmp_path):
 
         for det_idx in range(obs.n_detectors):
             (pointings, hwp_angle) = obs.get_pointings(det_idx)
-            assert pointings.shape == (obs.n_samples, 3)
+            assert pointings.shape == (obs.n_samples_local, 3)
             assert hwp_angle is None
 
 
@@ -608,7 +611,7 @@ def test_smart_pointings_preallocation_with_hwp(tmp_path):
     )
 
     # Allocate one buffer for the pointings and one buffer for the HWP angle
-    n_samples = sim.observations[0].n_samples
+    n_samples = sim.observations[0].n_samples_local
     pointings_buf = np.empty(shape=(n_samples, 3))
     hwp_angle_buf = np.empty(shape=(n_samples, 1))
 
@@ -641,7 +644,7 @@ def test_smart_pointings_store_matrices_without_hwp(dtype, tmp_path):
         assert cur_obs.pointing_matrix.dtype == dtype
         assert cur_obs.pointing_matrix.shape == (
             cur_obs.n_detectors,
-            cur_obs.n_samples,
+            cur_obs.n_samples_local,
             3,
         )
         assert cur_obs.hwp_angle is None
@@ -662,13 +665,13 @@ def test_smart_pointings_store_matrices_with_hwp(dtype, tmp_path):
         assert cur_obs.pointing_matrix.dtype == dtype
         assert cur_obs.pointing_matrix.shape == (
             cur_obs.n_detectors,
-            cur_obs.n_samples,
+            cur_obs.n_samples_local,
             3,
         )
 
         assert cur_obs.hwp_angle is not None
         assert cur_obs.hwp_angle.dtype == dtype
-        assert cur_obs.hwp_angle.shape == (cur_obs.n_samples,)
+        assert cur_obs.hwp_angle.shape == (cur_obs.n_samples_local,)
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -684,10 +687,10 @@ def test_compute_pointings_for_one_detector(dtype, tmp_path):
         pointings, hwp_angle = cur_obs.get_pointings(0, pointings_dtype=dtype)
 
         assert pointings.dtype == dtype
-        assert pointings.shape == (cur_obs.n_samples, 3)
+        assert pointings.shape == (cur_obs.n_samples_local, 3)
 
         assert hwp_angle.dtype == dtype
-        assert hwp_angle.shape == (cur_obs.n_samples,)
+        assert hwp_angle.shape == (cur_obs.n_samples_local,)
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -706,10 +709,10 @@ def test_store_pointings_for_two_detectors(dtype, tmp_path):
             )
 
             assert pointings.dtype == dtype
-            assert pointings.shape == (2, cur_obs.n_samples, 3)
+            assert pointings.shape == (2, cur_obs.n_samples_local, 3)
 
             assert hwp_angle.dtype == dtype
-            assert hwp_angle.shape == (cur_obs.n_samples,)
+            assert hwp_angle.shape == (cur_obs.n_samples_local,)
 
             for rel_det_idx, abs_det_idx in enumerate(cur_pair):
                 cur_pointings, _ = cur_obs.get_pointings(abs_det_idx)
@@ -733,10 +736,10 @@ def test_smart_pointings_for_all_detectors(dtype, tmp_path):
         pointings, hwp_angle = cur_obs.get_pointings("all", pointings_dtype=dtype)
 
         assert pointings.dtype == dtype
-        assert pointings.shape == (4, cur_obs.n_samples, 3)
+        assert pointings.shape == (4, cur_obs.n_samples_local, 3)
 
         assert hwp_angle.dtype == dtype
-        assert hwp_angle.shape == (cur_obs.n_samples,)
+        assert hwp_angle.shape == (cur_obs.n_samples_local,)
 
         for det_idx in range(4):
             cur_pointings, _ = cur_obs.get_pointings(det_idx, pointings_dtype=dtype)

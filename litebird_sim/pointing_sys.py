@@ -1,5 +1,4 @@
 from collections.abc import Iterable
-import warnings
 
 import astropy.time
 import numpy as np
@@ -222,7 +221,7 @@ class FocalplaneCoord:
     ):
         self.sim = sim
         self.obs = obs
-        self.start_time = obs.start_time
+        self.start_time = obs.start_time_local
         self.sampling_rate_hz = obs.sampling_rate_hz
         self.detectors = detectors
 
@@ -348,9 +347,8 @@ class SpacecraftCoord:
     ):
         self.sim = sim
         self.obs = obs
-        self.start_time = obs.start_time
+        self.start_time = obs.start_time_local
         assert self.sim.spin2ecliptic_quats is not None
-        self.sim.spin2ecliptic_quats.start_time = obs.start_time
         self.sampling_rate_hz = obs.sampling_rate_hz
         self.instrument = sim.instrument
         self.detectors = detectors
@@ -427,7 +425,7 @@ class HWPCoord:
         """
         self.sim = sim
         self.obs = obs
-        self.start_time = obs.start_time
+        self.start_time = obs.start_time_local
         self.sampling_rate_hz = obs.sampling_rate_hz
         self.detectors = detectors
         self.ang_speed_radpsec = None
@@ -462,6 +460,14 @@ class HWPCoord:
         expected pointing direction far from a angular distance of `self.tilt_angle_rad`.
         The pointing rotation frequency is determined by `self.ang_speed_radpsec`.
 
+        The phase is referred to :attr:`.Observation.start_time_simulation`, like the
+        HWP angle, so it is continuous across observations and MPI processes.
+
+        Memory: the disturbance is sampled at the sampling rate of the detectors and
+        multiplied into the quaternion of each detector, which then stores four 64-bit
+        numbers per sample (32 bytes, i.e., 8 times a 32-bit TOD); these quaternions
+        are also saved by :func:`.write_observations`.
+
         Args:
             tilt_angle_rad (`float`): The tilted pointing angle from the expected pointing direction.
 
@@ -473,10 +479,11 @@ class HWPCoord:
         self.tilt_angle_rad = tilt_angle_rad
         self.tilt_phase_rad = tilt_phase_rad
 
-        _start_time = self.obs.start_time - self.obs.start_time_global
+        _start_time = self.obs.start_time_local - self.obs.start_time_simulation
         _delta_time = self.obs.get_delta_time()
-        assert self.sim.spin2ecliptic_quats is not None
-        n_samples = self.sim.spin2ecliptic_quats.quats.shape[0]
+        # Sample the disturbance on the local detector grid, with one extra
+        # quaternion for interpolation at the end of the observation.
+        n_samples = self.obs.n_samples_local + 1
         pointing_rot_angles = np.empty(n_samples)
 
         if isinstance(_start_time, astropy.time.TimeDelta):
@@ -547,31 +554,11 @@ class PointingSys:
 
         assert sim.spin2ecliptic_quats is not None
 
-        spin_start = sim.spin2ecliptic_quats.start_time
-        obs_start = obs.start_time
-        if isinstance(spin_start, astropy.time.Time) and isinstance(
-            obs_start, astropy.time.Time
-        ):
-            assert spin_start == obs_start, (
-                "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same `astropy.time.Time`."
-            )
-        elif isinstance(spin_start, np.floating) and isinstance(obs_start, np.floating):
-            assert np.isclose(spin_start, obs_start), (
-                "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same value."
-            )
-        elif (
-            isinstance(spin_start, (int, float, np.floating))
-            and isinstance(obs_start, (int, float, np.floating))
-            and np.isclose(spin_start, obs_start)
-        ):
-            # call warning
-            spin_start = obs_start
-            warnings.warn(
-                "\nThe `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` are not same type, but they are same number. \nSo, the `Simulation.spin2ecliptic_quats.start_time` is updated to the `Observation.start_time`."
-            )
-        else:
+        if isinstance(
+            sim.spin2ecliptic_quats.start_time, astropy.time.Time
+        ) != isinstance(obs.start_time_local, astropy.time.Time):
             raise ValueError(
-                "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same type (i.e., both are either float or astropy.time.Time)."
+                "Scanning and observation start times must both be numeric or Astropy times."
             )
 
         self.focalplane = FocalplaneCoord(sim, obs, detectors)

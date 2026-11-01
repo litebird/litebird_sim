@@ -10,6 +10,46 @@ Observations
 The :class:`.Observation` class is the container for the data acquired by the
 telescope during a scanning period (and the relevant information about it).
 
+Time references
+---------------
+
+The observation distinguishes three start times:
+
+* ``start_time_simulation`` is the start of the entire simulation. It is the
+  epoch at which the HWP angle equals ``hwp.start_angle_rad``.
+* ``start_time_observation`` is the start of the complete observation, before
+  distributing its samples among MPI processes.
+* ``start_time_local`` is the first sample stored by the current MPI process.
+
+``end_time_observation`` is the exclusive end of the complete observation: the
+last sample occurs one sampling interval earlier.
+
+``n_samples_observation`` is the sample count of the complete observation;
+``n_samples_local`` is the count stored by the current MPI process.
+``start_sample_observation`` is the index of the first local sample relative
+to the start of the complete observation. It is not an index into the full
+simulation timeline. Thus, ``start_time_local`` equals
+``start_time_observation + start_sample_observation / sampling_rate_hz``
+(using ``TimeDelta`` when times are Astropy objects).
+
+When reading a file containing only an MPI fragment, the observation retains
+the original complete-observation count and sample indices while allocating
+only the available local samples. ``get_times(normalize=True)`` remains
+relative to the original observation start.
+
+``Simulation.create_observations`` sets ``start_time_simulation`` to
+``sim.start_time`` for every observation. When constructing an ``Observation``
+directly, the optional ``start_time_simulation`` defaults to
+``start_time_observation``. Both must be numeric times in seconds or both
+``astropy.time.Time`` objects.
+
+These names replace ``start_time``, ``start_time_global`` and ``end_time_global``.
+Similarly, ``n_samples_global``, ``n_samples`` and ``start_sample`` are replaced
+by ``n_samples_observation``, ``n_samples_local`` and
+``start_sample_observation``. The old attribute names and the
+``n_samples_global``/``start_time_global`` arguments of ``Observation`` are
+deprecated: they still work, but emit a ``DeprecationWarning``.
+
 Serial applications
 -------------------
 
@@ -21,9 +61,9 @@ can put anything::
 
   obs = lbs.Observation(
       detectors=2,
-      start_time_global=0.0,
+      start_time_observation=0.0,
       sampling_rate_hz=5.0,
-      n_samples_global=5,
+      n_samples_observation=5,
   )
 
   obs.my_new_attr = 'value'
@@ -147,9 +187,9 @@ The price to pay is that you have to set detector properties with special method
 
   obs = lbs.Observation(
       detectors=2,
-      start_time_global=0.0,
+      start_time_observation=0.0,
       sampling_rate_hz=5.0,
-      n_samples_global=5,
+      n_samples_observation=5,
       n_blocks_det=2, # Split the detector axis in 2
       comm=comm  # across the processes of this communicator
   )
@@ -404,9 +444,9 @@ key.
   # Second case: use MJD to track the time
   obs_mjd = lbs.Observation(
       detectors=[{"name": "A"}, {"name": "B"}],
-      start_time_global=Time("2020-02-20", format="iso"),
+      start_time_observation=Time("2020-02-20", format="iso"),
       sampling_rate_hz=5.0,
-      n_samples_global=5,
+      n_samples_observation=5,
   )
 
   obs.name == np.array(["A", "B"])  # True
@@ -488,11 +528,26 @@ file contains the following datasets:
 - One dataset per each TOD; each dataset has the same name as the ones passed to
   ``tods=`` in the call to ``create_observations``. It has the following attributes:
 
-  - ``use_mjd`` (Boolean): ``True`` if ``start_time`` is a MJD, ``False`` if it is
-    a plain floating-point value
+  - ``start_time_local``, ``start_time_observation``, ``end_time_observation``, and
+    ``start_time_simulation``: the local start, complete observation boundaries,
+    and simulation epoch. Numeric times are stored as scalar seconds. Astropy
+    times are stored as two doubles, ``(jd1, jd2)``, with the time scale in a
+    companion attribute ``<name>_scale``. This preserves the time precision and
+    scale when an observation is read independently of the simulation.
 
-  - ``start_time`` (Float): the time of the first sample in the TOD, see also
-    ``use_mjd`` to correctly interpret this
+  - ``n_samples_observation`` (Integer): the sample count of the complete
+    observation, including samples stored in other MPI files.
+
+  - ``start_sample_observation`` (Integer): the index of this file's first
+    sample relative to the complete observation. The local sample count is
+    given by the second dimension of the TOD dataset.
+
+    This format replaces the previous ``start_time``/``start_time_global``/``mjd_time``
+    metadata. Files written with the previous format can still be read: the
+    sample index is derived from the two start times, the complete observation
+    is assumed to end with the samples in the file, and ``start_time_simulation``
+    is set to the start of the observation, because the HWP phase of those
+    simulations restarted at each observation.
 
   - ``sampling_rate_hz`` (Float)
 
@@ -510,8 +565,9 @@ file contains the following datasets:
 - ``pointing_provider_rot_quaternion``: the rotation quaternion that
   converts the boresight direction of the focal plane of the instrument
   into ecliptic coordinates. It is a matrix with shape ``(N, 4)``, and it
-  has the attributes ``start_time`` (either a floating-point value or a string,
-  the latter being used for ``astropy.time.Time`` types) and ``sampling_rate_hz``.
+  has the attributes ``start_time`` and ``sampling_rate_hz``. The time uses
+  the same encoding as TOD metadata: scalar seconds, or ``(jd1, jd2)`` with
+  ``start_time_scale`` for Astropy times.
 
 - ``pointing_provider_hwp``: a dataset containing the details of the Half-Wave
   Plate. Its interprentation depends on the kind of HWP; for instances of the

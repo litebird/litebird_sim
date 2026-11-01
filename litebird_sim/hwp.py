@@ -177,14 +177,12 @@ class IdealHWP(HWP):
 
     This class represents a perfect HWP that spins with constant angular velocity.
     The constructor accepts the angular speed, expressed in rad/sec, and the
-    start angle (in radians). The latter should be referred to the first time
-    sample in the simulation, i.e., the earliest sample simulated in any of the
-    MPI processes used for the simulation.
-
-    Given a polarization angle :math:`\psi`, this class turns it into
-    :math:`\psi + \psi_\text{hwp,0} + 2 \omega_\text{hwp} t`, where
-    :math:`\psi_\text{hwp,0}` is the start angle specified in the constructor
-    and :math:`\omega_\text{hwp}` is the angular speed of the HWP.
+    start angle (in radians), defined at ``obs.start_time_simulation``.
+    :meth:`.get_hwp_angle` returns the mechanical angle
+    :math:`\alpha(t) = \alpha_0 + \omega_\text{hwp}(t - t_\text{simulation})`,
+    wrapped to :math:`[-\pi, \pi]`. The initial angle and epoch are shared by
+    all observations and MPI processes; the detector polarization orientation
+    is kept separately.
     """
 
     def __init__(self, ang_speed_radpsec: float, start_angle_rad=0.0):

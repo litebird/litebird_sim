@@ -331,7 +331,7 @@ def make_h_maps(
                 hpx=hpx,
                 pointings=cur_ptg,
                 pol_angle_detector=cur_obs.pol_angle_rad[idet],
-                num_of_samples=cur_obs.n_samples,
+                num_of_samples=cur_obs.n_samples_local,
                 detector_index=idet,
                 hwp_angle=hwp_angle,
                 output_coordinate_system=output_coordinate_system,

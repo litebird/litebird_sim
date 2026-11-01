@@ -946,7 +946,7 @@ def add_dipole_to_observations(
         # simplest implementation, but in the future we might want to inline the
         # interpolation code within "add_dipole" to save memory
         velocity = pos_and_vel.compute_velocities(
-            time0=cur_obs.start_time,
+            time0=cur_obs.start_time_local,
             delta_time_s=cur_obs.get_delta_time().value,
             num_of_samples=tod.shape[1],
         )

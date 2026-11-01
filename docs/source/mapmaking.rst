@@ -1195,7 +1195,7 @@ same script with ``mpirun``: every process calls
       for i, name in enumerate(obs.name):
           obs.tod[i] *= 1 + 1e-2 * rng.normal()  # a gain per detector and day
           # a thermometer reading (here a random drift) seen through a coupling
-          obs.thermal[i] = np.cumsum(rng.normal(size=obs.n_samples)) * 1e-3
+          obs.thermal[i] = np.cumsum(rng.normal(size=obs.n_samples_local)) * 1e-3
           obs.tod[i] += coupling[name] * obs.thermal[i]
   sim.add_noise(noise_type="one_over_f", model="toast")
 
