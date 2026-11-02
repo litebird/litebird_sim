@@ -16,6 +16,8 @@ from .common import get_pol_efficiency
 if TYPE_CHECKING:
     import brahmap
 
+log = logging.getLogger(__name__)
+
 
 def make_brahmap_gls_map(
     nside: int,
@@ -129,7 +131,7 @@ def make_brahmap_gls_map(
     if any(np.any(get_pol_efficiency(cur_obs) != 1.0) for cur_obs in obs_list):
         # ponytail: warn only, the pointing matrix is built inside BrahMap;
         # remove once BrahMap supports the polarization efficiency
-        logging.warning(
+        log.warning(
             "BrahMap does not model the polarization efficiency γ: "
             "the Q/U maps will be biased by a factor γ for detectors with γ ≠ 1"
         )
