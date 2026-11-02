@@ -238,3 +238,17 @@ def test_planets_without_observations(tmp_path):
     num = sim.flag_planets(planets="jupiter", append_to_report=False)
     assert num == {"jupiter": 0}
     assert not hasattr(sim, "pos_and_vel")
+
+
+@pytest.mark.parametrize(
+    "add_or_flag", [lbs.add_planets_to_observations, lbs.flag_planets_in_observations]
+)
+def test_planets_with_observations_need_an_orbit(add_or_flag):
+    obs = lbs.Observation(
+        detectors=[{"fwhm_arcmin": 30.0}],
+        n_samples_global=2,
+        start_time_global=START_TIME,
+        sampling_rate_hz=1.0,
+    )
+    with pytest.raises(ValueError, match="pos_and_vel"):
+        add_or_flag(obs, pos_and_vel=None)

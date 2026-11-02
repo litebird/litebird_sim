@@ -81,7 +81,7 @@ def flag_planet(flags, pointings, planet_dir, radius_rad, bit=FLAG_PLANET) -> in
 
 def flag_planets_in_observations(
     observations: Observation | list[Observation],
-    pos_and_vel: SpacecraftPositionAndVelocity,
+    pos_and_vel: SpacecraftPositionAndVelocity | None,
     planets: str | list[str] | tuple[str, ...] = PLANETS,
     radius_fwhm: float | dict[str, float] = 3.0,
     threshold_k_cmb: float | None = None,
@@ -95,6 +95,8 @@ def flag_planets_in_observations(
     ``radius_fwhm × fwhm_arcmin`` of the detector to one of the `planets`,
     seen from the position of the spacecraft in `pos_and_vel`. `radius_fwhm`
     can be a dictionary with the radius of each planet.
+
+    `pos_and_vel` may be None only when `observations` is empty.
 
     If `threshold_k_cmb` is given, only the samples within this radius where the
     signal of the planet (see :func:`.add_planets_to_observations`) is larger
@@ -118,6 +120,11 @@ def flag_planets_in_observations(
     check_observations_for_planets(obs_list)
 
     num_of_flagged = dict.fromkeys(planets, 0)
+    if pos_and_vel is None:
+        if obs_list:
+            raise ValueError("Planets need pos_and_vel when observations are not empty")
+        return num_of_flagged
+
     for obs in obs_list:
         flags = None
         fwhm_rad = np.deg2rad(np.asarray(obs.fwhm_arcmin) / 60.0)

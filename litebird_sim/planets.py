@@ -449,7 +449,7 @@ def add_planet_signal(
 
 def add_planets_to_observations(
     observations: Observation | list[Observation],
-    pos_and_vel: SpacecraftPositionAndVelocity,
+    pos_and_vel: SpacecraftPositionAndVelocity | None,
     planets: str | list[str] | tuple[str, ...] = PLANETS,
     component: str = "tod",
     bandpass_integration: bool = False,
@@ -468,12 +468,19 @@ def add_planets_to_observations(
     are computed only close to the planets, and the times of the
     observations must be ``astropy.time.Time`` objects.
 
+    `pos_and_vel` may be None only when `observations` is empty.
+
     ponytail: Gaussian beams; the radial profile of the beam would give
     realistic sidelobes.
     """
     obs_list = [observations] if isinstance(observations, Observation) else observations
     planets = [planets] if isinstance(planets, str) else list(planets)
     check_observations_for_planets(obs_list)
+
+    if pos_and_vel is None:
+        if obs_list:
+            raise ValueError("Planets need pos_and_vel when observations are not empty")
+        return
 
     for obs in obs_list:
         tod = getattr(obs, component)
