@@ -89,7 +89,6 @@ def compute_lissajous_pos_and_vel(
 
     φ1 = ang_speed1_rad_s * time0
     φ2 = ang_speed2_rad_s * time0
-    φ_earth = earth_ang_speed_rad_s * time0
 
     pos_x, pos_y, pos_z = (
         -radius1_km * np.sin(earth_angle_rad) * np.cos(φ1),
@@ -97,9 +96,10 @@ def compute_lissajous_pos_and_vel(
         radius2_km * np.sin(φ2 + phase_rad),
     )
 
-    # This is the analytical derivative of the position (see above)
+    # This is the analytical derivative of the position (see above), where the
+    # angle of the Earth increases with speed `earth_ang_speed_rad_s`
     cos1, sin1 = np.cos(φ1), np.sin(φ1)
-    cos_earth, sin_earth = np.cos(φ_earth), np.sin(φ_earth)
+    cos_earth, sin_earth = np.cos(earth_angle_rad), np.sin(earth_angle_rad)
     vel_x, vel_y, vel_z = (
         -radius1_km
         * (

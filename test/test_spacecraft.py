@@ -70,3 +70,35 @@ def test_spacecraft_orbit():
 
     # Check that the maximum speed of the spacecraft with respect to L2 is ~110 m/s
     assert np.round(np.max(np.linalg.norm(diff_vel_km_s, axis=1) * 1e2)) == 11.0
+
+
+def test_lissajous_velocity_is_derivative_of_position():
+    # The velocity returned by compute_lissajous_pos_and_vel must be the time
+    # derivative of the position, with the Earth moving along the Ecliptic
+    orbit = lbs.SpacecraftOrbit(start_time=astropy.time.Time("2030-01-01"))
+    earth_ang_speed_rad_s = 2 * np.pi / (365.25 * 86400.0)
+    earth_angle0_rad = 1.3
+
+    def pos_and_vel(time_s):
+        return np.array(
+            lbs.compute_lissajous_pos_and_vel(
+                time0=time_s,
+                earth_angle_rad=earth_angle0_rad + earth_ang_speed_rad_s * time_s,
+                earth_ang_speed_rad_s=earth_ang_speed_rad_s,
+                radius1_km=orbit.radius1_km,
+                radius2_km=orbit.radius2_km,
+                ang_speed1_rad_s=orbit.ang_speed1_rad_s,
+                ang_speed2_rad_s=orbit.ang_speed2_rad_s,
+                phase_rad=orbit.phase_rad,
+            )
+        )
+
+    dt_s = 1.0
+    for time_s in np.linspace(0.0, 365 * 86400.0, 20):
+        vel_km_s = pos_and_vel(time_s)[3:]
+        num_vel_km_s = (
+            pos_and_vel(time_s + dt_s)[:3] - pos_and_vel(time_s - dt_s)[:3]
+        ) / (2 * dt_s)
+        np.testing.assert_allclose(
+            vel_km_s, num_vel_km_s, atol=1e-6 * np.linalg.norm(vel_km_s)
+        )
