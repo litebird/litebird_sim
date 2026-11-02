@@ -735,7 +735,7 @@ def test_read_hwp_angle_of_observation_split_in_time(mpi_tmp_path, use_mjd):
     assert len(file_list) == 1
 
     obs = lbs.io.read_one_observation(file_list[0], limit_mpi_rank=True)
-    assert obs.start_time_local == sim.observations[0].start_time_local
+    assert obs.start_time_process == sim.observations[0].start_time_process
     if use_mjd:
         assert abs((obs.start_time_observation - start_time).to("s").value) < 1e-6
     else:

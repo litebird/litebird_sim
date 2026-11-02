@@ -77,10 +77,10 @@ def test_deprecated_observation_names():
     assert obs.start_time_observation == 2.0
 
     for old_name, new_name in [
-        ("start_time", "start_time_local"),
+        ("start_time", "start_time_process"),
         ("start_time_global", "start_time_observation"),
         ("end_time_global", "end_time_observation"),
-        ("n_samples", "n_samples_local"),
+        ("n_samples", "n_samples_process"),
         ("n_samples_global", "n_samples_observation"),
         ("start_sample", "start_sample_observation"),
     ]:

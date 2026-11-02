@@ -1412,10 +1412,10 @@ class Simulation:
             n_obs=len(obs_list),
             n_det=[int(obs.n_detectors) for obs in obs_list],
             durations_s=[
-                obs.n_samples_local / obs.sampling_rate_hz for obs in obs_list
+                obs.n_samples_process / obs.sampling_rate_hz for obs in obs_list
             ],
             samples=sum(
-                int(obs.n_samples_local) * int(obs.n_detectors) for obs in obs_list
+                int(obs.n_samples_process) * int(obs.n_detectors) for obs in obs_list
             ),
             tod_bytes=sum(
                 int(getattr(obs, cur_tod.name).nbytes)
@@ -1591,9 +1591,9 @@ class Simulation:
                     tod_shape=shapes[0] if shapes else None,
                     tod_dtype=self.get_tod_dtypes(),
                     tod_description=self.get_tod_descriptions(),
-                    start_time=obs.start_time_local,
-                    duration_s=obs.n_samples_local / obs.sampling_rate_hz,
-                    num_of_samples=obs.n_samples_local,
+                    start_time=obs.start_time_process,
+                    duration_s=obs.n_samples_process / obs.sampling_rate_hz,
+                    num_of_samples=obs.n_samples_process,
                     num_of_detectors=obs.n_detectors,
                 )
             )

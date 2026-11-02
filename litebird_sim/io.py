@@ -78,7 +78,7 @@ def _read_observation_times(hdf5_tod: h5py.Dataset, path) -> dict:
     stored TOD. The complete length of the observation is unknown and is set
     to the end of the samples in the file.
     """
-    if "start_time_local" in hdf5_tod.attrs:
+    if "start_time_process" in hdf5_tod.attrs:
         return {
             "start_time_observation": _read_time_attribute(
                 hdf5_tod, "start_time_observation"
@@ -274,7 +274,7 @@ def write_one_observation(
 
     # Save only the quaternions that cover this observation: the pointing
     # provider is usually shared by all the observations of the simulation
-    time_span_s = obs.n_samples_local / obs.sampling_rate_hz
+    time_span_s = obs.n_samples_process / obs.sampling_rate_hz
 
     if obs.pointing_provider is not None:
         write_pointing_provider_to_hdf5(
@@ -283,7 +283,7 @@ def write_one_observation(
             pointing_provider=PointingProvider(
                 bore2ecliptic_quats=_slice_quaternions(
                     obs.pointing_provider.bore2ecliptic_quats,
-                    start_time=obs.start_time_local,
+                    start_time=obs.start_time_process,
                     time_span_s=time_span_s,
                 ),
                 hwp=obs.pointing_provider.hwp,
@@ -340,7 +340,7 @@ def write_one_observation(
             field_name=f"rot_quaternion_{det_idx:04d}",
             rot_matrix=_slice_quaternions(
                 obs.quat[det_idx],
-                start_time=obs.start_time_local,
+                start_time=obs.start_time_process,
                 time_span_s=time_span_s,
             ),
             compression=compression,
@@ -367,7 +367,7 @@ def write_one_observation(
             compression=compression,
         )
         for name in (
-            "start_time_local",
+            "start_time_process",
             "start_time_observation",
             "end_time_observation",
             "start_time_simulation",
@@ -389,7 +389,7 @@ def write_one_observation(
     # Save pointing information only if it is available
     if obs.pointing_provider and write_full_pointings:
         n_detectors = obs.n_detectors
-        n_samples = obs.n_samples_local
+        n_samples = obs.n_samples_process
 
         pointing_matrix = np.empty(shape=(n_detectors, n_samples, 3))
 

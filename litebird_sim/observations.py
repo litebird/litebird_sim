@@ -38,10 +38,10 @@ def _center_pointings(
 # Attributes of `Observation` renamed when the time references were made
 # explicit; the old names still work for reading, with a DeprecationWarning
 _DEPRECATED_OBSERVATION_ATTRIBUTES = {
-    "start_time": "start_time_local",
+    "start_time": "start_time_process",
     "start_time_global": "start_time_observation",
     "end_time_global": "end_time_observation",
-    "n_samples": "n_samples_local",
+    "n_samples": "n_samples_process",
     "n_samples_global": "n_samples_observation",
     "start_sample": "start_sample_observation",
 }
@@ -106,11 +106,11 @@ class Observation:
 
     After construction at least the following attributes are available
 
-    - :py:meth:`.start_time_local`
+    - :py:meth:`.start_time_process`
     - :py:meth:`.start_sample_observation`, the first local sample's index
       relative to the complete observation
     - :py:meth:`.n_detectors`
-    - :py:meth:`.n_samples_local`
+    - :py:meth:`.n_samples_process`
     - :py:meth:`.tod` 2D array (`n_detectors` by `n_samples)` stacking
       the times streams of the detectors.
 
@@ -373,9 +373,9 @@ class Observation:
             )
 
         (
-            self.start_time_local,
+            self.start_time_process,
             self.start_sample_observation,
-            self.n_samples_local,
+            self.n_samples_process,
         ) = self._get_local_start_time_start_and_n_samples()
 
         self.pointing_provider: PointingProvider | None = None
@@ -443,9 +443,9 @@ class Observation:
         self._sample_range = range(start, start + count)
         self._check_blocks(self.n_blocks_det, self.n_blocks_time)
         (
-            self.start_time_local,
+            self.start_time_process,
             self.start_sample_observation,
-            self.n_samples_local,
+            self.n_samples_process,
         ) = self._get_local_start_time_start_and_n_samples()
 
     def _set_attributes_from_list_of_dict(
@@ -511,7 +511,7 @@ class Observation:
         """Samples in the whole observation
 
         For the sample count of the local TOD block ``self.tod``, use
-        either ``n_samples_local`` or ``self.tod.shape[1]``.
+        either ``n_samples_process`` or ``self.tod.shape[1]``.
         """
         return self._n_samples_observation
 
@@ -847,9 +847,9 @@ class Observation:
             self.setattr_det_global(name, info)
 
         (
-            self.start_time_local,
+            self.start_time_process,
             self.start_sample_observation,
-            self.n_samples_local,
+            self.n_samples_process,
         ) = self._get_local_start_time_start_and_n_samples()
 
     def setattr_det(self, name, info):
@@ -940,13 +940,13 @@ class Observation:
     def get_delta_time(self) -> float | astropy.time.TimeDelta:
         """Return the time interval between two consecutive samples in this observation
 
-        Depending whether the field ``start_time_local`` of the :class:`.Observation` object
+        Depending whether the field ``start_time_process`` of the :class:`.Observation` object
         is a ``float`` or a ``astropy.time.Time`` object, the return value is either a
         ``float`` (in seconds) or an instance of ``astropy.time.TimeDelta``. See also
         :meth:`.get_time_span`."""
 
         delta = 1.0 / self.sampling_rate_hz
-        if isinstance(self.start_time_local, astropy.time.Time):
+        if isinstance(self.start_time_process, astropy.time.Time):
             delta = astropy.time.TimeDelta(delta, format="sec", scale="tdb")
 
         return delta
@@ -955,10 +955,10 @@ class Observation:
         """Return the temporal length of the current observation
 
         This method can either return a ``float`` (in seconds) or a
-        ``astropy.time.TimeDelta`` object, depending whether the field ``start_time_local``
+        ``astropy.time.TimeDelta`` object, depending whether the field ``start_time_process``
         of the :class:`.Observation` object is a ``float`` or a
         ``astropy.time.Time`` instance. See also :meth:`.get_delta_time`."""
-        return self.get_delta_time() * self.n_samples_local
+        return self.get_delta_time() * self.n_samples_process
 
     def get_times(self, normalize=False, astropy_times=False):
         """Return a vector containing the time of each sample in the observation
@@ -981,7 +981,7 @@ class Observation:
         Note for MPI-parallel codes: the times returned are only those of the
         local portion of the data. This means that
 
-         * the size of the returned array is ``n_samples_local``, smaller than
+         * the size of the returned array is ``n_samples_process``, smaller than
            ``n_samples_observation`` whenever there is more than one time-block
          * ``self.tod * self.get_times()`` is a meaningless but always
            allowed operation
@@ -992,18 +992,18 @@ class Observation:
             )
 
             return (
-                np.arange(self.n_samples_local) + self.start_sample_observation
+                np.arange(self.n_samples_process) + self.start_sample_observation
             ) / self.sampling_rate_hz
 
         if astropy_times:
-            assert isinstance(self.start_time_local, astropy.time.Time), (
+            assert isinstance(self.start_time_process, astropy.time.Time), (
                 "to use astropy_times=True you must specify an astropy.time.Time "
                 "object in Observation.__init__"
             )
             delta = self.get_delta_time()
-            return self.start_time_local + np.arange(self.n_samples_local) * delta
+            return self.start_time_process + np.arange(self.n_samples_process) * delta
 
-        if isinstance(self.start_time_local, astropy.time.Time):
+        if isinstance(self.start_time_process, astropy.time.Time):
             # We use "cxcsec" because of the following features:
             #
             # 1. It's one of the astropy.time.Time formats that
@@ -1013,11 +1013,11 @@ class Observation:
             # 2. Of the three choices, "cxcsec" uses the most
             #    recent date as reference (1998-01-01, vs.
             #    1990-01-01 for "gps" and 1980-01-06 for "unix").
-            t0 = self.start_time_local.cxcsec
+            t0 = self.start_time_process.cxcsec
         else:
-            t0 = self.start_time_local
+            t0 = self.start_time_process
 
-        return t0 + np.arange(self.n_samples_local) / self.sampling_rate_hz
+        return t0 + np.arange(self.n_samples_process) / self.sampling_rate_hz
 
     def set_hwp(self, hwp):
         if isinstance(hwp, IdealHWP):
@@ -1189,7 +1189,7 @@ class Observation:
         The return value is a pair containing (1) the pointing matrix and (2) the
         HWP angle. The pointing matrix is a NumPy array with shape ``(N_det, N_samples, 3)``,
         where ``N_det` is the number of detectors and ``N_samples`` is the number of
-        samples in the TOD (the field ``Observation.n_samples_local``). The last dimension
+        samples in the TOD (the field ``Observation.n_samples_process``). The last dimension
         spans the three angles θ (colatitude, in radians), φ (longitude, in radians),
         and ψ (orientation angle, in radians). *Important*: if you ask for just *one*
         detector passing the index of the detector, the shape of the pointing matrix
@@ -1228,10 +1228,10 @@ class Observation:
 
             pointing_buffer, hwp_buffer = self.pointing_provider.get_pointings(
                 detector_quat=self.quat[detector_idx],
-                start_time=self.start_time_local,
+                start_time=self.start_time_process,
                 start_time_simulation=self.start_time_simulation,
                 sampling_rate_hz=self.sampling_rate_hz,
-                nsamples=self.n_samples_local,
+                nsamples=self.n_samples_process,
                 pointing_buffer=pointing_buffer,
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
@@ -1259,7 +1259,7 @@ class Observation:
         # Most complex case: an explicit list (or NumPy array) of detectors
         assert np.ndim(detector_idx) != 0
 
-        expected_shape = (len(detector_idx), self.n_samples_local, 3)
+        expected_shape = (len(detector_idx), self.n_samples_process, 3)
         if pointing_buffer is not None:
             assert pointing_buffer.shape == expected_shape, (
                 "pointing_buffer has a wrong shape, it is {actual} but should be {expected}".format(
@@ -1269,7 +1269,7 @@ class Observation:
         else:
             pointing_buffer = np.empty(expected_shape, dtype=pointings_dtype)
 
-        expected_shape = (self.n_samples_local,)
+        expected_shape = (self.n_samples_process,)
         if self.pointing_provider.has_hwp() and compute_hwp_angle:
             if hwp_buffer is not None:
                 assert hwp_buffer.shape == expected_shape, (
@@ -1347,13 +1347,13 @@ class Observation:
 
         Example:
             hwp_angle = obs.get_hwp_angle()
-            hwp_angle.shape -> (obs.n_samples_local,)
+            hwp_angle.shape -> (obs.n_samples_process,)
         """
         assert self.pointing_provider is not None, (
             "You must initialize pointing_provider; use Simulation.prepare_pointings()"
         )
 
-        expected_shape = (self.n_samples_local,)
+        expected_shape = (self.n_samples_process,)
         if self.pointing_provider.has_hwp():
             if hwp_buffer is not None:
                 assert hwp_buffer.shape == expected_shape, (
@@ -1365,10 +1365,10 @@ class Observation:
                 hwp_buffer = np.empty(expected_shape, dtype=pointings_dtype)
 
             self.pointing_provider.get_hwp_angle(
-                start_time=self.start_time_local,
+                start_time=self.start_time_process,
                 start_time_simulation=self.start_time_simulation,
                 sampling_rate_hz=self.sampling_rate_hz,
-                nsamples=self.n_samples_local,
+                nsamples=self.n_samples_process,
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
             )

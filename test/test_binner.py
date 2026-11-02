@@ -281,12 +281,12 @@ def test_build_mask_time_split():
 
     assert len(masks) == len(sim.observations)
     for mask, obs in zip(masks, sim.observations):
-        assert mask.shape == (obs.n_samples_local,)
+        assert mask.shape == (obs.n_samples_process,)
         assert mask.all()
         assert mask.strides == (0,)  # a view on a single value
 
     # The other splits still return real boolean masks
-    n = sim.observations[0].n_samples_local
+    n = sim.observations[0].n_samples_process
     expected = {
         "odd": np.arange(n) % 2 == 0,
         "even": np.arange(n) % 2 == 1,

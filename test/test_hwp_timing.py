@@ -82,13 +82,13 @@ def test_hwp_phase_across_observations(tmp_path, count, nonideal, scale):
     sim = _make_simulation(tmp_path, start, count, nonideal)
     for obs in sim.observations:
         assert obs.start_time_simulation == sim.start_time
-        elapsed = _elapsed_s(obs.start_time_local, sim.start_time)
-        expected = 0.37 + 0.73 * (elapsed + np.arange(obs.n_samples_local) / 4.0)
+        elapsed = _elapsed_s(obs.start_time_process, sim.start_time)
+        expected = 0.37 + 0.73 * (elapsed + np.arange(obs.n_samples_process) / 4.0)
         _assert_phase(obs.get_hwp_angle(), expected)
         _assert_phase(obs.get_pointings(0)[1], expected)
         _assert_phase(_get_hwp_angle(obs, hwp=sim.hwp), expected)
         # The deprecated API adds twice the mechanical angle to orientation.
-        pointings = np.zeros((1, obs.n_samples_local, 3))
+        pointings = np.zeros((1, obs.n_samples_process, 3))
         with pytest.warns(DeprecationWarning):
             apply_hwp_to_obs(obs, sim.hwp, pointings)
         _assert_phase(pointings[0, :, 2], 2 * expected)
@@ -102,7 +102,9 @@ def test_hwp_phase_distributed_observation_list(tmp_path):
     )
     for obs in sim.observations:
         expected = 0.37 + 0.73 * (
-            obs.start_time_local - sim.start_time + np.arange(obs.n_samples_local) / 4.0
+            obs.start_time_process
+            - sim.start_time
+            + np.arange(obs.n_samples_process) / 4.0
         )
         _assert_phase(obs.get_hwp_angle(), expected)
 
@@ -126,9 +128,9 @@ def test_hwp_later_observation_roundtrip(tmp_path, use_astropy):
     assert loaded.start_time_simulation == start
     assert loaded.start_time_observation == original.start_time_observation
     assert loaded.end_time_observation == original.end_time_observation
-    assert loaded.start_time_local == original.start_time_local
+    assert loaded.start_time_process == original.start_time_process
     assert loaded.n_samples_observation == original.n_samples_observation
-    assert loaded.n_samples_local == original.n_samples_local
+    assert loaded.n_samples_process == original.n_samples_process
     assert loaded.start_sample_observation == original.start_sample_observation
     assert loaded._get_tod_shape(1, 1) == loaded.tod.shape
     np.testing.assert_allclose(
@@ -136,9 +138,9 @@ def test_hwp_later_observation_roundtrip(tmp_path, use_astropy):
     )
     if use_astropy:
         assert loaded.start_time_simulation.scale == start.scale
-        assert loaded.start_time_local.scale == original.start_time_local.scale
-    elapsed = _elapsed_s(loaded.start_time_local, start)
-    expected = 0.37 + 0.73 * (elapsed + np.arange(loaded.n_samples_local) / 4.0)
+        assert loaded.start_time_process.scale == original.start_time_process.scale
+    elapsed = _elapsed_s(loaded.start_time_process, start)
+    expected = 0.37 + 0.73 * (elapsed + np.arange(loaded.n_samples_process) / 4.0)
     _assert_phase(loaded.get_hwp_angle(), expected)
     loaded_pointings, loaded_hwp = loaded.get_pointings(0)
     _assert_phase(loaded_hwp, expected)
@@ -155,7 +157,7 @@ def test_hwp_later_observation_roundtrip(tmp_path, use_astropy):
     reloaded = read_one_observation(second_files[0])
     assert reloaded is not None
     assert reloaded.n_samples_observation == original.n_samples_observation
-    assert reloaded.n_samples_local == original.n_samples_local
+    assert reloaded.n_samples_process == original.n_samples_process
     assert reloaded.start_sample_observation == original.start_sample_observation
     np.testing.assert_allclose(reloaded.get_times(), original.get_times())
     np.testing.assert_array_equal(reloaded.tod, original.tod)
@@ -170,13 +172,13 @@ def test_standalone_observation_time_reference():
     )
     assert obs.start_time_simulation == 25.0
     assert obs.start_time_observation == 25.0
-    assert obs.start_time_local == 25.0
+    assert obs.start_time_process == 25.0
     assert obs.end_time_observation == 27.5
-    assert obs.n_samples_observation == obs.n_samples_local == 10
+    assert obs.n_samples_observation == obs.n_samples_process == 10
     assert obs.start_sample_observation == 0
     # The old names are deprecated aliases (see test_observations.py)
     with pytest.warns(DeprecationWarning):
-        assert obs.start_time == obs.start_time_local
+        assert obs.start_time == obs.start_time_process
 
 
 @pytest.mark.parametrize("use_astropy", [False, True])
@@ -197,32 +199,34 @@ def test_wedge_phase_across_observations(tmp_path, use_astropy):
                 syst = lbs.PointingSys(sim, obs, sim.detectors)
                 syst.hwp.add_hwp_rot_disturb(0.01, 0.73, tilt_phase_rad=0.29)
             assert sim.spin2ecliptic_quats.start_time == scanning_start
-            elapsed = _elapsed_s(obs.start_time_local, start)
+            elapsed = _elapsed_s(obs.start_time_process, start)
             phase = (
-                0.37 + 0.73 * (elapsed + np.arange(obs.n_samples_local) / 4.0) + 0.29
+                0.37 + 0.73 * (elapsed + np.arange(obs.n_samples_process) / 4.0) + 0.29
             )
             expected_quats = lbs.RotQuaternion(
                 quats=lbs.quat_rotation_x_brdcast(0.01 * np.cos(phase)),
-                start_time=obs.start_time_local,
+                start_time=obs.start_time_process,
                 sampling_rate_hz=4.0,
             ) * lbs.RotQuaternion(
                 quats=lbs.quat_rotation_y_brdcast(0.01 * np.sin(phase)),
-                start_time=obs.start_time_local,
+                start_time=obs.start_time_process,
                 sampling_rate_hz=4.0,
             )
-            actual = obs.quat[0].slerp(obs.start_time_local, 4.0, obs.n_samples_local)
+            actual = obs.quat[0].slerp(
+                obs.start_time_process, 4.0, obs.n_samples_process
+            )
             np.testing.assert_allclose(actual, expected_quats.quats, atol=1e-10)
             sim.prepare_pointings(append_to_report=False)
             pointings, hwp = obs.get_pointings(0)
             bore_samples = sim.observations[
                 0
             ].pointing_provider.bore2ecliptic_quats.slerp(
-                obs.start_time_local, 4.0, obs.n_samples_local
+                obs.start_time_process, 4.0, obs.n_samples_process
             )
             expected_sky_quats = (
                 lbs.RotQuaternion(
                     quats=bore_samples,
-                    start_time=obs.start_time_local,
+                    start_time=obs.start_time_process,
                     sampling_rate_hz=4.0,
                 )
                 * expected_quats
@@ -267,7 +271,7 @@ def test_hwp_phase_one_year_after_epoch():
                     )
                     % two_pi
                 )
-                for i in range(obs.n_samples_local)
+                for i in range(obs.n_samples_process)
             ]
         )
     # ~1.3e8 rad accumulated phase: float64 argument rounding dominates.
@@ -286,10 +290,10 @@ def _downgrade_to_legacy_format(path):
                 del dataset.attrs["start_time_scale"]
 
         tod = inpf["tod"]
-        start_time = lbs.io._read_time_attribute(tod, "start_time_local")
+        start_time = lbs.io._read_time_attribute(tod, "start_time_process")
         start_time_global = lbs.io._read_time_attribute(tod, "start_time_observation")
         for name in (
-            "start_time_local",
+            "start_time_process",
             "start_time_observation",
             "end_time_observation",
             "start_time_simulation",
@@ -328,8 +332,8 @@ def test_read_legacy_observation(tmp_path, use_astropy):
     loaded = read_one_observation(files[0])
     assert loaded is not None
     assert loaded.start_sample_observation == original.start_sample_observation
-    assert loaded.n_samples_local == original.n_samples_local
-    assert _elapsed_s(loaded.start_time_local, original.start_time_local) == (
+    assert loaded.n_samples_process == original.n_samples_process
+    assert _elapsed_s(loaded.start_time_process, original.start_time_process) == (
         pytest.approx(0.0, abs=1e-6)
     )
     np.testing.assert_allclose(
@@ -337,6 +341,6 @@ def test_read_legacy_observation(tmp_path, use_astropy):
     )
 
     # The HWP phase of old simulations was referred to the observation start
-    elapsed = _elapsed_s(loaded.start_time_local, original.start_time_observation)
-    expected = 0.37 + 0.73 * (elapsed + np.arange(loaded.n_samples_local) / 4.0)
+    elapsed = _elapsed_s(loaded.start_time_process, original.start_time_observation)
+    expected = 0.37 + 0.73 * (elapsed + np.arange(loaded.n_samples_process) / 4.0)
     _assert_phase(loaded.get_hwp_angle(), expected, atol=1e-8)

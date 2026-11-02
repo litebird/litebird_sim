@@ -174,20 +174,20 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
             if use_mjd:
                 assert (
                     AstroTime(
-                        *cur_dataset.attrs["start_time_local"],
+                        *cur_dataset.attrs["start_time_process"],
                         format="jd",
-                        scale=cur_dataset.attrs["start_time_local_scale"],
+                        scale=cur_dataset.attrs["start_time_process_scale"],
                     )
-                    == original_obs.start_time_local
+                    == original_obs.start_time_process
                 )
             else:
                 assert (
-                    cur_dataset.attrs["start_time_local"]
-                    == original_obs.start_time_local
+                    cur_dataset.attrs["start_time_process"]
+                    == original_obs.start_time_process
                 )
 
             assert cur_dataset.attrs["description"] == description
-            assert ("start_time_local_scale" in cur_dataset.attrs) == use_mjd
+            assert ("start_time_process_scale" in cur_dataset.attrs) == use_mjd
             assert (
                 cur_dataset.attrs["sampling_rate_hz"] == original_obs.sampling_rate_hz
             )
@@ -259,7 +259,7 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: b
     hwp_angle = _get_hwp_angle(obs)
     assert hwp_angle is not None
     np.testing.assert_allclose(hwp_angle, original_obs.get_hwp_angle())
-    assert obs.start_time_local == original_obs.start_time_local
+    assert obs.start_time_process == original_obs.start_time_process
     assert obs.sampling_rate_hz == original_obs.sampling_rate_hz
 
     # Check that the TodDescription objects have been restored correctly

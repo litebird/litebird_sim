@@ -221,7 +221,7 @@ class FocalplaneCoord:
     ):
         self.sim = sim
         self.obs = obs
-        self.start_time = obs.start_time_local
+        self.start_time = obs.start_time_process
         self.sampling_rate_hz = obs.sampling_rate_hz
         self.detectors = detectors
 
@@ -347,7 +347,7 @@ class SpacecraftCoord:
     ):
         self.sim = sim
         self.obs = obs
-        self.start_time = obs.start_time_local
+        self.start_time = obs.start_time_process
         assert self.sim.spin2ecliptic_quats is not None
         self.sampling_rate_hz = obs.sampling_rate_hz
         self.instrument = sim.instrument
@@ -425,7 +425,7 @@ class HWPCoord:
         """
         self.sim = sim
         self.obs = obs
-        self.start_time = obs.start_time_local
+        self.start_time = obs.start_time_process
         self.sampling_rate_hz = obs.sampling_rate_hz
         self.detectors = detectors
         self.ang_speed_radpsec = None
@@ -479,11 +479,11 @@ class HWPCoord:
         self.tilt_angle_rad = tilt_angle_rad
         self.tilt_phase_rad = tilt_phase_rad
 
-        _start_time = self.obs.start_time_local - self.obs.start_time_simulation
+        _start_time = self.obs.start_time_process - self.obs.start_time_simulation
         _delta_time = self.obs.get_delta_time()
         # Sample the disturbance on the local detector grid, with one extra
         # quaternion for interpolation at the end of the observation.
-        n_samples = self.obs.n_samples_local + 1
+        n_samples = self.obs.n_samples_process + 1
         pointing_rot_angles = np.empty(n_samples)
 
         if isinstance(_start_time, astropy.time.TimeDelta):
@@ -556,7 +556,7 @@ class PointingSys:
 
         if isinstance(
             sim.spin2ecliptic_quats.start_time, astropy.time.Time
-        ) != isinstance(obs.start_time_local, astropy.time.Time):
+        ) != isinstance(obs.start_time_process, astropy.time.Time):
             raise ValueError(
                 "Scanning and observation start times must both be numeric or Astropy times."
             )

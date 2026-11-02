@@ -123,7 +123,7 @@ def test_make_pair_differenced_map_covariance_matches_binner():
     )
     # For N uniformly spaced orientations, each Q/U variance is sigma^2 / N.
     expected_covariance = (
-        np.eye(2) * obs.sampling_rate_hz * obs.net_ukrts[0] ** 2 / obs.n_samples_local
+        np.eye(2) * obs.sampling_rate_hz * obs.net_ukrts[0] ** 2 / obs.n_samples_process
     )
     np.testing.assert_allclose(result.invnpp[pix_idx], expected_covariance, atol=1e-14)
     np.testing.assert_allclose(

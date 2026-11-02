@@ -489,13 +489,13 @@ def _build_mask_time_split(
     time_mask = []
 
     for cur_obs in obs_list:
-        mask = np.zeros(cur_obs.n_samples_local, dtype=bool)
+        mask = np.zeros(cur_obs.n_samples_process, dtype=bool)
 
         if time_split == "full":
             # A read-only view needs no memory: a real array would take one
             # byte per sample for *all* the observations at once (~7 GB per
             # process for 3 years of one 75 Hz detector)
-            time_mask.append(np.broadcast_to(np.True_, cur_obs.n_samples_local))
+            time_mask.append(np.broadcast_to(np.True_, cur_obs.n_samples_process))
         elif time_split == "odd":
             mask[0::2] = True
             time_mask.append(mask)
@@ -503,10 +503,10 @@ def _build_mask_time_split(
             mask[1::2] = True
             time_mask.append(mask)
         elif time_split == "first_half":
-            mask[0 : cur_obs.n_samples_local // 2] = True
+            mask[0 : cur_obs.n_samples_process // 2] = True
             time_mask.append(mask)
         elif time_split == "second_half":
-            mask[cur_obs.n_samples_local // 2 :] = True
+            mask[cur_obs.n_samples_process // 2 :] = True
             time_mask.append(mask)
         max_years = 3
         for i in range(1, max_years + 1):

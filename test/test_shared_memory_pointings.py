@@ -97,9 +97,9 @@ def test_shared_prepare_pointings(tmp_path, split_list_over_processes):
         np.testing.assert_array_equal(pointings_std, pointings_shared)
         np.testing.assert_array_equal(hwp_std, hwp_shared)
         expected_hwp = 0.37 + 0.73 * (
-            obs_shared.start_time_local
+            obs_shared.start_time_process
             - sim_shared.start_time
-            + np.arange(obs_shared.n_samples_local) / obs_shared.sampling_rate_hz
+            + np.arange(obs_shared.n_samples_process) / obs_shared.sampling_rate_hz
         )
         np.testing.assert_allclose(
             np.angle(np.exp(1j * (hwp_shared - expected_hwp))), 0.0, atol=1e-10

@@ -19,22 +19,22 @@ The observation distinguishes three start times:
   epoch at which the HWP angle equals ``hwp.start_angle_rad``.
 * ``start_time_observation`` is the start of the complete observation, before
   distributing its samples among MPI processes.
-* ``start_time_local`` is the first sample stored by the current MPI process.
+* ``start_time_process`` is the first sample stored by the current MPI process.
 
 ``end_time_observation`` is the exclusive end of the complete observation: the
 last sample occurs one sampling interval earlier.
 
 ``n_samples_observation`` is the sample count of the complete observation;
-``n_samples_local`` is the count stored by the current MPI process.
-``start_sample_observation`` is the index of the first local sample relative
+``n_samples_process`` is the count stored by the current MPI process.
+``start_sample_observation`` is the index of the first sample of this process relative
 to the start of the complete observation. It is not an index into the full
-simulation timeline. Thus, ``start_time_local`` equals
+simulation timeline. Thus, ``start_time_process`` equals
 ``start_time_observation + start_sample_observation / sampling_rate_hz``
 (using ``TimeDelta`` when times are Astropy objects).
 
 When reading a file containing only an MPI fragment, the observation retains
 the original complete-observation count and sample indices while allocating
-only the available local samples. ``get_times(normalize=True)`` remains
+only the samples stored in the file. ``get_times(normalize=True)`` remains
 relative to the original observation start.
 
 ``Simulation.create_observations`` sets ``start_time_simulation`` to
@@ -45,7 +45,7 @@ directly, the optional ``start_time_simulation`` defaults to
 
 These names replace ``start_time``, ``start_time_global`` and ``end_time_global``.
 Similarly, ``n_samples_global``, ``n_samples`` and ``start_sample`` are replaced
-by ``n_samples_observation``, ``n_samples_local`` and
+by ``n_samples_observation``, ``n_samples_process`` and
 ``start_sample_observation``. The old attribute names and the
 ``n_samples_global``/``start_time_global`` arguments of ``Observation`` are
 deprecated: they still work, but emit a ``DeprecationWarning``.
@@ -528,7 +528,7 @@ file contains the following datasets:
 - One dataset per each TOD; each dataset has the same name as the ones passed to
   ``tods=`` in the call to ``create_observations``. It has the following attributes:
 
-  - ``start_time_local``, ``start_time_observation``, ``end_time_observation``, and
+  - ``start_time_process``, ``start_time_observation``, ``end_time_observation``, and
     ``start_time_simulation``: the local start, complete observation boundaries,
     and simulation epoch. Numeric times are stored as scalar seconds. Astropy
     times are stored as two doubles, ``(jd1, jd2)``, with the time scale in a

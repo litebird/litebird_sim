@@ -2,13 +2,13 @@
 
 -   **Breaking change**: observation time references are now explicit:
     `start_time`, `start_time_global` and `end_time_global` are renamed to
-    `start_time_local`, `start_time_observation` and `end_time_observation`.
+    `start_time_process`, `start_time_observation` and `end_time_observation`.
     Sample metadata follows the same naming: `n_samples_global`, `n_samples`
-    and `start_sample` become `n_samples_observation`, `n_samples_local` and
+    and `start_sample` become `n_samples_observation`, `n_samples_process` and
     `start_sample_observation`. The old attribute names and the
     `n_samples_global`/`start_time_global` arguments of `Observation` still
     work, with a `DeprecationWarning`. HDF5 files preserve the complete-observation
-    sample count and the local block's starting index; reading an MPI fragment
+    sample count and the starting index of the samples of each process; reading an MPI fragment
     allocates only its stored samples and retains its normalized sample times.
     `Observation` also accepts `start_time_simulation` (defaults to the
     observation start for standalone observations); `Simulation` sets it to
