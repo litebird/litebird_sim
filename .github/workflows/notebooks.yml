@@ -3,7 +3,7 @@ name: Notebook Tests
 on: [push]
 
 jobs:
-  tests:
+  notebooks:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
