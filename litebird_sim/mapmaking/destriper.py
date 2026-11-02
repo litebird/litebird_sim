@@ -1497,14 +1497,14 @@ def make_destriped_map(
     keep_pol_angle_rad: bool = False,
     detector_split: str = "full",
     time_split: str = "full",
-    flags: str | list[str] | None = None,
-    flag_mask: int | None = None,
     baselines_list: list[npt.NDArray] | None = None,
     recycled_convergence: bool = False,
     callback: Any = destriper_log_callback,
     callback_kwargs: dict[Any, Any] | None = None,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
+    flags: str | list[str] | None = None,
+    flag_mask: int | None = None,
 ) -> DestriperResult:
     """
     Applies the destriping algorithm to produce a map out from a TOD

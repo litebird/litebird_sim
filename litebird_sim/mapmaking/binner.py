@@ -300,10 +300,10 @@ def make_binned_map(
     components: str | list[str] = "tod",
     detector_split: str = "full",
     time_split: str = "full",
-    flags: str | list[str] | None = None,
-    flag_mask: int | None = None,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
+    flags: str | list[str] | None = None,
+    flag_mask: int | None = None,
 ) -> BinnerResult:
     """Bin Map-maker
 

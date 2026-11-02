@@ -87,7 +87,11 @@ from .scanning import (
 )
 from .shared_memory import SharedMemoryManager
 from .seeding import RNGHierarchy
-from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
+from .spacecraft import (
+    SpacecraftOrbit,
+    SpacecraftPositionAndVelocity,
+    spacecraft_pos_and_vel,
+)
 from .units import Units
 from .utilities import resolve_numba_nthreads
 from .version import (
@@ -1985,13 +1989,18 @@ class Simulation:
             orbit=orbit, observations=self.observations, delta_time_s=delta_time_s
         )
 
-    def _prepare_for_planets(self):
+    def _prepare_for_planets(self) -> SpacecraftPositionAndVelocity | None:
         # Planets need astropy times and the position of the spacecraft,
-        # computed as in add_dipole if missing
+        # computed as in add_dipole if missing. MPI processes without
+        # observations have no orbit to compute, but must still take part in
+        # the reductions of flag_planets
         if not isinstance(self.start_time, astropy.time.Time):
             raise ValueError("Planets need a start_time of type astropy.time.Time")
+        if not self.observations:
+            return None
         if not hasattr(self, "pos_and_vel"):
             self.compute_pos_and_vel()
+        return self.pos_and_vel
 
     @_profile
     def add_planets(
@@ -2008,11 +2017,11 @@ class Simulation:
         :meth:`.compute_pos_and_vel` if needed. It must be called after
         :meth:`.prepare_pointings`.
         """
-        self._prepare_for_planets()
+        pos_and_vel = self._prepare_for_planets()
         planets = [planets] if isinstance(planets, str) else list(planets)
         add_planets_to_observations(
             observations=self.observations,
-            pos_and_vel=self.pos_and_vel,
+            pos_and_vel=pos_and_vel,
             planets=planets,
             component=component,
             bandpass_integration=bandpass_integration,
@@ -2047,10 +2056,10 @@ class Simulation:
         :meth:`.prepare_pointings`. Return the number of flagged samples for
         each planet, summed over all the MPI processes.
         """
-        self._prepare_for_planets()
+        pos_and_vel = self._prepare_for_planets()
         num_of_flagged = flag_planets_in_observations(
             observations=self.observations,
-            pos_and_vel=self.pos_and_vel,
+            pos_and_vel=pos_and_vel,
             planets=planets,
             radius_fwhm=radius_fwhm,
             threshold_k_cmb=threshold_k_cmb,
@@ -2756,12 +2765,12 @@ class Simulation:
         components: str | list[str] = "tod",
         detector_splits: str | list[str] = "full",
         time_splits: str | list[str] = "full",
-        flags: str | list[str] | None = None,
-        flag_mask: int | None = None,
         write_to_disk: bool = True,
         include_inv_covariance: bool = False,
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        flags: str | list[str] | None = None,
+        flag_mask: int | None = None,
     ) -> list[str] | dict[str, BinnerResult]:
         """
         Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the
@@ -2853,10 +2862,10 @@ class Simulation:
         components: str | list[str] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
-        flags: str | list[str] | None = None,
-        flag_mask: int | None = None,
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        flags: str | list[str] | None = None,
+        flag_mask: int | None = None,
     ) -> BinnerResult:
         """
         Bins the tods of `sim.observations` into maps.
@@ -2950,8 +2959,6 @@ class Simulation:
         components: str | list[str] = "tod",
         detector_splits: str | list[str] = "full",
         time_splits: str | list[str] = "full",
-        flags: str | list[str] | None = None,
-        flag_mask: int | None = None,
         keep_weights: bool = False,
         keep_pixel_idx: bool = False,
         keep_pol_angle_rad: bool = False,
@@ -2961,6 +2968,8 @@ class Simulation:
         recycle_baselines: bool = False,
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        flags: str | list[str] | None = None,
+        flag_mask: int | None = None,
     ) -> list[str] | dict[str, DestriperResult]:
         """
         Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the
@@ -3078,8 +3087,6 @@ class Simulation:
         components: str | list[str] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
-        flags: str | list[str] | None = None,
-        flag_mask: int | None = None,
         keep_weights: bool = False,
         keep_pixel_idx: bool = False,
         keep_pol_angle_rad: bool = False,
@@ -3087,6 +3094,8 @@ class Simulation:
         callback_kwargs: dict[Any, Any] | None = None,
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        flags: str | list[str] | None = None,
+        flag_mask: int | None = None,
     ) -> DestriperResult:
         """
         Bins the tods of `sim.observations` into maps.
@@ -3239,7 +3248,6 @@ class Simulation:
         nthreads: int | None = None,
         noise_model: str = "toast",
         flags: str | list[str] | None = None,
-        flag_mask: int | None = None,
         noise: dict | None = None,
         correlation: dict | None = None,
         calibration: "pysanepic.CalibrationParameters | None" = None,
@@ -3250,6 +3258,7 @@ class Simulation:
         pointing_form: str = "auto",
         verbose: bool = False,
         append_to_report: bool = True,
+        flag_mask: int | None = None,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
 
@@ -3327,7 +3336,6 @@ class Simulation:
         result: "pysanepic.MapResult",
         components: str | list[str] = "tod",
         flags: str | list[str] | None = None,
-        flag_mask: int | None = None,
         chunk_s: float = 86400.0,
         nbins: int = 60,
         fit: str | None = None,
@@ -3335,6 +3343,7 @@ class Simulation:
         nthreads: int | None = None,
         correlation: dict | None = None,
         n_modes: int = 1,
+        flag_mask: int | None = None,
     ) -> dict:
         """Noise spectra of the detectors from the residual of a pysanepic map.
 

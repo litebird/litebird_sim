@@ -90,11 +90,11 @@ def flag_planets_in_observations(
 ) -> dict[str, int]:
     """Flag the samples close to the planets
 
-    Set `bit` in ``local_flags`` (allocated if needed) for the samples whose
-    pointing is closer than ``radius_fwhm × fwhm_arcmin`` of the detector to
-    one of the `planets`, seen from the position of the spacecraft in
-    `pos_and_vel`. `radius_fwhm` can be a dictionary with the radius of each
-    planet.
+    Set `bit` in ``local_flags`` (allocated only if a planet gets close to
+    the detectors) for the samples whose pointing is closer than
+    ``radius_fwhm × fwhm_arcmin`` of the detector to one of the `planets`,
+    seen from the position of the spacecraft in `pos_and_vel`. `radius_fwhm`
+    can be a dictionary with the radius of each planet.
 
     If `threshold_k_cmb` is given, only the samples within this radius where the
     signal of the planet (see :func:`.add_planets_to_observations`) is larger
@@ -119,7 +119,7 @@ def flag_planets_in_observations(
 
     num_of_flagged = dict.fromkeys(planets, 0)
     for obs in obs_list:
-        flags = get_local_flags(obs)
+        flags = None
         fwhm_rad = np.deg2rad(np.asarray(obs.fwhm_arcmin) / 60.0)
         for planet in planets:
             k = radius_fwhm[planet] if isinstance(radius_fwhm, dict) else radius_fwhm
@@ -132,6 +132,10 @@ def flag_planets_in_observations(
                 obs, pos_and_vel, planet, radius_rad.max()
             ):
                 if threshold_k_cmb is None:
+                    # ponytail: allocated as soon as the boresight is close to
+                    # the planet, even if no detector gets within the radius
+                    if flags is None:
+                        flags = get_local_flags(obs)
                     num_of_flagged[planet] += flag_planet(
                         flags[:, start:stop], pointings, planet_dir, radius_rad, bit
                     )
@@ -148,6 +152,10 @@ def flag_planets_in_observations(
                     radius_rad,
                 )
                 bright = signal > threshold_k_cmb
+                if not bright.any():
+                    continue
+                if flags is None:
+                    flags = get_local_flags(obs)
                 flags[:, start:stop][bright] |= bit
                 num_of_flagged[planet] += int(bright.sum())
 

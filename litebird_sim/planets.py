@@ -10,6 +10,7 @@ enters a differential TOD.
 """
 
 from collections.abc import Iterator
+from typing import NamedTuple
 
 import astropy.time
 import numpy as np
@@ -165,15 +166,24 @@ def planet_solid_angle_sr(planet: str, distance_km) -> npt.NDArray:
     return np.pi * r_eq * r_pol / np.asarray(distance_km) ** 2
 
 
+class PlanetEphemeris(NamedTuple):
+    """Result of :func:`planet_ephemeris`"""
+
+    grid_s: npt.NDArray
+    planet_km: npt.NDArray
+    spacecraft_offset_s: float
+    pos_and_vel: SpacecraftPositionAndVelocity
+
+
 def planet_ephemeris(
     planet: str,
     pos_and_vel: SpacecraftPositionAndVelocity,
     start_time: astropy.time.Time,
     time_span_s: float,
-) -> tuple[npt.NDArray, npt.NDArray]:
-    """Position of `planet` with respect to the spacecraft, in km and in
-    Ecliptic coordinates, on a grid of times (seconds since `start_time`)
-    covering `time_span_s`
+) -> PlanetEphemeris:
+    """Position of `planet` in km and in Ecliptic coordinates on a grid of
+    times (seconds since `start_time`) covering `time_span_s`, and the orbit
+    of the spacecraft in `pos_and_vel`
 
     Use :func:`planet_position` to interpolate it.
     """
@@ -187,24 +197,42 @@ def planet_ephemeris(
         .to("km")
         .value.T
     )
-
-    # Same interpolation as SpacecraftPositionAndVelocity.compute_velocities
-    t = (start_time - pos_and_vel.start_time).sec + grid_s
-    tp = np.linspace(0.0, pos_and_vel.time_span_s, pos_and_vel.positions_km.shape[0])
-    spacecraft_km = np.stack(
-        [np.interp(t, tp, pos_and_vel.positions_km[:, i]) for i in range(3)], axis=-1
+    return PlanetEphemeris(
+        grid_s=grid_s,
+        planet_km=planet_km,
+        spacecraft_offset_s=(start_time - pos_and_vel.start_time).sec,
+        pos_and_vel=pos_and_vel,
     )
-    return grid_s, planet_km - spacecraft_km
 
 
 def planet_position(
-    grid_s: npt.NDArray, relative_pos_km: npt.NDArray, times_s: npt.NDArray
+    ephemeris: PlanetEphemeris, times_s: npt.NDArray
 ) -> tuple[npt.NDArray, npt.NDArray]:
-    """Unit vectors pointing to the planet and its distance in km at times
-    `times_s`, interpolating the result of :func:`planet_ephemeris`"""
-    pos = np.stack(
-        [np.interp(times_s, grid_s, relative_pos_km[:, i]) for i in range(3)], axis=-1
+    """Unit vectors pointing to the planet from the spacecraft and its
+    distance in km at times `times_s`, interpolating the result of
+    :func:`planet_ephemeris`
+
+    The planet and the spacecraft are interpolated separately at `times_s`:
+    the grid of the planet extends beyond the orbit of the spacecraft, which
+    is not extrapolated.
+    """
+    planet_km = np.stack(
+        [
+            np.interp(times_s, ephemeris.grid_s, ephemeris.planet_km[:, i])
+            for i in range(3)
+        ],
+        axis=-1,
     )
+
+    # Same interpolation as SpacecraftPositionAndVelocity.compute_velocities
+    pos_and_vel = ephemeris.pos_and_vel
+    tp = np.linspace(0.0, pos_and_vel.time_span_s, pos_and_vel.positions_km.shape[0])
+    t = ephemeris.spacecraft_offset_s + np.asarray(times_s)
+    spacecraft_km = np.stack(
+        [np.interp(t, tp, pos_and_vel.positions_km[:, i]) for i in range(3)], axis=-1
+    )
+
+    pos = planet_km - spacecraft_km
     distance = np.linalg.norm(pos, axis=1)
     return pos / distance[:, None], distance
 
@@ -241,8 +269,7 @@ def _max_detector_offset_rad(obs: Observation) -> float:
 
 def _segments_close_to_planet(
     obs: Observation,
-    grid_s: npt.NDArray,
-    relative_pos_km: npt.NDArray,
+    ephemeris: PlanetEphemeris,
     max_distance_rad: float,
 ) -> list[tuple[int, int]]:
     """Ranges of samples ``[start, stop)`` in which some detector of `obs`
@@ -272,7 +299,7 @@ def _segments_close_to_planet(
     ).max()
 
     times_s = np.arange(num_of_points) * step / obs.sampling_rate_hz
-    planet_vec, _ = planet_position(grid_s, relative_pos_km, times_s)
+    planet_vec, _ = planet_position(ephemeris, times_s)
     distance = np.arccos(np.clip(np.sum(bore_vec * planet_vec, axis=1), -1, 1))
     close = distance < max_distance_rad + _max_detector_offset_rad(obs) + max_motion
 
@@ -312,12 +339,10 @@ def iter_planet_segments(
     if obs.n_samples == 0 or obs.n_detectors == 0:
         return
 
-    grid_s, relative_pos_km = planet_ephemeris(
+    ephemeris = planet_ephemeris(
         planet, pos_and_vel, obs.start_time, obs.n_samples / obs.sampling_rate_hz
     )
-    for start, stop in _segments_close_to_planet(
-        obs, grid_s, relative_pos_km, max_distance_rad
-    ):
+    for start, stop in _segments_close_to_planet(obs, ephemeris, max_distance_rad):
         pointings = np.empty((obs.n_detectors, stop - start, 3))
         for det_idx in range(obs.n_detectors):
             obs.pointing_provider.get_pointings(
@@ -331,7 +356,7 @@ def iter_planet_segments(
                 compute_hwp_angle=False,
             )
         times_s = np.arange(start, stop) / obs.sampling_rate_hz
-        planet_dir, distance_km = planet_position(grid_s, relative_pos_km, times_s)
+        planet_dir, distance_km = planet_position(ephemeris, times_s)
         yield start, stop, pointings, planet_dir, distance_km
 
 

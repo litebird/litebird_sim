@@ -289,7 +289,6 @@ def make_sanepic_gls_map(
     nthreads: int | None = None,
     noise_model: str = "toast",
     flags: str | list[str] | None = None,
-    flag_mask: int | None = None,
     noise: dict | None = None,
     correlation: dict | None = None,
     calibration: "pysanepic.CalibrationParameters | None" = None,
@@ -299,6 +298,7 @@ def make_sanepic_gls_map(
     template_covariance: bool = False,
     pointing_form: str = "auto",
     verbose: bool = False,
+    flag_mask: int | None = None,
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -674,7 +674,6 @@ def estimate_sanepic_noise(
     hwp: HWP | None = None,
     components: str | list[str] = "tod",
     flags: str | list[str] | None = None,
-    flag_mask: int | None = None,
     chunk_s: float = 86400.0,
     nbins: int = 60,
     fit: str | None = None,
@@ -682,6 +681,7 @@ def estimate_sanepic_noise(
     nthreads: int | None = None,
     correlation: dict | None = None,
     n_modes: int = 1,
+    flag_mask: int | None = None,
 ) -> dict:
     """
     Noise spectrum of each detector from the residual of a pysanepic map.

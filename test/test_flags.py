@@ -39,11 +39,11 @@ def test_planet_direction():
     pos_and_vel = lbs.spacecraft_pos_and_vel(
         orbit, start_time=START_TIME, time_span_s=86400.0
     )
-    grid_s, rel_pos = lbs_planets.planet_ephemeris(
+    ephemeris = lbs_planets.planet_ephemeris(
         "neptune", pos_and_vel, START_TIME, 86400.0
     )
     times_s = np.array([0.0, 43200.0])
-    actual, _ = lbs_planets.planet_position(grid_s, rel_pos, times_s)
+    actual, _ = lbs_planets.planet_position(ephemeris, times_s)
 
     coords = get_body(
         "neptune", START_TIME + astropy.time.TimeDelta(times_s, format="sec")
@@ -53,6 +53,51 @@ def test_planet_direction():
 
     angle_deg = np.rad2deg(np.arccos(np.clip(np.sum(actual * desired, 1), -1, 1)))
     assert np.all(angle_deg < 0.05)
+
+
+def test_planet_position_at_the_end_of_the_orbit():
+    # The grid of the ephemerides goes beyond the orbit of the spacecraft when
+    # the time span is not a multiple of an hour: the last samples must not
+    # interpolate towards a spacecraft frozen at the end of its orbit
+    time_span_s = 1800.0
+    orbit = lbs.SpacecraftOrbit(START_TIME)
+    pos_and_vel = lbs.spacecraft_pos_and_vel(
+        orbit, start_time=START_TIME, time_span_s=time_span_s
+    )
+    ephemeris = lbs_planets.planet_ephemeris(
+        "mars", pos_and_vel, START_TIME, time_span_s
+    )
+    times_s = np.array([0.0, 900.0, time_span_s])
+    actual, actual_distance = lbs_planets.planet_position(ephemeris, times_s)
+
+    planet_km = (
+        lbs_planets.ICRS(
+            lbs_planets.get_body_barycentric(
+                "mars", START_TIME + astropy.time.TimeDelta(times_s, format="sec")
+            )
+        )
+        .transform_to(lbs.coordinates.DEFAULT_COORDINATE_SYSTEM)
+        .cartesian.get_xyz()
+        .to("km")
+        .value.T
+    )
+    spacecraft_km = np.stack(
+        [
+            np.interp(times_s, [0.0, time_span_s], pos_and_vel.positions_km[:, i])
+            for i in range(3)
+        ],
+        axis=-1,
+    )
+    desired = planet_km - spacecraft_km
+    desired_distance = np.linalg.norm(desired, axis=1)
+    desired /= desired_distance[:, None]
+
+    angle_arcsec = (
+        np.rad2deg(np.arccos(np.clip(np.sum(actual * desired, 1), -1, 1))) * 3600
+    )
+    assert np.all(angle_arcsec < 0.1)
+    # The hourly interpolation of the planet is accurate to a few km
+    np.testing.assert_allclose(actual_distance, desired_distance, rtol=1e-7)
 
 
 def _make_sim(tmp_path):
@@ -107,10 +152,10 @@ def test_flag_planets_matches_brute_force(tmp_path):
     times_s = np.arange(obs.n_samples) / obs.sampling_rate_hz
     radius_rad = np.deg2rad(radius_fwhm * obs.fwhm_arcmin / 60)
     for planet in lbs.PLANETS:
-        grid_s, rel_pos = lbs_planets.planet_ephemeris(
+        ephemeris = lbs_planets.planet_ephemeris(
             planet, sim.pos_and_vel, obs.start_time, obs.n_samples / 5.0
         )
-        planet_dir, _ = lbs_planets.planet_position(grid_s, rel_pos, times_s)
+        planet_dir, _ = lbs_planets.planet_position(ephemeris, times_s)
         assert (
             lbs.flag_planet(reference, pointings, planet_dir, radius_rad)
             == (num[planet])
@@ -137,3 +182,59 @@ def test_flag_planets_needs_astropy_times():
         sim.flag_planets()
     with pytest.raises(ValueError, match="astropy"):
         sim.add_planets()
+
+
+def _make_one_detector_sim(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path, start_time=START_TIME, duration_s=3600.0, random_seed=1
+    )
+    sim.set_instrument(
+        lbs.InstrumentInfo(name="instr", spin_boresight_angle_rad=np.deg2rad(50))
+    )
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name="det", sampling_rate_hz=1.0, fwhm_arcmin=30.0, bandcenter_ghz=140.0
+            )
+        ]
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45),
+            precession_rate_hz=1 / (3.2 * 3600),
+            spin_rate_hz=0.05 / 60,
+        )
+    )
+    sim.prepare_pointings()
+    return sim
+
+
+def test_flag_planets_allocates_flags_lazily(tmp_path):
+    # No flags are allocated if nothing is flagged, even if Jupiter is in the
+    # field of view
+    if lbs.MPI_COMM_WORLD.size > 1:
+        pytest.skip("This test uses one observation, which is not split over MPI")
+
+    sim = _make_one_detector_sim(tmp_path)
+    assert sim.flag_planets(planets=[], append_to_report=False) == {}
+    num = sim.flag_planets(
+        planets="jupiter",
+        radius_fwhm=1000.0,
+        threshold_k_cmb=1e10,
+        append_to_report=False,
+    )
+    assert num == {"jupiter": 0}
+    for obs in sim.observations:
+        assert obs.local_flags is None
+
+
+def test_planets_without_observations(tmp_path):
+    # An MPI process without observations has no orbit to compute, but takes
+    # part in the reductions of flag_planets
+    sim = lbs.Simulation(
+        base_path=tmp_path, start_time=START_TIME, duration_s=3600.0, random_seed=1
+    )
+    sim.add_planets(planets="jupiter")
+    num = sim.flag_planets(planets="jupiter", append_to_report=False)
+    assert num == {"jupiter": 0}
+    assert not hasattr(sim, "pos_and_vel")
