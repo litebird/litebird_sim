@@ -3,7 +3,7 @@ name: Docs Tests
 on: [push]
 
 jobs:
-  tests:
+  doctests:
     runs-on: ubuntu-latest
 
     # Only run tests if there is no [skipci] or [skip ci] in the commit message
