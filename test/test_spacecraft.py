@@ -70,3 +70,28 @@ def test_spacecraft_orbit():
 
     # Check that the maximum speed of the spacecraft with respect to L2 is ~110 m/s
     assert np.round(np.max(np.linalg.norm(diff_vel_km_s, axis=1) * 1e2)) == 11.0
+
+
+def test_spacecraft_orbit_sub_window():
+    # A window starting after the beginning of the orbit (e.g., the observations
+    # held by an MPI process other than the first one) must give the same positions
+    # and velocities as the corresponding samples of a longer run
+    start_time = astropy.time.Time("2030-01-01")
+    orbit = lbs.SpacecraftOrbit(start_time=start_time)
+    day_s = 86400.0
+
+    full = lbs.spacecraft_pos_and_vel(
+        orbit, start_time=start_time, time_span_s=40 * day_s, delta_time_s=day_s
+    )
+    window = lbs.spacecraft_pos_and_vel(
+        orbit,
+        start_time=start_time + astropy.time.TimeDelta(20 * day_s, format="sec"),
+        time_span_s=10 * day_s,
+        delta_time_s=day_s,
+    )
+
+    assert window.positions_km.shape == (11, 3)
+    np.testing.assert_allclose(window.positions_km, full.positions_km[20:31], rtol=1e-6)
+    np.testing.assert_allclose(
+        window.velocities_km_s, full.velocities_km_s[20:31], rtol=1e-6
+    )
