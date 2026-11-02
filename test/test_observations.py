@@ -65,6 +65,40 @@ def test_observation_tod_array():
     assert obs.tod.dtype == np.float32
 
 
+@pytest.mark.parametrize(
+    "attribute, value, missing",
+    [
+        pytest.param("gain", 2.0, np.nan, id="numeric"),
+        pytest.param("label", "calibrated", None, id="string"),
+        pytest.param(
+            "coefficients",
+            np.array([1.0, 2.0]),
+            np.array([np.nan, np.nan]),
+            id="array",
+        ),
+    ],
+)
+def test_observation_detector_attribute_missing_from_first_detectors(
+    attribute, value, missing
+):
+    obs = lbs.Observation(
+        detectors=[
+            {"name": "A"},
+            {"name": "B"},
+            {"name": "C", attribute: value},
+            {"name": "D"},
+        ],
+        n_samples_observation=1,
+        start_time_observation=0.0,
+        sampling_rate_hz=1.0,
+    )
+
+    nptest.assert_array_equal(obs.name, ["A", "B", "C", "D"])
+    nptest.assert_array_equal(
+        getattr(obs, attribute), [missing, missing, value, missing]
+    )
+
+
 def test_deprecated_observation_names():
     with pytest.warns(DeprecationWarning, match="n_samples_global"):
         obs = lbs.Observation(
