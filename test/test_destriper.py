@@ -380,6 +380,7 @@ def test_map_maker_parts():
         _store_pixel_idx_and_pol_angle_in_obs,
         _build_mask_detector_split,
         _build_mask_time_split,
+        _apply_flags_to_time_masks,
         _build_nobs_matrix,
         _sum_components_into_obs,
         _compute_binned_map,
@@ -411,7 +412,9 @@ def test_map_maker_parts():
 
     detector_mask_list = _build_mask_detector_split("full", obs_list)
 
-    time_mask_list = _build_mask_time_split("full", obs_list)
+    time_mask_list = _apply_flags_to_time_masks(
+        _build_mask_time_split("full", obs_list), obs_list, None, None
+    )
 
     #################################################
     # Step 1: check that the N_obs matrix is correct

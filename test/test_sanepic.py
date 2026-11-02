@@ -149,6 +149,13 @@ def test_sanepic_flags(monkeypatch):
     seen.clear()
     lbs.make_sanepic_gls_map(nside=8, observations=sim.observations)
     assert seen == [None, None]
+    # Flags never written (None) mean that all the samples are good
+    seen.clear()
+    obs.global_flags = None
+    lbs.make_sanepic_gls_map(
+        nside=8, observations=sim.observations, flags=["local_flags", "global_flags"]
+    )
+    assert [list(np.flatnonzero(f)) for f in seen] == [[], [3]]
 
 
 def test_sanepic_noise_estimation():
