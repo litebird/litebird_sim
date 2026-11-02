@@ -26,6 +26,8 @@ from .observation_utilities import (
 
 from .utilities import cos_sin, resolve_nthreads
 
+log = logging.getLogger(__name__)
+
 
 @njit
 def compute_signal_for_one_sample(T, Q, U, co, si, gamma):
@@ -252,7 +254,7 @@ def scan_map(
         # ----------------------------------------------------------
         coordinates = getattr(maps_det, "coordinates", None)
         if coordinates is None:
-            logging.warning(
+            log.warning(
                 "scan_map: maps_det.coordinates is None — assuming "
                 "CoordinateSystem.Galactic"
             )

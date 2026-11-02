@@ -17,6 +17,8 @@ from .observation_utilities import (
 from .maps_and_harmonics import SphericalHarmonics
 from .utilities import resolve_nthreads, wrap_phi
 
+log = logging.getLogger(__name__)
+
 
 @dataclass
 class BeamConvolutionParameters:
@@ -109,7 +111,7 @@ def add_convolved_sky_to_one_detector(
         assert beam_mmax is not None
         default_mmax = min(default_lmax - 4, beam_mmax)
 
-        logging.warning(
+        log.warning(
             (
                 "No convolution parameters, I will use the defaults "
                 "(ℓ_max={lmax}, m_max={mmax}), but this "
@@ -133,7 +135,7 @@ def add_convolved_sky_to_one_detector(
             convolution_params.lmax, convolution_params.lmax, inplace=False
         ).values
 
-        logging.warning(
+        log.warning(
             ("Input sky alms resized, using ℓ_max={lmax}.").format(
                 lmax=convolution_params.lmax
             )
@@ -149,7 +151,7 @@ def add_convolved_sky_to_one_detector(
             convolution_params.lmax, convolution_params.mmax, inplace=False
         ).values
 
-        logging.warning(
+        log.warning(
             ("Input beam alms resized, using ℓ_max={lmax} and m_max={mmax}.").format(
                 lmax=convolution_params.lmax, mmax=convolution_params.mmax
             )
@@ -317,7 +319,7 @@ def add_convolved_sky(
         # ----------------------------------------------------------
         coordinates = getattr(sky_alms_det, "coordinates", None)
         if coordinates is None:
-            logging.warning(
+            log.warning(
                 "add_convolved_sky: sky_alms.coordinates is None — assuming "
                 "CoordinateSystem.Galactic"
             )

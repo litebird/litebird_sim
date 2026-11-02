@@ -1,5 +1,5 @@
 import json
-import logging as log
+import logging
 import re
 from collections import namedtuple
 from dataclasses import asdict, fields
@@ -18,6 +18,8 @@ from .observations import Observation, TodDescription
 from .pointings import PointingProvider, _slice_quaternions
 from .scanning import RotQuaternion
 from .units import Units
+
+log = logging.getLogger(__name__)
 
 __NUMPY_INT_TYPES = [
     np.int8,
@@ -415,7 +417,7 @@ def write_list_of_observations(
     custom_placeholders: list[dict[str, Any]] | None = None,
     start_index: int = 0,
     collective_mpi_call: bool = True,
-    tod_fields: list[str | TodDescription] = [],
+    tod_fields: list[str | TodDescription] | None = None,
     gzip_compression: bool = False,
     write_full_pointings: bool = False,
 ) -> list[Path]:
@@ -586,7 +588,7 @@ def read_one_observation(
     read_quaternions_if_present=True,
     read_global_flags_if_present=True,
     read_local_flags_if_present=True,
-    tod_fields: list[str] = ["tod"],
+    tod_fields: list[str] | None = None,
 ) -> Observation | None:
     """Read one :class:`.Observation` object from a HDF5 file.
 
@@ -612,6 +614,9 @@ def read_one_observation(
     The function returns a :class:`.Observation`, or ``Nothing`` if the HDF5 file
     was ill-formed.
     """
+
+    if tod_fields is None:
+        tod_fields = ["tod"]
 
     assert len(tod_fields) > 0
 
@@ -798,7 +803,7 @@ def read_list_of_observations(
     file_name_list: list[str | Path],
     tod_dtype=np.float32,
     limit_mpi_rank: bool = True,
-    tod_fields: list[str | TodDescription] = ["tod"],
+    tod_fields: list[str | TodDescription] | None = None,
 ) -> list[Observation]:
     """Read a list of HDF5 files containing TODs and return a list of observations
 
@@ -822,6 +827,9 @@ def read_list_of_observations(
     initialized as a member field of the :class:`.Observation` class, like
     ``Observation.tod``.
     """
+
+    if tod_fields is None:
+        tod_fields = ["tod"]
 
     observations = []
 
