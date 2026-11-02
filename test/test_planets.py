@@ -108,9 +108,12 @@ def test_add_planets(tmp_path):
 
     # Compare with the Gaussian beam evaluated on all the pointings
     pointings, _ = obs.get_pointings("all")
-    times_s = np.arange(obs.n_samples) / obs.sampling_rate_hz
+    times_s = np.arange(obs.n_samples_process) / obs.sampling_rate_hz
     ephemeris = lbs_planets.planet_ephemeris(
-        "jupiter", sim.pos_and_vel, obs.start_time, obs.n_samples / 5.0
+        "jupiter",
+        sim.pos_and_vel,
+        obs.start_time_process,
+        obs.n_samples_process / 5.0,
     )
     planet_dir, distance_km = lbs_planets.planet_position(ephemeris, times_s)
     vectors = lbs_planets._ang2vec(pointings[..., 0], pointings[..., 1])

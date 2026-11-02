@@ -429,11 +429,11 @@ simulation :func:`.Simulation.add_dipole`.
 
 .. testoutput::
 
-   3.44963e-03
-   3.45207e-03
-   3.45413e-03
-   3.45582e-03
-   3.45712e-03
+   3.44919e-03
+   3.45163e-03
+   3.45370e-03
+   3.45538e-03
+   3.45668e-03
 
 Note that even if :func:`Simulation.compute_pos_and_vel` is not explicitly
 invoked, :func:`Simulation.add_dipole` takes care of that internally initializing

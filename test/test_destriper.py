@@ -1168,10 +1168,10 @@ def test_destriper_removes_pure_offsets(tmp_path):
     samples_per_baseline = 100
     rng = np.random.default_rng(0)
     for obs in sim.observations:
-        num_of_baselines = -(-obs.n_samples // samples_per_baseline)
+        num_of_baselines = -(-obs.n_samples_process // samples_per_baseline)
         offsets = rng.normal(0, 1e-4, (obs.n_detectors, num_of_baselines))
         obs.tod[:] = np.repeat(offsets, samples_per_baseline, axis=1)[
-            :, : obs.n_samples
+            :, : obs.n_samples_process
         ]
 
     nside = 16

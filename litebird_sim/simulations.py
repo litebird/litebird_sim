@@ -1366,10 +1366,11 @@ class Simulation:
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(
                 detectors=[asdict(d) for d in self.detectors],
-                start_time_global=cur_time,
+                start_time_observation=cur_time,
+                start_time_simulation=self.start_time,
                 sampling_rate_hz=sampfreq_hz,
                 allocate_tod=allocate_tod,
-                n_samples_global=nsamples,
+                n_samples_observation=nsamples,
                 det_blocks_attributes=det_blocks_attributes,
                 n_blocks_det=n_blocks_det,
                 n_blocks_time=n_blocks_time,
@@ -1421,8 +1422,12 @@ class Simulation:
             omp=str(os.environ.get("OMP_NUM_THREADS")),
             n_obs=len(obs_list),
             n_det=[int(obs.n_detectors) for obs in obs_list],
-            durations_s=[obs.n_samples / obs.sampling_rate_hz for obs in obs_list],
-            samples=sum(int(obs.n_samples) * int(obs.n_detectors) for obs in obs_list),
+            durations_s=[
+                obs.n_samples_process / obs.sampling_rate_hz for obs in obs_list
+            ],
+            samples=sum(
+                int(obs.n_samples_process) * int(obs.n_detectors) for obs in obs_list
+            ),
             tod_bytes=sum(
                 int(getattr(obs, cur_tod.name).nbytes)
                 for obs in obs_list
@@ -1538,7 +1543,7 @@ class Simulation:
         span = distribute_optimally(
             elements=observations,
             num_of_groups=self.mpi_comm.size,
-            weight_fn=lambda obs: obs.n_samples_global,
+            weight_fn=lambda obs: obs.n_samples_observation,
         )[cur_rank]
 
         self.observations = observations[
@@ -1597,9 +1602,9 @@ class Simulation:
                     tod_shape=shapes[0] if shapes else None,
                     tod_dtype=self.get_tod_dtypes(),
                     tod_description=self.get_tod_descriptions(),
-                    start_time=obs.start_time,
-                    duration_s=obs.n_samples / obs.sampling_rate_hz,
-                    num_of_samples=obs.n_samples,
+                    start_time=obs.start_time_process,
+                    duration_s=obs.n_samples_process / obs.sampling_rate_hz,
+                    num_of_samples=obs.n_samples_process,
                     num_of_detectors=obs.n_detectors,
                 )
             )
@@ -2067,7 +2072,7 @@ class Simulation:
             bit=bit,
         )
         num_of_samples = sum(
-            obs.n_detectors * obs.n_samples for obs in self.observations
+            obs.n_detectors * obs.n_samples_process for obs in self.observations
         )
         if MPI_ENABLED:
             num_of_flagged = {

@@ -281,14 +281,14 @@ def _segments_close_to_planet(
     and the largest motion of the boresight between two points.
     """
     step = max(1, round(_PREFILTER_STEP_S * obs.sampling_rate_hz))
-    num_of_points = (obs.n_samples - 1) // step + 1
+    num_of_points = (obs.n_samples_process - 1) // step + 1
     if num_of_points < 2:
-        return [(0, obs.n_samples)]
+        return [(0, obs.n_samples_process)]
 
     bore, _ = obs.pointing_provider.get_pointings(
         detector_quat=RotQuaternion(),
-        start_time=obs.start_time,
-        start_time_global=obs.start_time_global,
+        start_time=obs.start_time_process,
+        start_time_simulation=obs.start_time_simulation,
         sampling_rate_hz=obs.sampling_rate_hz / step,
         nsamples=num_of_points,
         compute_hwp_angle=False,
@@ -306,7 +306,7 @@ def _segments_close_to_planet(
     # Point k covers samples [k * step, (k + 1) * step); join consecutive points
     edges = np.flatnonzero(np.diff(np.concatenate([[0], close.astype(int), [0]])))
     return [
-        (start * step, min(stop * step, obs.n_samples))
+        (start * step, min(stop * step, obs.n_samples_process))
         for start, stop in zip(edges[::2], edges[1::2])
     ]
 
@@ -314,7 +314,7 @@ def _segments_close_to_planet(
 def check_observations_for_planets(obs_list: list[Observation]) -> None:
     """Raise ValueError if the observations lack what planets need"""
     for obs in obs_list:
-        if not isinstance(obs.start_time, astropy.time.Time):
+        if not isinstance(obs.start_time_process, astropy.time.Time):
             raise ValueError("Planets need times in astropy.time.Time")
         if np.any(obs.fwhm_arcmin <= 0):
             raise ValueError("Planets need fwhm_arcmin > 0 for all detectors")
@@ -336,20 +336,23 @@ def iter_planet_segments(
     are computed only in these segments, found sampling the boresight every
     second.
     """
-    if obs.n_samples == 0 or obs.n_detectors == 0:
+    if obs.n_samples_process == 0 or obs.n_detectors == 0:
         return
 
     ephemeris = planet_ephemeris(
-        planet, pos_and_vel, obs.start_time, obs.n_samples / obs.sampling_rate_hz
+        planet,
+        pos_and_vel,
+        obs.start_time_process,
+        obs.n_samples_process / obs.sampling_rate_hz,
     )
     for start, stop in _segments_close_to_planet(obs, ephemeris, max_distance_rad):
         pointings = np.empty((obs.n_detectors, stop - start, 3))
         for det_idx in range(obs.n_detectors):
             obs.pointing_provider.get_pointings(
                 detector_quat=obs.quat[det_idx],
-                start_time=obs.start_time
+                start_time=obs.start_time_process
                 + astropy.time.TimeDelta(start / obs.sampling_rate_hz, format="sec"),
-                start_time_global=obs.start_time_global,
+                start_time_simulation=obs.start_time_simulation,
                 sampling_rate_hz=obs.sampling_rate_hz,
                 nsamples=stop - start,
                 pointing_buffer=pointings[det_idx],

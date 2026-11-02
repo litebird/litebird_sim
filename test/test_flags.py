@@ -149,11 +149,14 @@ def test_flag_planets_matches_brute_force(tmp_path):
     obs = sim.observations[0]
     reference = np.zeros_like(obs.local_flags)
     pointings, _ = obs.get_pointings("all")
-    times_s = np.arange(obs.n_samples) / obs.sampling_rate_hz
+    times_s = np.arange(obs.n_samples_process) / obs.sampling_rate_hz
     radius_rad = np.deg2rad(radius_fwhm * obs.fwhm_arcmin / 60)
     for planet in lbs.PLANETS:
         ephemeris = lbs_planets.planet_ephemeris(
-            planet, sim.pos_and_vel, obs.start_time, obs.n_samples / 5.0
+            planet,
+            sim.pos_and_vel,
+            obs.start_time_process,
+            obs.n_samples_process / 5.0,
         )
         planet_dir, _ = lbs_planets.planet_position(ephemeris, times_s)
         assert (
@@ -246,8 +249,8 @@ def test_planets_without_observations(tmp_path):
 def test_planets_with_observations_need_an_orbit(add_or_flag):
     obs = lbs.Observation(
         detectors=[{"fwhm_arcmin": 30.0}],
-        n_samples_global=2,
-        start_time_global=START_TIME,
+        n_samples_observation=2,
+        start_time_observation=START_TIME,
         sampling_rate_hz=1.0,
     )
     with pytest.raises(ValueError, match="pos_and_vel"):

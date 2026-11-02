@@ -1,8 +1,39 @@
+import functools
+import warnings
+
 import h5py
 import numpy as np
 import numpy.typing as npt
 from deprecated import deprecated
 from numba import njit
+
+
+def _accept_deprecated_start_time_s(method):
+    """Accept the deprecated keyword ``start_time_s`` of the HWP methods
+
+    The keyword was renamed to ``time_from_sim_start_s``, which better describes
+    its meaning: the time of the first sample, in seconds since
+    ``start_time_simulation``.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if "start_time_s" in kwargs:
+            if "time_from_sim_start_s" in kwargs:
+                raise TypeError(
+                    "Pass either `time_from_sim_start_s` or the deprecated "
+                    "`start_time_s`, not both"
+                )
+            warnings.warn(
+                "The keyword `start_time_s` is deprecated, use "
+                "`time_from_sim_start_s` instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["time_from_sim_start_s"] = kwargs.pop("start_time_s")
+        return method(self, *args, **kwargs)
+
+    return wrapper
 
 
 class HWP:
@@ -17,16 +48,20 @@ class HWP:
     classes like :class:`.IdealHWP`.
     """
 
+    @_accept_deprecated_start_time_s
     def get_hwp_angle(
-        self, output_buffer, start_time_s: float, delta_time_s: float
+        self, output_buffer, time_from_sim_start_s: float, delta_time_s: float
     ) -> None:
         """
         Calculate the rotation angle of the HWP
 
-        This method must be redefined in derived classes. The parameter `start_time_s`
-        specifies the time of the first sample in `pointings` and must be a floating-point
-        value; this means that you should already have converted any AstroPy time to a plain
-        scalar before calling this method. The parameter `delta_time_s` is the inverse
+        This method must be redefined in derived classes. The parameter
+        `time_from_sim_start_s` is the time of the first sample, expressed in seconds
+        elapsed since :attr:`.Observation.start_time_simulation`. It must be a
+        floating-point value; this means that you should already have converted any
+        AstroPy time to a plain scalar before calling this method. (The parameter
+        was previously called `start_time_s`, which is still accepted as a deprecated
+        keyword by the classes in this framework.) The parameter `delta_time_s` is the inverse
         of the sampling frequency and must be expressed in seconds.
 
         The result will be saved in `output_buffer`, which must have already been allocated
@@ -41,8 +76,9 @@ class HWP:
         reason="This function adds the HWP angle to the orientation, but this is logically wrong "
         "now that LBS keeps track of ψ, the polarization angle, and the HWP angle in separate places.",
     )
+    @_accept_deprecated_start_time_s
     def add_hwp_angle(
-        self, pointing_buffer, start_time_s: float, delta_time_s: float
+        self, pointing_buffer, time_from_sim_start_s: float, delta_time_s: float
     ) -> None:
         """
         Modify pointings so that they include the effect of the HWP
@@ -52,10 +88,11 @@ class HWP:
         ``(colatitude, longitude, orientation)`` for D detectors and N measurements.
         The function only alters ``orientation`` and returns nothing.
 
-        The parameters `start_time_s` and `delta_time_s` specify the time of the
-        first sample in `pointings` and must be floating-point values; this means
-        that you should already have converted any AstroPy time to a plain scalar
-        before calling this method.
+        The parameter `time_from_sim_start_s` is the time of the first sample in
+        `pointings`, in seconds since :attr:`.Observation.start_time_simulation`, and
+        `delta_time_s` is the sampling interval in seconds. Both must be floating-point
+        values; this means that you should already have converted any AstroPy time to
+        a plain scalar before calling this method.
 
         *Warning*: this changes the interpretation of the ψ variable in the pointings!
         You should better use :meth:`.get_hwp_angle` and keep ψ and the α angle
@@ -66,9 +103,10 @@ class HWP:
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
 
+    @_accept_deprecated_start_time_s
     def apply_hwp_to_pointings(
         self,
-        start_time_s: float,
+        time_from_sim_start_s: float,
         delta_time_s: float,  # This will be 1/(19 Hz) in most cases
         bore2ecl_quaternions_inout: npt.NDArray,  # Boresight→Ecliptic quaternions at 19 Hz
         hwp_angle_out: npt.NDArray,
@@ -76,10 +114,13 @@ class HWP:
         """
         Simulates the presence of a HWP on the pointings and the HWP angle
 
-        This method must be redefined in derived classes. The parameter `start_time_s`
-        specifies the time of the first sample in `pointings` and must be a floating-point
-        value; this means that you should already have converted any AstroPy time to a plain
-        scalar before calling this method. The parameter `delta_time_s` is the inverse
+        This method must be redefined in derived classes. The parameter
+        `time_from_sim_start_s` is the time of the first sample, expressed in seconds
+        elapsed since :attr:`.Observation.start_time_simulation`. It must be a
+        floating-point value; this means that you should already have converted any
+        AstroPy time to a plain scalar before calling this method. (The parameter
+        was previously called `start_time_s`, which is still accepted as a deprecated
+        keyword by the classes in this framework.) The parameter `delta_time_s` is the inverse
         of the sampling frequency and must be expressed in seconds.
 
         The result is saved in the NumPy array `hwp_angle_out`, which must have already been
@@ -93,7 +134,7 @@ class HWP:
         on the *right* means that you are introducing a new rotation between the
         reference frame of the detector and of the boresight of the focal plane.)
 
-        :param start_time_s:
+        :param time_from_sim_start_s:
         :param delta_time_s:
         :param bore2ecl_quaternions_inout:
         :param hwp_angle_out:
@@ -128,10 +169,14 @@ class HWP:
 
 @njit
 def _get_ideal_hwp_angle(
-    output_buffer, start_time_s, delta_time_s, start_angle_rad, ang_speed_radpsec
+    output_buffer,
+    time_from_sim_start_s,
+    delta_time_s,
+    start_angle_rad,
+    ang_speed_radpsec,
 ):
     complex = np.exp(1j * start_angle_rad) * np.exp(
-        1j * start_time_s * ang_speed_radpsec
+        1j * time_from_sim_start_s * ang_speed_radpsec
     )
     delta = np.exp(1j * delta_time_s * ang_speed_radpsec)
     output_buffer[0] = np.angle(complex)
@@ -145,7 +190,11 @@ def _get_ideal_hwp_angle(
 
 
 def _add_ideal_hwp_angle(
-    pointing_buffer, start_time_s, delta_time_s, start_angle_rad, ang_speed_radpsec
+    pointing_buffer,
+    time_from_sim_start_s,
+    delta_time_s,
+    start_angle_rad,
+    ang_speed_radpsec,
 ):
     shape = pointing_buffer.shape
     if len(shape) == 3:
@@ -158,7 +207,7 @@ def _add_ideal_hwp_angle(
     hwp_angles = np.empty(samples, dtype=pointing_buffer.dtype)
     _get_ideal_hwp_angle(
         output_buffer=hwp_angles,
-        start_time_s=start_time_s,
+        time_from_sim_start_s=time_from_sim_start_s,
         delta_time_s=delta_time_s,
         start_angle_rad=start_angle_rad,
         ang_speed_radpsec=ang_speed_radpsec,
@@ -177,37 +226,37 @@ class IdealHWP(HWP):
 
     This class represents a perfect HWP that spins with constant angular velocity.
     The constructor accepts the angular speed, expressed in rad/sec, and the
-    start angle (in radians). The latter should be referred to the first time
-    sample in the simulation, i.e., the earliest sample simulated in any of the
-    MPI processes used for the simulation.
-
-    Given a polarization angle :math:`\psi`, this class turns it into
-    :math:`\psi + \psi_\text{hwp,0} + 2 \omega_\text{hwp} t`, where
-    :math:`\psi_\text{hwp,0}` is the start angle specified in the constructor
-    and :math:`\omega_\text{hwp}` is the angular speed of the HWP.
+    start angle (in radians), defined at ``obs.start_time_simulation``.
+    :meth:`.get_hwp_angle` returns the mechanical angle
+    :math:`\alpha(t) = \alpha_0 + \omega_\text{hwp}(t - t_\text{simulation})`,
+    wrapped to :math:`[-\pi, \pi]`. The initial angle and epoch are shared by
+    all observations and MPI processes; the detector polarization orientation
+    is kept separately.
     """
 
     def __init__(self, ang_speed_radpsec: float, start_angle_rad=0.0):
         self.ang_speed_radpsec = ang_speed_radpsec
         self.start_angle_rad = start_angle_rad
 
+    @_accept_deprecated_start_time_s
     def get_hwp_angle(
-        self, output_buffer, start_time_s: float, delta_time_s: float
+        self, output_buffer, time_from_sim_start_s: float, delta_time_s: float
     ) -> None:
         _get_ideal_hwp_angle(
             output_buffer=output_buffer,
-            start_time_s=start_time_s,
+            time_from_sim_start_s=time_from_sim_start_s,
             delta_time_s=delta_time_s,
             start_angle_rad=self.start_angle_rad,
             ang_speed_radpsec=self.ang_speed_radpsec,
         )
 
+    @_accept_deprecated_start_time_s
     def add_hwp_angle(
-        self, pointing_buffer, start_time_s: float, delta_time_s: float
+        self, pointing_buffer, time_from_sim_start_s: float, delta_time_s: float
     ) -> None:
         _add_ideal_hwp_angle(
             pointing_buffer=pointing_buffer,
-            start_time_s=start_time_s,
+            time_from_sim_start_s=time_from_sim_start_s,
             delta_time_s=delta_time_s,
             start_angle_rad=self.start_angle_rad,
             ang_speed_radpsec=self.ang_speed_radpsec,

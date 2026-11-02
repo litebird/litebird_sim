@@ -274,7 +274,7 @@ def fill_tod_with_hwp_harmonics(
             )
             assert (
                 observation.n_detectors == pointings.shape[0]
-                and observation.n_samples == pointings.shape[1]
+                and observation.n_samples_process == pointings.shape[1]
                 and pointings.shape[2] == 3
             ), (
                 "You need to pass a pointing np.array with shape"
@@ -287,7 +287,7 @@ def fill_tod_with_hwp_harmonics(
                     "For one observation, hwp_angle must be passed "
                     + "as a np.array to fill_tod"
                 )
-                assert observation.n_samples == hwp_angle.shape[0], (
+                assert observation.n_samples_process == hwp_angle.shape[0], (
                     "You need to pass a hwp_angle np.array with shape"
                     + "N_samples for the observation"
                 )
@@ -317,7 +317,7 @@ def fill_tod_with_hwp_harmonics(
     for idx_obs, cur_obs in enumerate(obs_list):
         if not hasattr(cur_obs, "pointing_matrix"):
             cur_obs.pointing_matrix = np.empty(
-                (cur_obs.n_detectors, cur_obs.n_samples, 3),
+                (cur_obs.n_detectors, cur_obs.n_samples_process, 3),
                 dtype=pointings_dtype,
             )
 
