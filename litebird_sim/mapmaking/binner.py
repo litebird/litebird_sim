@@ -17,7 +17,6 @@ import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
-from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
@@ -27,9 +26,10 @@ from litebird_sim.observation_utilities import (
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
-from ..utilities import resolve_nthreads
+from ..utilities import cos_sin, resolve_nthreads
 
 from .common import (
+    _get_reduction_comm,
     _build_mask_detector_split,
     _build_mask_time_split,
     _check_valid_splits,
@@ -159,14 +159,17 @@ def _accumulate_samples_and_build_nobs_matrix(
         inv_sigma2 = inv_sigma * inv_sigma
         gamma_over_sigma = pol_eff[idet] * inv_sigma
 
-        if not additional_component:
-            # Fill the upper triangle
-            for cur_pix_idx, cur_psi, cur_t_mask in zip(pix[idet], psi[idet], t_mask):
-                if cur_t_mask:
-                    cos_over_sigma = np.cos(2 * cur_psi) * gamma_over_sigma
-                    sin_over_sigma = np.sin(2 * cur_psi) * gamma_over_sigma
-                    info_pix = nobs_matrix[cur_pix_idx]
+        # One pass for both triangles, so that cos/sin are computed once
+        for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
+            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
+        ):
+            if cur_t_mask:
+                cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
+                cos_over_sigma = cos_2psi * gamma_over_sigma
+                sin_over_sigma = sin_2psi * gamma_over_sigma
+                info_pix = nobs_matrix[cur_pix_idx]
 
+                if not additional_component:
                     # Upper triangle
                     info_pix[0, 0] += inv_sigma2
                     info_pix[0, 1] += inv_sigma * cos_over_sigma
@@ -175,15 +178,7 @@ def _accumulate_samples_and_build_nobs_matrix(
                     info_pix[1, 2] += sin_over_sigma * cos_over_sigma
                     info_pix[2, 2] += sin_over_sigma * sin_over_sigma
 
-        # Fill the lower triangle
-        for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
-            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
-        ):
-            if cur_t_mask:
-                cos_over_sigma = np.cos(2 * cur_psi) * gamma_over_sigma
-                sin_over_sigma = np.sin(2 * cur_psi) * gamma_over_sigma
-                info_pix = nobs_matrix[cur_pix_idx]
-
+                # Lower triangle
                 info_pix[1, 0] += cur_sample * inv_sigma2
                 info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
                 info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma
@@ -286,23 +281,11 @@ def _build_nobs_matrix(
         del pixidx_all, polang_all
 
     assert obs_list, "No observations provided"
-    if mpi.MPI_ENABLED:
+    comm = _get_reduction_comm(obs_list)
+    if comm is not None:
         from litebird_sim.mpi import MPI
-    if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
-        # Serial call
-        pass
-    elif all(
-        [
-            MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
-            for i in range(len(obs_list) - 1)
-        ]
-    ):
-        obs_list[0].comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
 
-    else:
-        raise NotImplementedError(
-            "All observations must be distributed over the same MPI groups"
-        )
+        comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
 
     return nobs_matrix
 

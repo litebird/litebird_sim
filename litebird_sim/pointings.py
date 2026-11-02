@@ -2,6 +2,7 @@ import astropy.time
 import numpy as np
 import numpy.typing as npt
 
+from .coordinates import ECL_TO_GAL_QUAT, CoordinateSystem
 from .hwp import HWP
 from .scanning import (
     all_compute_pointing_and_orientation,
@@ -169,6 +170,7 @@ class PointingProvider:
         hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
         compute_hwp_angle: bool = True,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic,
     ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the time-dependent pointing angles and (optionally) HWP angles for a detector.
 
@@ -211,6 +213,10 @@ class PointingProvider:
                 If False, skip the HWP angle and return ``None`` in its place.
                 The angle does not depend on the detector, so callers looping
                 over many detectors can compute it only once (default: True).
+            output_coordinate_system (CoordinateSystem, optional):
+                Coordinate system of the pointings (default: Ecliptic). Galactic
+                pointings are computed rotating the quaternions, which is cheaper
+                than rotating the angles of each sample.
 
         Returns:
             tuple[np.ndarray, np.ndarray | None]:
@@ -259,16 +265,19 @@ class PointingProvider:
             # Only multiply and slerp the quaternions that cover this block: using
             # the arrays for the whole simulation would make the cost of each call
             # grow with the length of the simulation
-            det_to_ecliptic_quats = _slice_quaternions(
+            bore2output_quats = _slice_quaternions(
                 self.bore2ecliptic_quats,
                 start_time=cur_time,
                 time_span_s=cur_block_length / sampling_rate_hz,
-            ) * _slice_quaternions(
+            )
+            if output_coordinate_system == CoordinateSystem.Galactic:
+                bore2output_quats = RotQuaternion(ECL_TO_GAL_QUAT) * bore2output_quats
+            det_to_output_quats = bore2output_quats * _slice_quaternions(
                 detector_quat,
                 start_time=cur_time,
                 time_span_s=cur_block_length / sampling_rate_hz,
             )
-            cur_quaternions = det_to_ecliptic_quats.slerp(
+            cur_quaternions = det_to_output_quats.slerp(
                 start_time=cur_time,
                 sampling_rate_hz=sampling_rate_hz,
                 nsamples=cur_block_length,

@@ -10,7 +10,7 @@ def lowpass_chebyshev(freqs, f0, order=3, ripple_dB=0.2):
 
     Args:
       freqs (np.array): frequency in GHz
-      f0 (float): low-frequency edge of the band in GHz
+      f0 (float): cutoff frequency of the lowpass in GHz
       order (float): chebyshev filter order (default: 3)
       ripple_dB (float): maximum ripple amplitude in decibels (default: 0.2)
 
@@ -36,7 +36,7 @@ def find_central_frequency(freqs, bandpass):
       freqs (np.array): frequency in GHz
       bandpass (np.array): transmission profile
     Returns:
-      central frequency
+      central frequency in GHz
     """
     df = freqs[1] - freqs[0]
 
@@ -92,14 +92,14 @@ def add_high_frequency_transmission(freqs, bandpass, location=3, transmission=0.
 
 
 # Beam throughput
-def beam_throughtput(freqs):
-    r"""Beam throughtput factor
+def beam_throughput(freqs):
+    r"""Beam throughput factor
 
     Args:
       freqs (np.array): frequency in GHz
 
     Returns:
-      :math:`1/\nu^2`
+      :math:`1/\nu^2`, in 1/Hz² (the frequencies are converted from GHz to Hz)
     """
     return 1.0 / freqs / freqs / 1.0e9 / 1.0e9
 
@@ -115,15 +115,24 @@ def bandpass_profile(
     computing it through the class `BandPassInfo`
 
     Args:
-      freqs (np.array): the array of frequencies considered
+      freqs (np.array): the array of frequencies considered, in GHz
       bandpass (dict): dictionary with either the key "bandpass_file"
        pointing to a txt file with a column of freqs and a column of
        bandpass profile (attention: the frequencies read from the file
        have to coincide with the input array `freqs`) or with a key
        "band_type" (same naming convention as `bandtype` in `BandPassInfo`).
-       In the second case, you should also define the edges of the bandpass,
-       `band_high_edge` and `band_low_edge`, that would otherwise be set to
-       the lowest and highest value of `freqs`.
+       In the second case, you should also define the center of the band
+       `bandcenter_ghz` and its edges `band_low_edge` and `band_high_edge`
+       (in GHz), that would otherwise be set to the lowest and highest value
+       of `freqs`. The other optional keys are `band_alpha` and `band_beta`
+       (decay rates of the exponential tails in 1/GHz, default 1),
+       `cosine_apo_length` (dimensionless, default 5), `band_order`
+       (default 3), `band_ripple_dB` (in dB, default 0.2), `normalize`
+       (default ``False``), and `band_high_freq_leak` (``True`` to add a
+       high-frequency leakage, see :func:`add_high_frequency_transmission`)
+       with `band_high_freq_loc` (multiple of the central frequency,
+       default 3) and `band_high_freq_trans` (amplitude relative to the
+       nominal band, default 0.5).
       include_beam_throughput (bool): if True, divides by :math:`\nu^2`
 
     Returns:
@@ -214,6 +223,6 @@ def bandpass_profile(
             )
 
     if include_beam_throughput is True:
-        profile = profile * beam_throughtput(freqs)
+        profile = profile * beam_throughput(freqs)
 
     return freqs, profile

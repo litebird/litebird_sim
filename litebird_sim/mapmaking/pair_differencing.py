@@ -17,7 +17,6 @@ import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
-from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
@@ -27,9 +26,10 @@ from litebird_sim.observation_utilities import (
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
-from ..utilities import resolve_nthreads
+from ..utilities import cos_sin, resolve_nthreads
 
 from .common import (
+    _get_reduction_comm,
     COND_THRESHOLD,
     _build_mask_detector_split,
     _build_mask_time_split,
@@ -116,7 +116,8 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
     #   d_T - d_B = Q·(γ_T·cos(2ψ_T) - γ_B·cos(2ψ_B)) + U·(γ_T·sin(2ψ_T) - γ_B·sin(2ψ_B))
     #
     # where γ is the polarization efficiency of each detector.
-    # The pair weight is defined as the average of the two detector weights
+    # Detector weights are sample variances (sampling_rate_hz * net_ukrts**2).
+    # For independent detector noise, Var(d_T - d_B) = weight_t + weight_b.
     # ψ is the proper sum of the detector polarization angle and the HWP angle (if present)
 
     assert (
@@ -128,28 +129,11 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
         == t_mask.shape
     )
 
-    pair_weight = 0.5 * (weight_t + weight_b)
+    pair_weight = weight_t + weight_b
     inv_sigma = 1.0 / np.sqrt(pair_weight)
     inv_sigma2 = inv_sigma * inv_sigma
 
-    if not additional_component:
-        for cur_pix_idx, cur_psi_t, cur_psi_b, cur_t_mask in zip(
-            pix_t, psi_t, psi_b, t_mask
-        ):
-            if cur_t_mask:
-                pair_cos = pol_eff_t * np.cos(2 * cur_psi_t) - pol_eff_b * np.cos(
-                    2 * cur_psi_b
-                )
-                pair_sin = pol_eff_t * np.sin(2 * cur_psi_t) - pol_eff_b * np.sin(
-                    2 * cur_psi_b
-                )
-                info_pix = nobs_matrix[cur_pix_idx]
-
-                info_pix[0, 0] += pair_cos * pair_cos * inv_sigma2
-                info_pix[0, 1] += pair_cos * pair_sin * inv_sigma2
-                info_pix[1, 0] += pair_cos * pair_sin * inv_sigma2
-                info_pix[1, 1] += pair_sin * pair_sin * inv_sigma2
-
+    # One pass for the matrix and the RHS, so that cos/sin are computed once
     for (
         cur_sample_t,
         cur_sample_b,
@@ -160,14 +144,19 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
     ) in zip(tod_t, tod_b, pix_t, psi_t, psi_b, t_mask):
         if cur_t_mask:
             pair_sample = cur_sample_t - cur_sample_b
-            pair_cos = pol_eff_t * np.cos(2 * cur_psi_t) - pol_eff_b * np.cos(
-                2 * cur_psi_b
-            )
-            pair_sin = pol_eff_t * np.sin(2 * cur_psi_t) - pol_eff_b * np.sin(
-                2 * cur_psi_b
-            )
-            rhs_pix = rhs[cur_pix_idx]
+            cos_t, sin_t = cos_sin(2 * cur_psi_t)
+            cos_b, sin_b = cos_sin(2 * cur_psi_b)
+            pair_cos = pol_eff_t * cos_t - pol_eff_b * cos_b
+            pair_sin = pol_eff_t * sin_t - pol_eff_b * sin_b
 
+            if not additional_component:
+                info_pix = nobs_matrix[cur_pix_idx]
+                info_pix[0, 0] += pair_cos * pair_cos * inv_sigma2
+                info_pix[0, 1] += pair_cos * pair_sin * inv_sigma2
+                info_pix[1, 0] += pair_cos * pair_sin * inv_sigma2
+                info_pix[1, 1] += pair_sin * pair_sin * inv_sigma2
+
+            rhs_pix = rhs[cur_pix_idx]
             rhs_pix[0] += pair_sample * pair_cos * inv_sigma2
             rhs_pix[1] += pair_sample * pair_sin * inv_sigma2
 
@@ -254,24 +243,12 @@ def _build_nobs_matrix(
         del pixidx_all, polang_all
 
     assert obs_list, "No observations provided"
-    if mpi.MPI_ENABLED:
+    comm = _get_reduction_comm(obs_list)
+    if comm is not None:
         from litebird_sim.mpi import MPI
-    if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
-        # Serial call
-        pass
-    elif all(
-        [
-            MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
-            for i in range(len(obs_list) - 1)
-        ]
-    ):
-        obs_list[0].comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
-        obs_list[0].comm.Allreduce(MPI.IN_PLACE, rhs, MPI.SUM)
 
-    else:
-        raise NotImplementedError(
-            "All observations must be distributed over the same MPI groups"
-        )
+        comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
+        comm.Allreduce(MPI.IN_PLACE, rhs, MPI.SUM)
 
     return nobs_matrix, rhs
 

@@ -221,6 +221,33 @@ will return an instance of the class :class:`.MpiDistributionDescr`, which
 can be inspected and printed to the terminal. See Section :ref:`simulations`
 for more information about this.
 
+For large runs, printing every observation of every process is too much:
+:meth:`.Simulation.create_observations` writes to the log (on the first
+process) the compact summary returned by
+:meth:`.Simulation.describe_mpi_layout`, which you can also print yourself::
+
+    MPI layout: 128 processes on 13 nodes (10 per node on 11 nodes; 9 per node on 2 nodes), 4 Numba threads per process (OMP_NUM_THREADS=4)
+    Observations: 365 in total, each one distributed over all the processes in 128 detector x 1 time blocks
+    per process                            min           max
+      observations                         365           365
+      detectors per observation              1             1
+      time per block [s]                 86400         86400
+      samples (all detectors)       2365200000    2365200000
+      TOD memory                        8.8 GB        8.8 GB
+    warnings: none
+
+It reports the processes, the nodes and the threads, how each observation is
+cut in blocks (or, with ``split_list_over_processes=True``, that whole
+observations are spread over the processes), and per process the number of
+observations, detectors and samples, the length of the time blocks and the
+memory of the TODs. It warns about processes without observations and about
+unbalanced numbers of samples.
+
+With ``split_list_over_processes=True`` each observation is local to one
+process (its ``comm`` is ``None``) and keeps the communicator of the
+distributed list in ``list_comm``: the map-makers sum the contributions of
+all the processes over it.
+
 
 .. _mpi-shared-memory:
 

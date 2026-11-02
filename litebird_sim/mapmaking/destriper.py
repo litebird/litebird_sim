@@ -21,7 +21,7 @@ from litebird_sim.observation_utilities import (
     _normalize_observations_and_pointings,
 )
 
-from ..utilities import resolve_nthreads
+from ..utilities import cos_sin, resolve_nthreads
 
 from .common import (
     _compute_pixel_indices,
@@ -247,10 +247,10 @@ class DestriperParameters:
       be done.
     - ``iter_max`` (integer): maximum number of iterations for the
       Conjugate Gradient
-    - ``threshold`` (float): minimum value of the discrepancy between
-      the estimated baselines and the baselines deduced by the
-      destriped map. The lower this value, the better the map
-      produced by the destriper
+    - ``threshold`` (float): the iterations stop when the stopping factor
+      (the maximum absolute residual of the baselines) is below
+      ``threshold`` times its initial value. The lower this value, the
+      better the map produced by the destriper
     - ``use_preconditioner`` (Boolean): if ``True``, use the preconditioned
       conjugate gradient algorithm. If ``False`` do not use the
       preconditioner. (The latter is probably useful only to debug the
@@ -312,7 +312,7 @@ class DestriperResult:
       algorithm was able to converge to the correct solution.
     - ``converged``: a Boolean flag telling whether the destriper
       was able to achieve the desired accuracy (the value of
-      ``params.threshold``).
+      ``params.threshold``, relative to the initial stopping factor).
     - ``elapsed_time_s``: the elapsed time spent by the function
       :func:`.make_destriped_map`.
     - ``bytes_in_temporary_buffers``: the number of bytes allocated
@@ -398,8 +398,9 @@ def _accumulate_nobs_matrix(
             pix_idx[det_idx], psi_angle_rad[det_idx], t_mask
         ):
             if cur_t_mask:
-                cos_over_sigma = np.cos(2 * cur_psi) * gamma_over_sigma
-                sin_over_sigma = np.sin(2 * cur_psi) * gamma_over_sigma
+                cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
+                cos_over_sigma = cos_2psi * gamma_over_sigma
+                sin_over_sigma = sin_2psi * gamma_over_sigma
                 cur_matrix = nobs_matrix[cur_pix_idx]
 
                 cur_matrix[0] += inv_sigma2
@@ -544,9 +545,10 @@ def _sum_map_contribution_from_one_sample(
 ) -> None:
     "This code implements Eqq. (18)–(20)"
 
+    cos_2psi, sin_2psi = cos_sin(2 * pol_angle_rad)
     dest_array[0] += sample / weight
-    dest_array[1] += sample * pol_eff * np.cos(2 * pol_angle_rad) / weight
-    dest_array[2] += sample * pol_eff * np.sin(2 * pol_angle_rad) / weight
+    dest_array[1] += sample * pol_eff * cos_2psi / weight
+    dest_array[2] += sample * pol_eff * sin_2psi / weight
 
 
 @njit
@@ -777,9 +779,8 @@ def estimate_sample_from_map(
     cur_q = sky_map[1, cur_pixel]
     cur_u = sky_map[2, cur_pixel]
 
-    return cur_i + cur_pol_eff * (
-        cur_q * np.cos(2 * cur_psi) + cur_u * np.sin(2 * cur_psi)
-    )
+    cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
+    return cur_i + cur_pol_eff * (cur_q * cos_2psi + cur_u * sin_2psi)
 
 
 @njit
@@ -1331,11 +1332,17 @@ def _run_destriper(
 
     if use_preconditioner:
         _apply_preconditioner(precond, z)
+    # Search direction p (z is the preconditioned residual M⁻¹·r)
+    p = [np.copy(z_k) for z_k in z]
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(p)
     k = 0
 
     old_r_dot = _mpi_dot(z, r)
 
     history_of_stopping_factors: list[float] = [_get_stopping_factor(r)]
+    # the threshold is relative to the initial residual, whose scale depends on
+    # the data (units, noise level, baseline length)
+    absolute_threshold = threshold * history_of_stopping_factors[0]
     if callback:
         callback(
             stopping_factor=history_of_stopping_factors[-1],
@@ -1352,6 +1359,9 @@ def _run_destriper(
         if recycle_baselines:
             converged = f"Recycled baselines with 'converged = {recycled_convergence}' were used!"
             break
+        if history_of_stopping_factors[0] == 0.0:  # x is already the solution
+            converged = True
+            break
 
         compute_Ax(
             obs_list=obs_list,
@@ -1360,14 +1370,14 @@ def _run_destriper(
             hit_map=hit_map,
             dm_list=dm_list,
             tm_list=tm_list,
-            baselines_list=z,
+            baselines_list=p,
             baseline_lengths_list=baseline_lengths_list,
             result=Ax,
         )
-        α = old_r_dot / _mpi_dot(z, Ax)
+        α = old_r_dot / _mpi_dot(p, Ax)
 
-        for x_k, z_k in zip(x, z):
-            x_k += α * z_k
+        for x_k, p_k in zip(x, p):
+            x_k += α * p_k
 
         for new_r_k, r_k, Ax_k in zip(new_r, r, Ax):
             new_r_k[:] = r_k - α * Ax_k
@@ -1387,21 +1397,22 @@ def _run_destriper(
                 **callback_kwargs,
             )
 
-        if cur_stopping_factor < threshold:
+        if cur_stopping_factor < absolute_threshold:
             converged = True
             break
 
-        for z_k, r_k in zip(z, r):
-            z_k[:] = r_k[:]
+        # z = M⁻¹·r_{k+1}, β = r_{k+1}·z_{k+1} / r_k·z_k, p = z + β·p
+        for z_k, new_r_k in zip(z, new_r):
+            z_k[:] = new_r_k
         if use_preconditioner:
             _apply_preconditioner(precond, z)
 
         new_r_dot = _mpi_dot(new_r, z)
-        for z_k, r_k, new_r_k in zip(z, r, new_r):
-            z_k[:] = new_r_k + (new_r_dot / old_r_dot) * z_k
+        for p_k, z_k in zip(p, z):
+            p_k[:] = z_k + (new_r_dot / old_r_dot) * p_k
 
         old_r_dot = new_r_dot
-        r = new_r
+        r, new_r = new_r, r
 
     # Redo the binned and destriped map with the best solution found so far
 

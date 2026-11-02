@@ -1,6 +1,9 @@
+from pathlib import Path
+
 import litebird_sim as lbs
 import numpy as np
 import pytest
+from litebird_sim.hwp_harmonics import jones_methods, mueller_methods
 from litebird_sim.hwp_harmonics.hwp_harmonics import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
@@ -170,3 +173,66 @@ def test_hwp_harmonics(calculus):
         decimal=12,
         verbose=True,
     )
+
+
+def test_hwp_harmonics_kernels_regression():
+    # Generic (non-ideal) Mueller and Jones parameters, random phases, non-uniform
+    # band weights, 2f HWPSS and non-linearity on. The reference TODs were computed
+    # with the kernels of litebird_sim a13a1696, before they were rewritten in
+    # PR #581: this is a regression test, not a validation of the physics
+    ref = np.load(Path(__file__).parent / "hwp_harmonics_kernels_reference.npz")
+
+    phi, xi = float(ref["phi"]), float(ref["xi"])
+    common = dict(
+        cos2Xi2Phi=np.cos(2 * xi - 2 * phi),
+        sin2Xi2Phi=np.sin(2 * xi - 2 * phi),
+        phi=phi,
+        xi=xi,
+        rho=ref["rho"],
+        psi=ref["psi"],
+        apply_non_linearity=True,
+        g_one_over_k=float(ref["g_one_over_k"]),
+        add_2f_hwpss=True,
+        amplitude_2f_k=float(ref["amplitude_2f_k"]),
+    )
+
+    tod = np.zeros_like(ref["rho"])
+    mueller_methods.compute_signal_for_one_detector(
+        tod_det=tod,
+        m0f=ref["m0f"],
+        m2f=ref["m2f"],
+        m4f=ref["m4f"],
+        mapT=ref["T"],
+        mapQ=ref["Q"],
+        mapU=ref["U"],
+        phases_2f=ref["phases_2f"],
+        phases_4f=ref["phases_4f"],
+        **common,
+    )
+    np.testing.assert_allclose(tod, ref["tod_mueller"], rtol=1e-12, atol=0)
+
+    tod = np.zeros_like(ref["rho"])
+    jones_methods.compute_signal_for_one_detector(
+        tod_det=tod,
+        deltas_j0f=ref["j0f"],
+        deltas_j2f=ref["j2f"],
+        mapT=ref["T"],
+        mapQ=ref["Q"],
+        mapU=ref["U"],
+        **common,
+    )
+    np.testing.assert_allclose(tod, ref["tod_jones"], rtol=1e-12, atol=0)
+
+    tod = np.zeros_like(ref["rho"])
+    jones_methods.integrate_inband_signal_for_one_detector(
+        tod_det=tod,
+        freqs=ref["freqs"],
+        band=ref["band"],
+        deltas_j0f=ref["j0f_band"],
+        deltas_j2f=ref["j2f_band"],
+        mapT=ref["TB"],
+        mapQ=ref["QB"],
+        mapU=ref["UB"],
+        **common,
+    )
+    np.testing.assert_allclose(tod, ref["tod_jones_band"], rtol=1e-12, atol=0)

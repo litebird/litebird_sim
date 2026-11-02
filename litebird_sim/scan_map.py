@@ -10,7 +10,12 @@ from .hwp import HWP, IdealHWP
 from .hwp_harmonics.hwp_harmonics import fill_tod_with_hwp_harmonics
 from .hwp_non_ideal import NonIdealHWP
 from .input_sky import SkyInput
-from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
+from .maps_and_harmonics import (
+    HealpixMap,
+    SphericalHarmonics,
+    _interpolation_epsilon_for_tod,
+    interpolate_alm,
+)
 from .observations import Observation
 from .observation_utilities import (
     _get_hwp_angle,
@@ -19,33 +24,7 @@ from .observation_utilities import (
     _normalize_observations_and_pointings,
 )
 
-from .utilities import resolve_nthreads
-
-
-@njit
-def vec_stokes(stokes, T, Q, U):
-    stokes[0] = T
-    stokes[1] = Q
-    stokes[2] = U
-
-
-@njit
-def vec_polarimeter(angle, gamma):
-    # (1,0,0,0) x Mpol x Rpol
-    vec = np.empty(4, dtype=np.float64)
-    vec[0] = 1
-    vec[1] = gamma * np.cos(2 * angle)
-    vec[2] = gamma * np.sin(2 * angle)
-    vec[3] = 0
-    return vec
-
-
-@njit
-def rot_matrix(mat, angle):
-    ca = np.cos(2 * angle)
-    sa = np.sin(2 * angle)
-    mat[1, 1:3] = ca, sa
-    mat[2, 1:3] = -sa, ca
+from .utilities import cos_sin, resolve_nthreads
 
 
 @njit
@@ -59,22 +38,15 @@ def scan_map_for_one_detector(
     tod_det, input_T, input_Q, input_U, pol_angle_det, pol_eff_det
 ):
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
+        co, si = cos_sin(2 * pol_angle_det[i])
         tod_det[i] += compute_signal_for_one_sample(
             T=input_T[i],
             Q=input_Q[i],
             U=input_U[i],
-            co=np.cos(2 * pol_angle_det[i]),
-            si=np.sin(2 * pol_angle_det[i]),
+            co=co,
+            si=si,
             gamma=pol_eff_det,
         )
-
-
-@njit
-def compute_signal_generic_hwp_for_one_sample(Stokes, Vpol, Rhwp, Mhwp, Rtel):
-    """Bolometric equation for generic HWP Mueller matrix
-    (1,0,0,0) x Mpol x Rpol x Rhwp^T x Mhwp x Rhwp x Rtel x Stokes
-    """
-    return Vpol @ Rhwp.T @ Mhwp @ Rhwp @ Rtel @ Stokes
 
 
 @njit(parallel=True)
@@ -89,23 +61,54 @@ def scan_map_generic_hwp_for_one_detector(
     hwp_angle,
     mueller_hwp,
 ):
-    polarimeter = vec_polarimeter(pol_angle_det, pol_eff_det)
+    """Bolometric equation for a generic HWP Mueller matrix
 
-    vec_S = np.zeros(4, dtype=np.float64)
-    rot_hwp = np.eye(4, dtype=np.float64)
-    rot_tel = np.eye(4, dtype=np.float64)
+    (1,0,0,0) x Mpol x Rpol x Rhwp^T x Mhwp x Rhwp x Rtel x Stokes
+
+    The products are expanded in scalars, so that the parallel loop
+    allocates nothing and shares no mutable state. The input V is zero
+    and the polarimeter has no V component, so the last row and column
+    of Mhwp do not contribute.
+    """
+    co_pol, si_pol = cos_sin(2 * pol_angle_det)
+    pol_q = pol_eff_det * co_pol
+    pol_u = pol_eff_det * si_pol
 
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-        vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
-        rot_matrix(rot_hwp, hwp_angle[i])
-        rot_matrix(rot_tel, orientation_telescope[i])
+        T = input_T[i]
 
-        tod_det[i] += compute_signal_generic_hwp_for_one_sample(
-            Stokes=vec_S,
-            Vpol=polarimeter,
-            Rhwp=rot_hwp,
-            Mhwp=mueller_hwp,
-            Rtel=rot_tel,
+        # Rtel x Stokes
+        co_tel, si_tel = cos_sin(2 * orientation_telescope[i])
+        q_tel = co_tel * input_Q[i] + si_tel * input_U[i]
+        u_tel = -si_tel * input_Q[i] + co_tel * input_U[i]
+
+        # Rhwp x (...)
+        co_hwp, si_hwp = cos_sin(2 * hwp_angle[i])
+        q_hwp = co_hwp * q_tel + si_hwp * u_tel
+        u_hwp = -si_hwp * q_tel + co_hwp * u_tel
+
+        # Mhwp x (...)
+        t_m = (
+            mueller_hwp[0, 0] * T
+            + mueller_hwp[0, 1] * q_hwp
+            + mueller_hwp[0, 2] * u_hwp
+        )
+        q_m = (
+            mueller_hwp[1, 0] * T
+            + mueller_hwp[1, 1] * q_hwp
+            + mueller_hwp[1, 2] * u_hwp
+        )
+        u_m = (
+            mueller_hwp[2, 0] * T
+            + mueller_hwp[2, 1] * q_hwp
+            + mueller_hwp[2, 2] * u_hwp
+        )
+
+        # (1,0,0,0) x Mpol x Rpol x Rhwp^T x (...)
+        tod_det[i] += (
+            t_m
+            + pol_q * (co_hwp * q_m - si_hwp * u_m)
+            + pol_u * (si_hwp * q_m + co_hwp * u_m)
         )
 
 
@@ -293,6 +296,7 @@ def scan_map(
             interp = interpolate_alm(
                 alms=maps_det,
                 locations=curr_pointings_det[:, 0:2],
+                epsilon=_interpolation_epsilon_for_tod(maps_det, tod.dtype),
                 nthreads=nthreads,
             )
 

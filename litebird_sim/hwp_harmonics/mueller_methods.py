@@ -3,6 +3,7 @@ import numpy as np
 from numba import njit, prange
 
 from ..hwp_diff_emiss import compute_2f_for_one_sample
+from ..utilities import cos_sin
 from .common import (
     compute_signal_for_one_sample,
 )
@@ -15,6 +16,17 @@ from .common import (
 ################################################################
 #################### SINGLE FREQUENCY ##########################
 ################################################################
+
+
+@njit(inline="always")
+def _mueller_element(coeffs, row, col, c2, s2, c4, s4):
+    return (
+        coeffs[0, row, col]
+        + coeffs[1, row, col] * c2
+        + coeffs[2, row, col] * s2
+        + coeffs[3, row, col] * c4
+        + coeffs[4, row, col] * s4
+    )
 
 
 @njit(parallel=True)
@@ -44,44 +56,41 @@ def compute_signal_for_one_detector(
     looping over (time) samples.
     """
 
+    # m2f·cos(2α + p) = m2f·cos p·cos 2α - m2f·sin p·sin 2α (same for 4f), so
+    # that only cos/sin of 2α are computed per sample
+    coeffs = np.stack(
+        (
+            m0f,
+            m2f * np.cos(phases_2f),
+            -m2f * np.sin(phases_2f),
+            m4f * np.cos(phases_4f),
+            -m4f * np.sin(phases_4f),
+        )
+    )
+
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-        Four_rho_phi = 4 * (rho[i] - phi)
-        Two_rho_phi = 2 * (rho[i] - phi)
+        c2, s2 = cos_sin(2 * (rho[i] - phi))
+        c4 = c2 * c2 - s2 * s2
+        s4 = 2 * c2 * s2
+        cos2Psi2Phi, sin2Psi2Phi = cos_sin(2 * psi[i] + 2 * phi)
+
         tod_det[i] += compute_signal_for_one_sample(
             T=mapT[i],
             Q=mapQ[i],
             U=mapU[i],
-            mII=m0f[0, 0]
-            + m2f[0, 0] * np.cos(Two_rho_phi + phases_2f[0, 0])
-            + m4f[0, 0] * np.cos(Four_rho_phi + phases_4f[0, 0]),
-            mQI=m0f[1, 0]
-            + m2f[1, 0] * np.cos(Two_rho_phi + phases_2f[1, 0])
-            + m4f[1, 0] * np.cos(Four_rho_phi + phases_4f[1, 0]),
-            mUI=m0f[2, 0]
-            + m2f[2, 0] * np.cos(Two_rho_phi + phases_2f[2, 0])
-            + m4f[2, 0] * np.cos(Four_rho_phi + phases_4f[2, 0]),
-            mIQ=m0f[0, 1]
-            + m2f[0, 1] * np.cos(Two_rho_phi + phases_2f[0, 1])
-            + m4f[0, 1] * np.cos(Four_rho_phi + phases_4f[0, 1]),
-            mIU=m0f[0, 2]
-            + m2f[0, 2] * np.cos(Two_rho_phi + phases_2f[0, 2])
-            + m4f[0, 2] * np.cos(Four_rho_phi + phases_4f[0, 2]),
-            mQQ=m0f[1, 1]
-            + m2f[1, 1] * np.cos(Two_rho_phi + phases_2f[1, 1])
-            + m4f[1, 1] * np.cos(Four_rho_phi + phases_4f[1, 1]),
-            mUU=m0f[2, 2]
-            + m2f[2, 2] * np.cos(Two_rho_phi + phases_2f[2, 2])
-            + m4f[2, 2] * np.cos(Four_rho_phi + phases_4f[2, 2]),
-            mUQ=m0f[2, 1]
-            + m2f[2, 1] * np.cos(Two_rho_phi + phases_2f[2, 1])
-            + m4f[2, 1] * np.cos(Four_rho_phi + phases_4f[2, 1]),
-            mQU=m0f[1, 2]
-            + m2f[1, 2] * np.cos(Two_rho_phi + phases_2f[1, 2])
-            + m4f[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
+            mII=_mueller_element(coeffs, 0, 0, c2, s2, c4, s4),
+            mQI=_mueller_element(coeffs, 1, 0, c2, s2, c4, s4),
+            mUI=_mueller_element(coeffs, 2, 0, c2, s2, c4, s4),
+            mIQ=_mueller_element(coeffs, 0, 1, c2, s2, c4, s4),
+            mIU=_mueller_element(coeffs, 0, 2, c2, s2, c4, s4),
+            mQQ=_mueller_element(coeffs, 1, 1, c2, s2, c4, s4),
+            mUU=_mueller_element(coeffs, 2, 2, c2, s2, c4, s4),
+            mUQ=_mueller_element(coeffs, 2, 1, c2, s2, c4, s4),
+            mQU=_mueller_element(coeffs, 1, 2, c2, s2, c4, s4),
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
-            cos2Psi2Phi=np.cos(2 * psi[i] + 2 * phi),
-            sin2Psi2Phi=np.sin(2 * psi[i] + 2 * phi),
+            cos2Psi2Phi=cos2Psi2Phi,
+            sin2Psi2Phi=sin2Psi2Phi,
         )
 
         if add_2f_hwpss:

@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
-from .coordinates import DEFAULT_TIME_SCALE, CoordinateSystem, rotate_coordinates_e2g
+from .coordinates import DEFAULT_TIME_SCALE, CoordinateSystem
 from .detectors import InstrumentInfo
 from .distribute import distribute_detector_blocks, distribute_evenly
 from .hwp import HWP, IdealHWP
@@ -152,6 +152,17 @@ class Observation:
         Rank of the process receiving the detector list when
         ``detectors`` is a list of dictionaries; otherwise ignored.
 
+    Attributes
+    ----------
+    list_comm : MPI communicator or None
+        Communicator over which the *list* of observations is distributed,
+        ``None`` by default. :meth:`.Simulation.create_observations` sets it
+        to the communicator of the simulation when
+        ``split_list_over_processes=True`` (each observation is then whole on
+        one process, and ``comm`` is ``None``), so that the map-makers sum
+        the contributions of all the processes; there is no need to set it
+        by hand.
+
     """
 
     # Dynamic attributes set via setattr_det_global/setattr_det
@@ -213,6 +224,7 @@ class Observation:
             ]
 
         self.comm = comm
+        self.list_comm = None  # see the class docstring
         self.start_time_global = start_time_global
         self._n_samples_global = n_samples_global
 
@@ -1027,6 +1039,7 @@ class Observation:
         nside_centering: int | None = None,
         nthreads: int | None = None,
         compute_hwp_angle: bool = True,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic,
     ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the pointings for one or more detectors in this observation
 
@@ -1077,6 +1090,11 @@ class Observation:
         it (e.g., in a loop over the detectors); in this case, the HWP angle
         returned is ``None``.
 
+        The pointings are in Ecliptic coordinates, unless you pass
+        ``output_coordinate_system=CoordinateSystem.Galactic``: in this case
+        they are computed rotating the quaternions, which is faster than
+        rotating the angles afterwards with :func:`.rotate_coordinates_e2g`.
+
         The return value is allocated internally by the method. If you instead want to
         pass a pre-allocated structure, you can use the `pointing_buffer` and
         `hwp_buffer` parameters. In this case, the return value will be *always*
@@ -1105,6 +1123,7 @@ class Observation:
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
                 compute_hwp_angle=compute_hwp_angle,
+                output_coordinate_system=output_coordinate_system,
             )
             _center_pointings(pointing_buffer, nside_centering, nthreads)
             return pointing_buffer, hwp_buffer
@@ -1121,6 +1140,7 @@ class Observation:
                 pointings_dtype=pointings_dtype,
                 nside_centering=nside_centering,
                 compute_hwp_angle=compute_hwp_angle,
+                output_coordinate_system=output_coordinate_system,
             )
 
         # Most complex case: an explicit list (or NumPy array) of detectors
@@ -1171,6 +1191,7 @@ class Observation:
                 hwp_buffer=hwp_buffer,
                 # The HWP angle is the same for all the detectors
                 compute_hwp_angle=(hwp_buffer is not None) and (rel_det_idx == 0),
+                output_coordinate_system=output_coordinate_system,
             )
 
         _center_pointings(pointing_buffer, nside_centering, nthreads)
@@ -1370,9 +1391,11 @@ class Observation:
         nthreads = resolve_nthreads(nthreads)
         hitmap = np.zeros(hpx.npix(), dtype=np.int64)
         for det_idx in det_indices:
-            pointings, _ = self.get_pointings(det_idx, compute_hwp_angle=False)
-            if output_coordinate_system == CoordinateSystem.Galactic:
-                pointings = rotate_coordinates_e2g(pointings)
+            pointings, _ = self.get_pointings(
+                det_idx,
+                compute_hwp_angle=False,
+                output_coordinate_system=output_coordinate_system,
+            )
             pixels = hpx.ang2pix(pointings[:, 0:2], nthreads=nthreads)
             hitmap += np.bincount(pixels, minlength=hitmap.size)
 

@@ -689,6 +689,61 @@ def test_issue314(mpi_tmp_path):
     sim.flush()
 
 
+@pytest.mark.parametrize("use_mjd", [False, True])
+def test_read_hwp_angle_of_observation_split_in_time(mpi_tmp_path, use_mjd):
+    # If an observation is split in time among the processes, the HWP angle of
+    # the observations read back must still be referred to the global start
+    comm = lbs.MPI_COMM_WORLD
+    start_time = astrotime.Time("2021-01-01") if use_mjd else 0.0
+    sim = lbs.Simulation(
+        base_path=mpi_tmp_path / f"mjd{use_mjd}",
+        start_time=start_time,
+        duration_s=100.0,
+        random_seed=12345,
+        mpi_comm=comm,
+    )
+    sim.set_scanning_strategy(
+        scanning_strategy=lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785_398_163_397_448_3,
+            precession_rate_hz=8.664_850_513_998_931e-05,
+            spin_rate_hz=0.000_833_333_333_333_333_4,
+            start_time=start_time,
+        ),
+        append_to_report=False,
+    )
+    sim.set_instrument(
+        lbs.InstrumentInfo(spin_boresight_angle_rad=0.872_664_625_997_164_8)
+    )
+    sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=0.1))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name="det",
+                sampling_rate_hz=10.0,
+                bandcenter_ghz=100.0,
+                quat=[0.0, 0.0, 0.0, 1.0],
+            )
+        ],
+        n_blocks_det=1,
+        n_blocks_time=comm.size,
+        split_list_over_processes=False,
+    )
+    sim.prepare_pointings(append_to_report=False)
+    _, expected_hwp_angle = sim.observations[0].get_pointings(0)
+
+    file_list = sim.write_observations(subdir_name="", append_to_report=False)
+    assert len(file_list) == 1
+
+    obs = lbs.io.read_one_observation(file_list[0], limit_mpi_rank=True)
+    assert obs.start_time == sim.observations[0].start_time
+    if use_mjd:
+        assert abs((obs.start_time_global - start_time).to("s").value) < 1e-6
+    else:
+        assert obs.start_time_global == start_time
+    _, hwp_angle = obs.get_pointings(0)
+    np.testing.assert_allclose(hwp_angle, expected_hwp_angle, atol=1e-8)
+
+
 def test_nullify_mpi(mpi_tmp_path):
     start_time = 0
     time_span_s = 2
@@ -780,6 +835,29 @@ def test_non_linearity_seeding():
         np.testing.assert_equal(tods[0], tods[1])
 
 
+def test_noise_user_seed_differs_across_ranks():
+    """With user_seed, detectors on different MPI processes must not get the
+    same noise realization"""
+
+    comm = lbs.MPI_COMM_WORLD
+    if comm.size < 2:
+        pytest.skip("This test requires at least 2 MPI processes")
+
+    sim = lbs.Simulation(start_time=0.0, duration_s=100.0, random_seed=1, mpi_comm=comm)
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(name=f"d{i}", sampling_rate_hz=1.0, net_ukrts=1.0)
+            for i in range(comm.size)
+        ],
+        n_blocks_det=comm.size,
+        split_list_over_processes=False,
+    )
+    sim.add_noise(noise_type="white", user_seed=7, append_to_report=False)
+
+    tods = comm.allgather(sim.observations[0].tod[0].copy())
+    assert not np.allclose(tods[0], tods[1])
+
+
 def test_simulation_get_hitmap():
     # The hit map must count the samples of all the observations of all the
     # MPI processes
@@ -808,6 +886,65 @@ def test_simulation_get_hitmap():
 
     # Each process only holds some of the samples: the total proves the reduction
     assert hitmap.sum() == len(dets) * 600
+
+
+def test_binner_split_list_over_processes():
+    # With split_list_over_processes=True each observation is local to one
+    # process: the binner must still sum all of them. The inverse covariance
+    # of the binned map depends only on the pointings, so it must be the same
+    # as with the observations distributed over the processes
+    size = lbs.MPI_COMM_WORLD.size
+    invnpp = []
+    for split in (True, False):
+        sim = lbs.Simulation(
+            start_time=0.0, duration_s=600.0, random_seed=1, mpi_comm=lbs.MPI_COMM_WORLD
+        )
+        sim.set_scanning_strategy(
+            lbs.SpinningScanningStrategy(
+                spin_sun_angle_rad=np.deg2rad(45),
+                precession_rate_hz=1 / 3600 / 3.2,
+                spin_rate_hz=0.05 / 60,
+            )
+        )
+        sim.set_instrument(lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50)))
+        dets = [
+            lbs.DetectorInfo(name=n, sampling_rate_hz=1.0, net_ukrts=50.0)
+            for n in ("a", "b")
+        ]
+        # At least one observation per process, as `prepare_pointings` needs it
+        sim.create_observations(
+            detectors=dets,
+            num_of_obs_per_detector=2 * size,
+            split_list_over_processes=split,
+            n_blocks_time=1 if split else size,
+        )
+        sim.prepare_pointings()
+        invnpp.append(sim.make_binned_map(nside=8).invnpp)
+    assert np.allclose(invnpp[0], invnpp[1])
+
+
+def test_describe_mpi_layout():
+    # A compact summary of the distribution, consistent on every process
+    size = lbs.MPI_COMM_WORLD.size
+    sim = lbs.Simulation(
+        start_time=0.0,
+        duration_s=400.0 * size,
+        random_seed=1,
+        mpi_comm=lbs.MPI_COMM_WORLD,
+    )
+    sim.set_instrument(lbs.InstrumentInfo(name="instr"))
+    dets = [lbs.DetectorInfo(name=n, sampling_rate_hz=1.0) for n in ("a", "b")]
+    sim.create_observations(
+        detectors=dets, num_of_obs_per_detector=2 * size, split_list_over_processes=True
+    )
+    text = sim.describe_mpi_layout()
+    assert f"{size} process" in text
+    assert f"Observations: {2 * size} in total" in text
+    if size > 1:
+        assert "split_list_over_processes=True" in text
+    assert "warnings: none" in text
+    if lbs.MPI_ENABLED:
+        assert lbs.MPI_COMM_WORLD.allgather(text) == [text] * size
 
 
 if __name__ == "__main__":

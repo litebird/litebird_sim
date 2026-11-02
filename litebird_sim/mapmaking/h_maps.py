@@ -8,6 +8,7 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
+from astropy.time import TimeDelta
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
@@ -18,7 +19,7 @@ from litebird_sim.observation_utilities import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
-from litebird_sim.utilities import resolve_nthreads
+from litebird_sim.utilities import cos_sin, resolve_nthreads
 
 from .common import (
     _build_mask_detector_split,
@@ -167,8 +168,7 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
         if cur_t_mask:
             info_pix = nobs_matrix[cur_pix_idx]
 
-            cos_n_m = np.cos(n * cur_psi + m * cur_hwp_angle)
-            sin_n_m = np.sin(n * cur_psi + m * cur_hwp_angle)
+            cos_n_m, sin_n_m = cos_sin(n * cur_psi + m * cur_hwp_angle)
             if (n, m) == (0, 0):
                 info_pix[0] = (
                     1  # if n=m=0 we compute the hit count, beceause it is useful to combine h maps later on
@@ -310,9 +310,8 @@ def make_h_maps(
             "The current implementation of make_h_maps only supports one time block per observation, you can set several detector blocks though."
         )
         for idet in range(cur_obs.n_detectors):
-            print(cur_d_mask[idet])
             if not cur_d_mask[idet]:
-                print(f"skipping detector {idet}")
+                log.info(f"skipping detector {idet}")
                 continue
 
             log.info(
@@ -323,9 +322,9 @@ def make_h_maps(
             hwp_angle = _get_hwp_angle(
                 obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
             )
-            # print(np.shape(hwp_angle))
-            # print(f"size of hwp array: {hwp_angle.nbytes}")
             duration_s = cur_obs.get_time_span()
+            if isinstance(duration_s, TimeDelta):
+                duration_s = duration_s.to_value("sec")
             assert isinstance(duration_s, float)
             sampling_rate = cur_obs.sampling_rate_hz
             pixidx, polang = _compute_pixel_indices_single_detector(

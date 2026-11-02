@@ -9,6 +9,7 @@ from litebird_sim.mapmaking.pair_differencing import make_pair_differenced_map
 
 def _build_observation(
     detectors: list[dict],
+    sampling_rate_hz: float = 1.0,
 ) -> tuple[lbs.Observation, np.ndarray, int]:
     n_samples = 4
     theta, phi = hp.pix2ang(1, 0)
@@ -18,7 +19,7 @@ def _build_observation(
         detectors=detectors,
         n_samples_global=n_samples,
         start_time_global=0.0,
-        sampling_rate_hz=1.0,
+        sampling_rate_hz=sampling_rate_hz,
     )
 
     pointings = np.empty((len(detectors), n_samples, 3), dtype=np.float64)
@@ -29,7 +30,8 @@ def _build_observation(
     return obs, pointings, hp.ang2pix(1, theta, phi)
 
 
-def test_make_pair_differenced_map_recovers_qu():
+@pytest.mark.parametrize("sampling_rate_hz", [1.0, 8.0])
+def test_make_pair_differenced_map_recovers_qu(sampling_rate_hz):
     detectors = [
         {
             "name": "pair_T",
@@ -48,7 +50,7 @@ def test_make_pair_differenced_map_recovers_qu():
             "net_ukrts": 4.0,
         },
     ]
-    obs, pointings, pix_idx = _build_observation(detectors)
+    obs, pointings, pix_idx = _build_observation(detectors, sampling_rate_hz)
 
     q_true = 3.0
     u_true = -1.5
@@ -73,7 +75,7 @@ def test_make_pair_differenced_map_recovers_qu():
     unseen_mask[pix_idx] = False
     assert np.all(result.binned_map[:, unseen_mask] == hp.UNSEEN)
 
-    pair_weight = 0.5 * (
+    pair_variance = sampling_rate_hz * (
         detectors[0]["net_ukrts"] ** 2 + detectors[1]["net_ukrts"] ** 2
     )
     design_matrix = np.column_stack(
@@ -82,9 +84,51 @@ def test_make_pair_differenced_map_recovers_qu():
             np.sin(2 * psi_t) - np.sin(2 * psi_b),
         )
     )
-    expected_npp = design_matrix.T @ design_matrix / pair_weight
+    expected_npp = design_matrix.T @ design_matrix / pair_variance
 
     assert np.allclose(result.invnpp[pix_idx], np.linalg.inv(expected_npp))
+
+
+def test_make_pair_differenced_map_covariance_matches_binner():
+    # Equal-NET orthogonal detectors with uniform angle coverage decouple I
+    # from Q/U, so pair differencing and the IQU binner must agree on Q/U.
+    detectors = [
+        {
+            "name": f"pair_{pol}",
+            "wafer": "L00",
+            "pixel": 12,
+            "pol": pol,
+            "pol_angle_rad": pol_angle_rad,
+            "net_ukrts": 2.0,
+        }
+        for pol, pol_angle_rad in [("T", 0.0), ("B", np.pi / 2.0)]
+    ]
+    obs, pointings, pix_idx = _build_observation(detectors, sampling_rate_hz=3.0)
+    q_true, u_true = 3.0, -1.5
+    psi = pointings[:, :, 2] + obs.pol_angle_rad[:, None]
+    obs.tod = 100.0 + q_true * np.cos(2 * psi) + u_true * np.sin(2 * psi)
+    kwargs = dict(
+        nside=1,
+        observations=obs,
+        pointings=pointings,
+        output_coordinate_system=CoordinateSystem.Ecliptic,
+    )
+
+    result = make_pair_differenced_map(**kwargs)
+    binned = lbs.make_binned_map(**kwargs)
+
+    np.testing.assert_allclose(result.binned_map[:, pix_idx], [q_true, u_true])
+    np.testing.assert_allclose(
+        result.binned_map[:, pix_idx], binned.binned_map[1:, pix_idx]
+    )
+    # For N uniformly spaced orientations, each Q/U variance is sigma^2 / N.
+    expected_covariance = (
+        np.eye(2) * obs.sampling_rate_hz * obs.net_ukrts[0] ** 2 / obs.n_samples
+    )
+    np.testing.assert_allclose(result.invnpp[pix_idx], expected_covariance, atol=1e-14)
+    np.testing.assert_allclose(
+        result.invnpp[pix_idx], binned.invnpp[pix_idx, 1:, 1:], atol=1e-14
+    )
 
 
 def test_make_pair_differenced_map_rejects_unpaired_detectors():
