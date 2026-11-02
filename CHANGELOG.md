@@ -1,5 +1,17 @@
 # HEAD
 
+-   `Simulation.add_planets` (and the low-level `add_planets_to_observations`) adds the signal of Mars, Jupiter, Saturn, Uranus, and Neptune to the TODs: unpolarized point sources with whole-disc temperatures measured by Planck (Planck intermediate results LII) and WMAP (Weiland et al. 2011), computed at the centre of the bands or, with `bandpass_integration=True`, integrated over the bandpasses of the detectors (from the IMo, or top-hat), as in PySM 3, and seen through circular Gaussian beams. The signal is converted into the units of the TOD component. The ephemerides and the prefilter on the boresight are shared with `flag_planets` in the new module `planets.py`.
+
+-   `Simulation.flag_planets` (and the low-level `flag_planets_in_observations` and `flag_planet`) sets `FLAG_PLANET` in `local_flags` for the samples closer than `radius_fwhm` times the FWHM of the detector to Mars, Jupiter, Saturn, Uranus, or Neptune, seen from the position of the spacecraft. The pointings of the detectors are computed only in the segments of time in which the boresight, sampled every second, is close to a planet. The number of flagged samples per planet is returned and written in the report. With `threshold_k_cmb`, only the samples where the predicted signal of the planet is larger than `threshold_k_cmb` (in K_CMB) are flagged. `bandpass_integration` is the same as in `add_planets`.
+
+-   Flags are bitmasks of dtype `FLAG_DTYPE` (`uint16`), with one bit per reason (`FLAG_PLANET`, …) defined in the new module `flags.py`. `Observation.local_flags` and `Observation.global_flags` are `None` until somebody writes them (all samples good); `get_local_flags` and `get_global_flags` allocate them on the first write.
+
+-   `make_binned_map`, `make_destriped_map` and the corresponding methods of `Simulation` (also the `_splits` variants) have the arguments `flags` (names of the `Observation` attributes holding the flags, as in `make_sanepic_gls_map`) and `flag_mask` (bits that exclude a sample; any nonzero flag by default). Flagged samples are excluded from the maps and, in the destriper, from the estimation of the baselines. `make_sanepic_gls_map` and `estimate_sanepic_noise` have `flag_mask` too, and skip flags set to `None`.
+
+-   `Observation.set_n_blocks` redistributes `local_flags` and `global_flags` together with the TODs; before, they were left with the old layout. The MPI dtype of the TODs is derived from their NumPy dtype, so TODs of any numeric dtype can be redistributed.
+
+-   Fix the HDF5 I/O of the flags: `global_flags` were read back still RLE-compressed, and `local_flags` with runs longer than the maximum value of their dtype (65535 samples for `uint16`, ~1 hour at 19 Hz) could not be read. The RLE matrices are now saved as `int64`, and the flags are read as `FLAG_DTYPE`.
+
 -   **Breaking change**: observation time references are now explicit:
     `start_time`, `start_time_global` and `end_time_global` are renamed to
     `start_time_process`, `start_time_observation` and `end_time_observation`.

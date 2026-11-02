@@ -120,3 +120,60 @@ def test_is_well_conditioned():
             nobs_matrix([0.0, np.pi / 3, 2 * np.pi / 3], weight)
         )
         assert not _is_well_conditioned(np.zeros((3, 3)))
+
+
+def test_flags_in_binner_and_destriper():
+    # Flagged samples must not contribute to the maps: corrupting them must
+    # not change the result, unless flag_mask selects other bits
+    import pytest
+
+    import litebird_sim as lbs
+
+    if lbs.MPI_COMM_WORLD.size > 1:
+        pytest.skip("This test uses one observation, which is not split over MPI")
+
+    sim = lbs.Simulation(start_time=0, duration_s=3600.0, random_seed=1)
+    sim.set_instrument(lbs.InstrumentInfo(name="instr", spin_boresight_angle_rad=0.87))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name=name, sampling_rate_hz=5.0, net_ukrts=50.0, pol_angle_rad=angle
+            )
+            for name, angle in (("a", 0.0), ("b", np.pi / 4))
+        ]
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785, precession_rate_hz=1 / 600, spin_rate_hz=1 / 60
+        )
+    )
+    sim.prepare_pointings()
+    obs = sim.observations[0]
+    obs.tod[:] = np.random.default_rng(1).normal(size=obs.tod.shape)
+
+    flags = lbs.get_local_flags(obs)
+    flags[0, 100:300] |= lbs.FLAG_PLANET
+    flags[1, 2000:2500] |= lbs.FLAG_PLANET
+    lbs.get_global_flags(obs)[5000:5100] |= 2
+    bad = (flags != 0) | (obs.global_flags != 0)
+
+    params = lbs.DestriperParameters(samples_per_baseline=500)
+
+    def maps(**kwargs):
+        binned = lbs.make_binned_map(nside=4, observations=sim.observations, **kwargs)
+        destriped = lbs.make_destriped_map(
+            nside=4, observations=sim.observations, params=params, **kwargs
+        )
+        return binned.binned_map, destriped.destriped_map
+
+    names = ["local_flags", "global_flags"]
+    clean = maps(flags=names)
+    obs.tod[bad] = 1e10
+    for actual, desired in zip(maps(flags=names), clean):
+        np.testing.assert_array_equal(actual, desired)
+
+    # Only the bits in flag_mask exclude samples: the corrupted samples of
+    # the global flags (bit 2) are now used
+    obs.tod[:, 5000:5100] = 1e10
+    planet_only = maps(flags=names, flag_mask=lbs.FLAG_PLANET)
+    assert np.nanmax(np.abs(planet_only[0])) > 1e8
