@@ -1,4 +1,4 @@
-import logging as log
+import logging
 import pickle
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -9,6 +9,8 @@ from numpy.random import PCG64, Generator, SeedSequence
 from .mpi import MPI_COMM_WORLD, _SerialMpiCommunicator
 
 from .observations import Observation
+
+log = logging.getLogger(__name__)
 
 
 def get_derived_random_generators(

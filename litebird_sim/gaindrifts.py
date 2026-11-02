@@ -1,4 +1,4 @@
-import logging as log
+import logging
 from dataclasses import dataclass
 from enum import IntEnum
 
@@ -6,6 +6,8 @@ import numpy as np
 
 from .observations import Observation
 from .observation_utilities import for_each_observation
+
+log = logging.getLogger(__name__)
 
 
 class GainDriftType(IntEnum):
