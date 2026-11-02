@@ -121,8 +121,7 @@ def compute_lissajous_pos_and_vel(
 def sum_lissajous_pos_and_vel(
     pos,
     vel,
-    start_time_s,
-    end_time_s,
+    times_s,
     radius1_km,
     radius2_km,
     ang_speed1_rad_s,
@@ -135,9 +134,10 @@ def sum_lissajous_pos_and_vel(
     of position-velocity pairs); the 3D position and velocity of the Lissajous orbit
     will be added to these arrays.
 
-    The `times` array must be an array of *float* values, typically starting from zero,
-    and they must measure the time in seconds. All the other parameters are usually
-    taken from a :class:`.SpacecraftOrbit` object.
+    The `times_s` array must contain N *float* values: the time of each
+    position-velocity pair, measured in seconds since the start of the Lissajous
+    orbit (:attr:`.SpacecraftOrbit.start_time`). All the other parameters are
+    usually taken from a :class:`.SpacecraftOrbit` object.
 
     This function has no return value, as the result is stored in `pos` and `vel`."""
 
@@ -147,8 +147,6 @@ def sum_lissajous_pos_and_vel(
     n_elements = pos.shape[
         0
     ]  # With Numba 0.52, you cannot use len(…) on a NumPy array yet
-    time_s = start_time_s
-    delta_time_s = (end_time_s - start_time_s) / n_elements
 
     for idx in range(n_elements):
         l2_pos_x, l2_pos_y, l2_pos_z = pos[idx, :]
@@ -183,7 +181,7 @@ def sum_lissajous_pos_and_vel(
         ) / radius_squared
 
         posx, posy, posz, velx, vely, velz = compute_lissajous_pos_and_vel(
-            time0=time_s,
+            time0=times_s[idx],
             earth_angle_rad=earth_angle_rad,
             earth_ang_speed_rad_s=earth_ang_speed_rad_s,
             radius1_km=radius1_km,
@@ -199,8 +197,6 @@ def sum_lissajous_pos_and_vel(
         vel[idx][0] += velx
         vel[idx][1] += vely
         vel[idx][2] += velz
-
-        time_s += delta_time_s
 
 
 @dataclass
@@ -341,7 +337,8 @@ def compute_start_and_span_for_obs(
     Compute the start time and the overall duration in seconds of a set of observations.
 
     The code returns the earliest start time of the observations in `observations` as
-    well as their overall time span. Gaps between observations are neglected.
+    well as the time span up to the latest end time. Gaps between observations are
+    neglected.
     """
 
     if isinstance(observations, Observation):
@@ -362,7 +359,7 @@ def compute_start_and_span_for_obs(
             start_time = cur_start_time
 
         cur_end_time = cur_obs.start_time + cur_obs.get_time_span()
-        if (end_time is None) or (end_time > cur_end_time):
+        if (end_time is None) or (cur_end_time > end_time):
             end_time = cur_end_time
 
     # These assertions help the type checker understand that the loop ran at least once
@@ -428,8 +425,8 @@ def spacecraft_pos_and_vel(
         sum_lissajous_pos_and_vel(
             pos=pos,
             vel=vel,
-            start_time_s=(start_time - orbit.start_time).to("s").value,
-            end_time_s=time_span_s,
+            # Time of each sample since the start of the Lissajous orbit
+            times_s=(start_time - orbit.start_time).to("s").value + times.to("s").value,
             radius1_km=orbit.radius1_km,
             radius2_km=orbit.radius2_km,
             ang_speed1_rad_s=orbit.ang_speed1_rad_s,
