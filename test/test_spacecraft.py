@@ -118,7 +118,7 @@ def test_start_and_span_of_many_observations():
         num_of_obs_per_detector=4 * n_procs,
     )
     assert len(sim.observations) == 4
-    local_start = min(obs.start_time for obs in sim.observations)
+    local_start = min(obs.start_time_process for obs in sim.observations)
 
     # Pass the observations in reverse order, so that the result does not depend
     # on which one comes first

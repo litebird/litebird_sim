@@ -1,5 +1,35 @@
 # HEAD
 
+-   **Breaking change**: observation time references are now explicit:
+    `start_time`, `start_time_global` and `end_time_global` are renamed to
+    `start_time_process`, `start_time_observation` and `end_time_observation`.
+    Sample metadata follows the same naming: `n_samples_global`, `n_samples`
+    and `start_sample` become `n_samples_observation`, `n_samples_process` and
+    `start_sample_observation`. The old attribute names and the
+    `n_samples_global`/`start_time_global` arguments of `Observation` still
+    work, with a `DeprecationWarning`. HDF5 files preserve the complete-observation
+    sample count and the starting index of the samples of each process; reading an MPI fragment
+    allocates only its stored samples and retains its normalized sample times.
+    `Observation` also accepts `start_time_simulation` (defaults to the
+    observation start for standalone observations); `Simulation` sets it to
+    `sim.start_time`. `PointingProvider` uses `start_time_simulation` instead of
+    `start_time_global`. HWP angles and HWP wedge disturbances now keep a
+    continuous phase across observation and MPI boundaries. Outputs of
+    simulations split into multiple observations change. Observation HDF5 files
+    use the new time names and store Astropy times as `(jd1, jd2)` with their
+    scale, replacing the old MJD metadata. Files written by previous versions
+    are still readable: their HWP phase stays referred to the start of each
+    observation, as when they were simulated, so that the angles match the
+    stored TOD.
+    The `start_time_s` parameter of `HWP.get_hwp_angle()`, `HWP.add_hwp_angle()`
+    and `HWP.apply_hwp_to_pointings()` is renamed to `time_from_sim_start_s`, as it
+    is the time of the first sample in seconds since `start_time_simulation`;
+    `IdealHWP` and `NonIdealHWP` still accept `start_time_s` as a keyword, with a
+    `DeprecationWarning`.
+    Time-dependent detector rotations are interpolated on the detector sample
+    grid before composition with the spacecraft rotation, allowing HWP wedge
+    disturbances on observations whose time grids differ from the spacecraft.
+
 -   Fix the velocity of the Lissajous orbit (`compute_lissajous_pos_and_vel`, used by `spacecraft_pos_and_vel`): it used the angle `earth_ang_speed_rad_s * time0` instead of the angle of the Earth `earth_angle_rad` used for the position, so it was not the derivative of the position (errors as large as the Lissajous velocity itself). The spacecraft velocities change by ~0.12 km/s (up to ~0.16 km/s), about 0.4% of the orbital dipole; the positions do not change.
 
 -   Fix `compute_start_and_span_for_obs`, used by `spacecraft_pos_and_vel` and `Simulation.compute_pos_and_vel`: with more than one observation in time, the span ended at the *earliest* end time of the observations instead of the latest, so the position and velocity of the spacecraft were computed only over the first observation, and `SpacecraftPositionAndVelocity.compute_velocities` kept the last velocity constant over the others. With four daily observations, the velocity of the last one was wrong by up to 1.6 km/s (~5% of the orbital velocity).
@@ -13,6 +43,8 @@
 -   Fix the noise normalization of the pair-differencing map-maker: the variance of the detector difference is the sum of the two detector variances. The Q/U maps are unchanged up to roundoff, while their covariance is twice the previous value and the corresponding residual chi-square is halved.
 
 -   Fix the beam-convolved dipole (`add_dipole` with `s_params`, `add_dipole_to_observations` with `apply_convolution=True`): the beam frame rotated by ψ in the opposite direction than in ducc0 and `add_convolved_sky`, so the dipole of beams that are not axially symmetric (elliptical, off-axis) was convolved with the beam rotated by −ψ instead of ψ. Moreover, `beam_alms` dictionaries keyed by channel now work when the channel has more than one detector, and `frequency_ghz` can be one value per detector. A new test compares the convolved dipole with a full 4π convolution by ducc0.
+
+-   Fix the HWP state of observations read from HDF5: the reader now restores `has_hwp` from the pointing provider immediately, so map-making uses the HWP modulation without requiring a prior call to compute pointings or HWP angles.
 
 -   Fix: with `user_seed`, the noise and the gain drifts of the detectors with the same local index were identical on all the MPI processes; `for_each_observation` now builds the generators with the communicator of the observations. Reference issue: [#585](https://github.com/litebird/litebird_sim/issues/585).
 
