@@ -488,15 +488,15 @@ class HWPCoord:
 
         if isinstance(_start_time, astropy.time.TimeDelta):
             assert isinstance(_delta_time, astropy.time.TimeDelta)
-            start_time_s = _start_time.to("s").value
+            time_from_sim_start_s = _start_time.to("s").value
             delta_time_s = _delta_time.to("s").value
         else:
-            start_time_s = _start_time
+            time_from_sim_start_s = _start_time
             delta_time_s = _delta_time
 
         _get_ideal_hwp_angle(
             output_buffer=pointing_rot_angles,
-            start_time_s=start_time_s,
+            time_from_sim_start_s=time_from_sim_start_s,
             delta_time_s=delta_time_s,
             start_angle_rad=getattr(self.sim.hwp, "start_angle_rad"),
             ang_speed_radpsec=self.ang_speed_radpsec,

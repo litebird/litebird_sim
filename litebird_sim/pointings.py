@@ -234,12 +234,12 @@ class PointingProvider:
             assert isinstance(start_time_simulation, astropy.time.Time), (
                 "The start_time is a astropy.time.Time object, so start_time_simulation must also be an astropy.time.Time object."
             )
-            start_time_s = (start_time - start_time_simulation).to("s").value
+            time_from_sim_start_s = (start_time - start_time_simulation).to("s").value
         else:
             assert isinstance(start_time_simulation, (int, float)), (
                 "The start_time is a float, so start_time_simulation must also be a float."
             )
-            start_time_s = start_time - start_time_simulation
+            time_from_sim_start_s = start_time - start_time_simulation
 
         # The HWP angle does not depend on the detector: callers looping over the
         # detectors of an observation should compute it only once
@@ -247,10 +247,10 @@ class PointingProvider:
             if hwp_buffer is None:
                 hwp_buffer = np.empty(nsamples, dtype=pointings_dtype)
 
+            # Positional arguments, so that HWP subclasses still using the old
+            # parameter name `start_time_s` keep working
             self.hwp.get_hwp_angle(
-                output_buffer=hwp_buffer,
-                start_time_s=start_time_s,
-                delta_time_s=1.0 / sampling_rate_hz,
+                hwp_buffer, time_from_sim_start_s, 1.0 / sampling_rate_hz
             )
         else:
             hwp_buffer = None
@@ -380,17 +380,19 @@ class PointingProvider:
                 assert isinstance(start_time_simulation, astropy.time.Time), (
                     "The start_time is a astropy.time.Time object, so start_time_simulation must also be an astropy.time.Time object."
                 )
-                start_time_s = (start_time - start_time_simulation).to("s").value
+                time_from_sim_start_s = (
+                    (start_time - start_time_simulation).to("s").value
+                )
             else:
                 assert isinstance(start_time_simulation, (int, float)), (
                     "The start_time is a float, so start_time_simulation must also be a float."
                 )
-                start_time_s = start_time - start_time_simulation
+                time_from_sim_start_s = start_time - start_time_simulation
 
+            # Positional arguments, so that HWP subclasses still using the old
+            # parameter name `start_time_s` keep working
             self.hwp.get_hwp_angle(
-                output_buffer=hwp_buffer,
-                start_time_s=start_time_s,
-                delta_time_s=1.0 / sampling_rate_hz,
+                hwp_buffer, time_from_sim_start_s, 1.0 / sampling_rate_hz
             )
         else:
             hwp_buffer = None

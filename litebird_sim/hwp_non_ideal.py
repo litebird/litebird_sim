@@ -4,7 +4,12 @@ import h5py
 import numpy as np
 
 from litebird_sim.hwp_jones_parameters import HWPJonesParams
-from .hwp import HWP, _get_ideal_hwp_angle, _add_ideal_hwp_angle
+from .hwp import (
+    HWP,
+    _accept_deprecated_start_time_s,
+    _add_ideal_hwp_angle,
+    _get_ideal_hwp_angle,
+)
 
 
 class HWPFormalism(Enum):
@@ -43,23 +48,25 @@ class NonIdealHWP(HWP):
         self.calculus = calculus
         self.jones_parameters = jones_parameters
 
+    @_accept_deprecated_start_time_s
     def get_hwp_angle(
-        self, output_buffer, start_time_s: float, delta_time_s: float
+        self, output_buffer, time_from_sim_start_s: float, delta_time_s: float
     ) -> None:
         _get_ideal_hwp_angle(
             output_buffer=output_buffer,
-            start_time_s=start_time_s,
+            time_from_sim_start_s=time_from_sim_start_s,
             delta_time_s=delta_time_s,
             start_angle_rad=self.start_angle_rad,
             ang_speed_radpsec=self.ang_speed_radpsec,
         )
 
+    @_accept_deprecated_start_time_s
     def add_hwp_angle(
-        self, pointing_buffer, start_time_s: float, delta_time_s: float
+        self, pointing_buffer, time_from_sim_start_s: float, delta_time_s: float
     ) -> None:
         _add_ideal_hwp_angle(
             pointing_buffer=pointing_buffer,
-            start_time_s=start_time_s,
+            time_from_sim_start_s=time_from_sim_start_s,
             delta_time_s=delta_time_s,
             start_angle_rad=self.start_angle_rad,
             ang_speed_radpsec=self.ang_speed_radpsec,

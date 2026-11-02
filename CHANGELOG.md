@@ -21,6 +21,11 @@
     are still readable: their HWP phase stays referred to the start of each
     observation, as when they were simulated, so that the angles match the
     stored TOD.
+    The `start_time_s` parameter of `HWP.get_hwp_angle()`, `HWP.add_hwp_angle()`
+    and `HWP.apply_hwp_to_pointings()` is renamed to `time_from_sim_start_s`, as it
+    is the time of the first sample in seconds since `start_time_simulation`;
+    `IdealHWP` and `NonIdealHWP` still accept `start_time_s` as a keyword, with a
+    `DeprecationWarning`.
     Time-dependent detector rotations are interpolated on the detector sample
     grid before composition with the spacecraft rotation, allowing HWP wedge
     disturbances on observations whose time grids differ from the spacecraft.

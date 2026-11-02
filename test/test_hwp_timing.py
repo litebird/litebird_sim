@@ -344,3 +344,50 @@ def test_read_legacy_observation(tmp_path, use_astropy):
     elapsed = _elapsed_s(loaded.start_time_process, original.start_time_observation)
     expected = 0.37 + 0.73 * (elapsed + np.arange(loaded.n_samples_process) / 4.0)
     _assert_phase(loaded.get_hwp_angle(), expected, atol=1e-8)
+
+
+@pytest.mark.parametrize("hwp_class", ["ideal", "nonideal"])
+def test_hwp_deprecated_start_time_s(hwp_class):
+    if hwp_class == "ideal":
+        hwp = lbs.IdealHWP(ang_speed_radpsec=1.3, start_angle_rad=0.2)
+    else:
+        hwp = lbs.NonIdealHWP(
+            ang_speed_radpsec=1.3,
+            harmonic_expansion=True,
+            calculus=lbs.HWPFormalism.MUELLER,
+            start_angle_rad=0.2,
+        )
+
+    expected = np.empty(5)
+    hwp.get_hwp_angle(expected, time_from_sim_start_s=7.5, delta_time_s=0.1)
+    _assert_phase(expected, 0.2 + 1.3 * (7.5 + 0.1 * np.arange(5)))
+
+    actual = np.empty(5)
+    with pytest.warns(DeprecationWarning, match="start_time_s"):
+        hwp.get_hwp_angle(actual, start_time_s=7.5, delta_time_s=0.1)
+    np.testing.assert_array_equal(actual, expected)
+
+    with pytest.raises(TypeError, match="not both"):
+        hwp.get_hwp_angle(
+            actual, start_time_s=7.5, time_from_sim_start_s=7.5, delta_time_s=0.1
+        )
+
+
+def test_hwp_subclass_with_old_parameter_name():
+    class LegacyHWP(lbs.IdealHWP):
+        def get_hwp_angle(self, output_buffer, start_time_s, delta_time_s):
+            output_buffer[:] = start_time_s + delta_time_s * np.arange(
+                output_buffer.size
+            )
+
+    provider = lbs.PointingProvider(
+        bore2ecliptic_quats=lbs.RotQuaternion(),
+        hwp=LegacyHWP(ang_speed_radpsec=1.0),
+    )
+    hwp_angle = provider.get_hwp_angle(
+        start_time=12.0,
+        start_time_simulation=2.0,
+        sampling_rate_hz=10.0,
+        nsamples=4,
+    )
+    np.testing.assert_allclose(hwp_angle, 10.0 + 0.1 * np.arange(4))
