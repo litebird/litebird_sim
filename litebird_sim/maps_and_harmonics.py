@@ -2,8 +2,7 @@ import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from collections.abc import Sequence
-import logging as log
-
+import logging
 import ducc0.healpix as dh
 import ducc0.sht as sht
 import numpy as np
@@ -13,6 +12,8 @@ from astropy.io import fits
 from .coordinates import ECL_TO_GAL_EULER, GAL_TO_ECL_EULER, CoordinateSystem
 from .units import Units
 from .utilities import resolve_nthreads, wrap_phi
+
+log = logging.getLogger(__name__)
 
 # ======================================================================
 # SphericalHarmonics

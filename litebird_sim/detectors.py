@@ -1,4 +1,4 @@
-import logging as log
+import logging
 from dataclasses import dataclass, field, fields
 from typing import Any
 from uuid import UUID
@@ -10,6 +10,8 @@ from .bandpasses import BandPassInfo
 from .imo import Imo
 from .quaternions import quat_left_multiply, quat_rotation_y, quat_rotation_z
 from .scanning import RotQuaternion
+
+log = logging.getLogger(__name__)
 
 
 def url_to_uuid(url: str) -> UUID:

@@ -1,7 +1,7 @@
 import functools
 import importlib.resources
 import json
-import logging as log
+import logging
 from collections import Counter
 import os
 import subprocess
@@ -94,6 +94,8 @@ from .version import (
 from .version import (
     __version__ as litebird_sim_version,
 )
+
+log = logging.getLogger(__name__)
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -726,17 +728,17 @@ class Simulation:
             log_format = "[%(asctime)s %(levelname)s] %(message)s"
 
         if "LOG_DEBUG" in os.environ:
-            log_level = log.DEBUG
+            log_level = logging.DEBUG
         else:
-            log_level = log.INFO
+            log_level = logging.INFO
 
         if "LOG_ALL_MPI" in os.environ:
-            log.basicConfig(level=log_level, format=log_format)
+            logging.basicConfig(level=log_level, format=log_format)
         else:
             if mpi_rank == 0:
-                log.basicConfig(level=log_level, format=log_format)
+                logging.basicConfig(level=log_level, format=log_format)
             else:
-                log.basicConfig(level=log.CRITICAL, format=log_format)
+                logging.basicConfig(level=logging.CRITICAL, format=log_format)
 
     def write_healpix_map(self, filename: Path, pixels, **kwargs) -> Path:
         """Save a Healpix map in the output folder
@@ -781,7 +783,7 @@ class Simulation:
         self,
         markdown_text: str,
         append_newline=True,
-        figures: list[tuple[Any, str]] = [],
+        figures: list[tuple[Any, str]] | None = None,
         **kwargs,
     ):
         """Append text and figures to the simulation report
@@ -835,7 +837,7 @@ class Simulation:
         if append_newline:
             self.report += "\n\n"
 
-        for curfig, curfilename in figures:
+        for curfig, curfilename in figures or []:
             curpath = self.base_path / curfilename
             curfig.savefig(curpath)
             self.list_of_outputs.append(
@@ -1150,14 +1152,7 @@ class Simulation:
         n_blocks_time: int = 1,
         root: int = 0,
         tod_dtype: Any | None = None,
-        tods: list[TodDescription] = [
-            TodDescription(
-                name="tod",
-                units=Units.K_CMB,
-                dtype=np.float32,
-                description="Signal",
-            )
-        ],
+        tods: list[TodDescription] | None = None,
         allocate_tod: bool = True,
     ) -> list[Observation]:
         """Create a set of Observation objects.
@@ -1272,6 +1267,16 @@ class Simulation:
             TOD arrays, which can be useful for low-memory workflows or
             when TODs are filled on demand.
         """
+
+        if tods is None:
+            tods = [
+                TodDescription(
+                    name="tod",
+                    units=Units.K_CMB,
+                    dtype=np.float32,
+                    description="Signal",
+                )
+            ]
 
         assert self.start_time is not None, (
             "you must set start_time when creating the Simulation object"
