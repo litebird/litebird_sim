@@ -1,7 +1,7 @@
 import functools
 import importlib.resources
 import json
-import logging as log
+import logging
 from collections import Counter
 import os
 import subprocess
@@ -60,6 +60,7 @@ from .mapmaking import (
     make_brahmap_gls_map,
     make_sanepic_gls_map,
     estimate_sanepic_noise,
+    compute_sanepic_beam_templates,
     make_destriped_map,
     make_h_maps,
     make_pair_differenced_map,
@@ -97,6 +98,8 @@ from .version import (
 from .version import (
     __version__ as litebird_sim_version,
 )
+
+log = logging.getLogger(__name__)
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -729,17 +732,17 @@ class Simulation:
             log_format = "[%(asctime)s %(levelname)s] %(message)s"
 
         if "LOG_DEBUG" in os.environ:
-            log_level = log.DEBUG
+            log_level = logging.DEBUG
         else:
-            log_level = log.INFO
+            log_level = logging.INFO
 
         if "LOG_ALL_MPI" in os.environ:
-            log.basicConfig(level=log_level, format=log_format)
+            logging.basicConfig(level=log_level, format=log_format)
         else:
             if mpi_rank == 0:
-                log.basicConfig(level=log_level, format=log_format)
+                logging.basicConfig(level=log_level, format=log_format)
             else:
-                log.basicConfig(level=log.CRITICAL, format=log_format)
+                logging.basicConfig(level=logging.CRITICAL, format=log_format)
 
     def write_healpix_map(self, filename: Path, pixels, **kwargs) -> Path:
         """Save a Healpix map in the output folder
@@ -784,7 +787,7 @@ class Simulation:
         self,
         markdown_text: str,
         append_newline=True,
-        figures: list[tuple[Any, str]] = [],
+        figures: list[tuple[Any, str]] | None = None,
         **kwargs,
     ):
         """Append text and figures to the simulation report
@@ -838,7 +841,7 @@ class Simulation:
         if append_newline:
             self.report += "\n\n"
 
-        for curfig, curfilename in figures:
+        for curfig, curfilename in figures or []:
             curpath = self.base_path / curfilename
             curfig.savefig(curpath)
             self.list_of_outputs.append(
@@ -1153,14 +1156,7 @@ class Simulation:
         n_blocks_time: int = 1,
         root: int = 0,
         tod_dtype: Any | None = None,
-        tods: list[TodDescription] = [
-            TodDescription(
-                name="tod",
-                units=Units.K_CMB,
-                dtype=np.float32,
-                description="Signal",
-            )
-        ],
+        tods: list[TodDescription] | None = None,
         allocate_tod: bool = True,
     ) -> list[Observation]:
         """Create a set of Observation objects.
@@ -1275,6 +1271,16 @@ class Simulation:
             TOD arrays, which can be useful for low-memory workflows or
             when TODs are filled on demand.
         """
+
+        if tods is None:
+            tods = [
+                TodDescription(
+                    name="tod",
+                    units=Units.K_CMB,
+                    dtype=np.float32,
+                    description="Signal",
+                )
+            ]
 
         assert self.start_time is not None, (
             "you must set start_time when creating the Simulation object"
@@ -3162,9 +3168,10 @@ class Simulation:
         calibration: "pysanepic.CalibrationParameters | None" = None,
         dipole_component: str | None = None,
         sky_model=None,
-        bandpass_templates: dict | None = None,
-        bandpass_common: bool = False,
+        templates: dict | None = None,
+        template_covariance: bool = False,
         pointing_form: str = "auto",
+        verbose: bool = False,
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
@@ -3187,9 +3194,10 @@ class Simulation:
             calibration=calibration,
             dipole_component=dipole_component,
             sky_model=sky_model,
-            bandpass_templates=bandpass_templates,
-            bandpass_common=bandpass_common,
+            templates=templates,
+            template_covariance=template_covariance,
             pointing_form=pointing_form,
+            verbose=verbose,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -3206,6 +3214,34 @@ class Simulation:
             )
 
         return result
+
+    @_profile
+    def compute_sanepic_beam_templates(
+        self,
+        sky_model,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        offsets: bool = True,
+        ellipticity: bool = True,
+        dtype=np.float64,
+        pointings_dtype=np.float64,
+        nthreads: int | None = None,
+    ) -> dict:
+        """Beam templates (pointing offsets, ellipticity) for the pysanepic
+        map-maker, stored as TOD components of the observations.
+
+        For details, see the low-level interface :func:`.compute_sanepic_beam_templates`.
+        """
+        return compute_sanepic_beam_templates(
+            observations=self.observations,
+            sky_model=sky_model,
+            hwp=self.hwp,
+            output_coordinate_system=output_coordinate_system,
+            offsets=offsets,
+            ellipticity=ellipticity,
+            dtype=dtype,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
 
     @_profile
     def estimate_sanepic_noise(

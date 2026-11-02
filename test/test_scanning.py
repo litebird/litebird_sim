@@ -7,6 +7,7 @@ from astropy.time import Time, TimeDelta
 import astropy.units as u
 import numpy as np
 import litebird_sim as lbs
+from litebird_sim.utilities import wrap_phi
 from litebird_sim import IdealHWP
 
 
@@ -261,6 +262,8 @@ def test_simulation_pointings_spinning(tmp_path):
 
     reference_pointings_file = Path(__file__).parent / "reference_pointings.txt.gz"
     reference = np.loadtxt(reference_pointings_file)
+    # The reference has φ in [-π, π], while the pointings now use [0, 2π)
+    reference = wrap_phi(reference)
     assert np.allclose(pointings_and_orientation[0, :, :], reference)
 
     # Check that the colatitude does not depart more than ±15° from
@@ -302,6 +305,8 @@ def test_simulation_pointings_mjd(tmp_path):
 
         filename = Path(__file__).parent / f"reference_obs_pointings{idx:03d}.npy"
         reference = np.load(filename, allow_pickle=False)
+        # The reference has φ in [-π, π], while the pointings now use [0, 2π)
+        reference = wrap_phi(reference)
         assert np.allclose(pointings_and_orientation, reference)
 
 
@@ -342,6 +347,7 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
 
         filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"
         reference = np.load(filename, allow_pickle=False)
+        reference = wrap_phi(reference)
         reference[..., 2] = np.mod(reference[..., 2], 2 * np.pi)
 
         assert np.allclose(pointings_and_orientation, reference, rtol=1e-5)
@@ -594,13 +600,13 @@ def test_chunked_pointing_generation():
     assert pointing_buf.shape == (num_of_samples, 3)
 
     # We expect the +z axis of the detector to be rotated by 90° around the x axis,
-    # so that it should point towards −y. This implies that ϑ = π/2 and φ = −π/2
+    # so that it should point towards −y. This implies that ϑ = π/2 and φ = 3π/2
 
     # ϑ
     np.testing.assert_allclose(pointing_buf[:, 0], np.pi / 2)
 
     # φ
-    np.testing.assert_allclose(pointing_buf[:, 1], -np.pi / 2)
+    np.testing.assert_allclose(pointing_buf[:, 1], 3 * np.pi / 2)
 
     # ψ
     np.testing.assert_allclose(pointing_buf[:, 2], 0, atol=1e-15)
@@ -665,3 +671,25 @@ def test_pointings_use_only_the_needed_quaternions(use_astropy_time):
     for col in (1, 2):
         diff = (pointings[:, col] - expected[:, col] + np.pi) % (2 * np.pi) - np.pi
         np.testing.assert_allclose(diff, 0.0, atol=1e-9)
+
+
+def test_pointings_phi_range():
+    # φ follows the HEALPix convention [0, 2π), and the direction does not change
+    rng = np.random.default_rng(12345)
+    quats = rng.normal(size=(10_000, 4))
+    quats /= np.linalg.norm(quats, axis=1)[:, None]
+
+    result = np.empty((len(quats), 3))
+    lbs.all_compute_pointing_and_orientation(result_matrix=result, quat_matrix=quats)
+
+    assert np.all((result[:, 1] >= 0.0) & (result[:, 1] < 2 * np.pi))
+    assert np.any(result[:, 1] > np.pi)
+
+    direction = np.empty((len(quats), 3))
+    for i, (vx, vy, vz, w) in enumerate(quats):
+        lbs.rotate_z_vector(direction[i], vx, vy, vz, w)
+    np.testing.assert_allclose(
+        np.arctan2(np.sin(result[:, 1]), np.cos(result[:, 1])),
+        np.arctan2(direction[:, 1], direction[:, 0]),
+        atol=1e-12,
+    )

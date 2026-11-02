@@ -45,6 +45,8 @@ from .common import (
 if MPI_ENABLED:
     import mpi4py.MPI
 
+log = logging.getLogger(__name__)
+
 
 __DESTRIPER_RESULTS_FILE_NAME = "destriper_results.fits"
 __BASELINES_FILE_NAME = f"baselines_mpi{MPI_COMM_WORLD.rank:04d}.fits"
@@ -1476,7 +1478,7 @@ def destriper_log_callback(
     is running the (potentially long) Conjugated Gradient iteration.
     """
     if MPI_COMM_WORLD.rank == 0:
-        logging.info(
+        log.info(
             f"Destriper CG iteration {step_number + 1}/{max_steps}, "
             f"stopping factor: {stopping_factor:.3e}"
         )

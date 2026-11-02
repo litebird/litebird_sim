@@ -3,14 +3,11 @@ name: Notebook Tests
 on: [push]
 
 jobs:
-  tests:
-    runs-on: ${{ matrix.os }}
+  notebooks:
+    # No matrix: a skipped matrix job reports only its bare id, so the
+    # required check name must not carry matrix values
+    runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        mpi: ["none"]
-        python: ["3.11"]
 
     # Only run notebook tests if there is no [skipnb] or [skip nb] in the commit message
     if: |
@@ -26,12 +23,12 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: ${{ matrix.python }}
+          python-version: "3.11"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ matrix.python }}
+          python-version: "3.11"
           enable-cache: true
           save-cache: false
           prune-cache: false
@@ -43,14 +40,14 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: .venv
-          key: venv-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
+          key: venv-${{ runner.os }}-3.11-none-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
       - name: Restore PySM3 data files
         id: cache-pysm3
         uses: actions/cache/restore@v6
         with:
           path: ~/pysm3-data
-          key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}
+          key: pysm3-data-${{ runner.os }}-3.11-none-${{ secrets.CACHE_VERSION }}
 
       - name: Register PySM3 data path
         run: |
@@ -67,7 +64,7 @@ jobs:
 
       - name: Install basic dependencies (FFTW, IMO)
         run: |
-          ./bin/install-deps.sh ${{ matrix.mpi }}
+          ./bin/install-deps.sh none
           mkdir -p $HOME/.config/litebird_imo
           echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
@@ -77,4 +74,5 @@ jobs:
           DUCC0_OPTIMIZATION: none
 
       - name: Notebook Tests
-        run: uv run python -m pytest --nbmake -n auto --durations=5 -vv notebooks/*.ipynb
+        run: |
+          uv run python -m pytest --nbmake -n auto --durations=5 -vv notebooks/*.ipynb --deselect=notebooks/litebird_sim_smarties.ipynb

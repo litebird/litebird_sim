@@ -191,13 +191,13 @@ optional dependencies above. Install it in the same environment as LBS:
 
 .. code-block:: text
 
-    pip install "pysanepic>=0.5.1"
+    pip install "pysanepic>=0.6.0"
 
 Version 0.3.0 is enough for the GLS maps; the estimation of the noise
 (:func:`.estimate_sanepic_noise`) and the correlated noise (``correlation``)
-need 0.4.0; the calibration on the dipole (``calibration``), the sky model
-(``sky_model``) and the bandpass templates (``bandpass_templates``) need
-0.5.0 (0.5.1 rotates the pointings only once per detector with alm models).
+need 0.4.0; the calibration on the dipole (``calibration``) and the sky model
+(``sky_model``) need 0.5.0 (0.5.1 rotates the pointings only once per
+detector with alm models); the templates (``templates``) need 0.6.0.
 
 .. _maximize-performance:
 

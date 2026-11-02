@@ -1,5 +1,5 @@
 import importlib.resources
-import logging as log
+import logging
 from pathlib import Path
 from typing import IO, Any, cast
 from uuid import UUID
@@ -7,6 +7,8 @@ from uuid import UUID
 import tomlkit
 import tomlkit.exceptions
 from libinsdb import DataFile, Entity, LocalInsDb, Quantity, RemoteInsDb
+
+log = logging.getLogger(__name__)
 
 CONFIG_FILE_PATH = Path.home() / ".config" / "litebird_imo" / "imo.toml"
 

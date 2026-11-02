@@ -527,7 +527,9 @@ def for_each_observation(
     comm : optional
         MPI communicator forwarded to
         :func:`.regenerate_or_check_detector_generators`.  Only consulted
-        when *requires_rng* is ``True``.
+        when *requires_rng* is ``True``.  Defaults to the communicator of the
+        first observation, so that the generators built from *user_seed* differ
+        among MPI processes.
 
     Yields
     ------
@@ -540,6 +542,8 @@ def for_each_observation(
     obs_list = normalize_observations(observations)
 
     if requires_rng:
+        if comm is None:
+            comm = obs_list[0].comm
         dets_random = regenerate_or_check_detector_generators(
             observations=obs_list,
             comm=comm,

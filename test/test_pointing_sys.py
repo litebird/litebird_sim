@@ -9,6 +9,7 @@ import pytest
 import tomlkit
 
 import litebird_sim as lbs
+from litebird_sim.utilities import wrap_phi
 
 make_reference_file = False  # if True, generate reference file at `path_of_reference`.
 
@@ -27,7 +28,13 @@ path_of_reference = (
 def load_pointing_sys_reference():
     with gzip.open(path_of_reference, "rt", encoding="utf-8") as f:
         json_str = f.read()
-    return json.loads(json_str)
+    result = json.loads(json_str)
+
+    # The reference has φ in [-π, π], while the pointings now use [0, 2π)
+    for per_telescope in result.values():
+        for telescope, pointings in per_telescope.items():
+            per_telescope[telescope] = wrap_phi(np.array(pointings))
+    return result
 
 
 if not make_reference_file:
