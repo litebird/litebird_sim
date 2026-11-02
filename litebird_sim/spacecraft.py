@@ -341,7 +341,8 @@ def compute_start_and_span_for_obs(
     Compute the start time and the overall duration in seconds of a set of observations.
 
     The code returns the earliest start time of the observations in `observations` as
-    well as their overall time span. Gaps between observations are neglected.
+    well as the time span up to the latest end time. Gaps between observations are
+    neglected.
     """
 
     if isinstance(observations, Observation):
@@ -362,7 +363,7 @@ def compute_start_and_span_for_obs(
             start_time = cur_start_time
 
         cur_end_time = cur_obs.start_time + cur_obs.get_time_span()
-        if (end_time is None) or (end_time > cur_end_time):
+        if (end_time is None) or (cur_end_time > end_time):
             end_time = cur_end_time
 
     # These assertions help the type checker understand that the loop ran at least once
