@@ -25,6 +25,8 @@
     grid before composition with the spacecraft rotation, allowing HWP wedge
     disturbances on observations whose time grids differ from the spacecraft.
 
+-   litebird_sim logs through one logger per module (`litebird_sim.io`, `litebird_sim.simulations`, …) instead of the root logger, so applications can filter its messages by name. A module function that logs before the application has configured logging no longer calls `logging.basicConfig()` behind its back; `Simulation` still configures the root logger as before. The list defaults of `write_list_of_observations`, `read_one_observation`, `read_list_of_observations`, `save_simulation_for_madam`, `Simulation.append_to_report` and `Simulation.create_observations` are now `None`, with the same effective values, so they can no longer be shared between calls. Reference PR: [#618](https://github.com/litebird/litebird_sim/pull/618).
+
 -   Fix a race in the generic Mueller HWP path of `scan_map`: shared temporary Stokes vectors and rotation matrices could corrupt the TOD when running with multiple Numba threads. The kernel now expands the Mueller products in scalars, so it shares no mutable state and allocates nothing per sample; this also makes it ~20× faster.
 
 -   Fix the noise normalization of the pair-differencing map-maker: the variance of the detector difference is the sum of the two detector variances. The Q/U maps are unchanged up to roundoff, while their covariance is twice the previous value and the corresponding residual chi-square is halved.

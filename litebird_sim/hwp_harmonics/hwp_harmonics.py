@@ -34,6 +34,8 @@ from .mueller_methods import (
     compute_signal_for_one_detector as compute_signal_for_one_detector_mueller,
 )
 
+log = logging.getLogger(__name__)
+
 COND_THRESHOLD = 1e10
 
 k_B = getattr(const, "k_B").value  # Boltzmann constant in J/K
@@ -377,7 +379,7 @@ def fill_tod_with_hwp_harmonics(
             # ----------------------------------------------------------
             coordinates = getattr(maps_det, "coordinates", None)
             if coordinates is None:
-                logging.warning(
+                log.warning(
                     "scan_map: maps_det.coordinates is None — assuming "
                     "CoordinateSystem.Galactic"
                 )

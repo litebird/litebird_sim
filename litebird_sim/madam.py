@@ -174,7 +174,7 @@ def save_simulation_for_madam(
     output_path: str | Path | None = None,
     absolute_paths: bool = True,
     madam_subfolder_name: str = "madam",
-    components: list[str] = ["tod"],
+    components: list[str] | None = None,
     components_to_bin: list[str] | None = None,
     pointing_dtype=np.float64,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic,
@@ -239,6 +239,9 @@ def save_simulation_for_madam(
     fill Madam files (the parameter file and the simulation file) or ``None``;
     the dictionary is only returned for the MPI process with rank #0.
     """
+
+    if components is None:
+        components = ["tod"]
 
     # All the code revolves around the result of the first call to
     # Simulation.describe_mpi_distribution(), which returns a

@@ -7,6 +7,8 @@ import scipy as sp
 
 from .imo import Imo
 
+log = logging.getLogger(__name__)
+
 
 def _apod(x, a, b):
     return (1 + np.cos((x - a) / (b - a) * np.pi)) / 2
@@ -131,7 +133,7 @@ class BandPassInfo:
         elif self.bandtype == "cheby":
             self._get_chebyshev_bandpass(normalize=self.normalize)
         else:
-            logging.warning(f"{self.bandtype} profile not implemented. Assume top-hat")
+            log.warning(f"{self.bandtype} profile not implemented. Assume top-hat")
             self._get_top_hat_bandpass(normalize=self.normalize)
 
     def get_edges(self):
@@ -313,7 +315,7 @@ class BandPassInfo:
         """
 
         if model is not None:
-            logging.info(f"Bandpass sampler from {model.name}")
+            log.info(f"Bandpass sampler from {model.name}")
             sampler = model.Sampler
         else:
             try:
@@ -326,7 +328,7 @@ class BandPassInfo:
                 self._interpolate_band()
                 sampler = self.Sampler
             except AttributeError:
-                logging.warning(
+                log.warning(
                     "Can't resample if no sampler is built and/or provided, "
                     "initializing the sampler and interpolating the band"
                 )
