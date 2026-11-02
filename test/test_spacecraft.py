@@ -72,6 +72,38 @@ def test_spacecraft_orbit():
     assert np.round(np.max(np.linalg.norm(diff_vel_km_s, axis=1) * 1e2)) == 11.0
 
 
+def test_start_and_span_of_many_observations():
+    # The time span must cover all the observations, up to the latest end time
+    day_s = 86400.0
+    n_procs = lbs.MPI_COMM_WORLD.size
+    start_time = astropy.time.Time("2030-01-01")
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=4 * n_procs * day_s, random_seed=1
+    )
+    # Four one-day observations on each MPI process
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="d", sampling_rate_hz=0.01)],
+        num_of_obs_per_detector=4 * n_procs,
+    )
+    assert len(sim.observations) == 4
+    local_start = min(obs.start_time for obs in sim.observations)
+
+    # Pass the observations in reverse order, so that the result does not depend
+    # on which one comes first
+    obs_start, span_s = lbs.spacecraft.compute_start_and_span_for_obs(
+        sim.observations[::-1]
+    )
+    assert abs((obs_start - local_start).to("s").value) < 1e-3
+    np.testing.assert_allclose(span_s, 4 * day_s, rtol=1e-9)
+
+    posvel = lbs.spacecraft_pos_and_vel(
+        lbs.SpacecraftOrbit(start_time=start_time),
+        observations=sim.observations,
+        delta_time_s=day_s,
+    )
+    np.testing.assert_allclose(posvel.time_span_s, 4 * day_s, rtol=1e-9)
+
+
 def test_spacecraft_orbit_sub_window():
     # A window starting after the beginning of the orbit (e.g., the observations
     # held by an MPI process other than the first one) must give the same positions
