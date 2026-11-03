@@ -6,6 +6,9 @@ jobs:
   tests:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      # Avoid UCX InfiniBand verbs (rc_verbs) failure on Azure Ubuntu runners with MPICH
+      UCX_TLS: tcp,self,sm
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
