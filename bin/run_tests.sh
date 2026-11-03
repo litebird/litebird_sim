@@ -51,21 +51,28 @@ mpi_utest() {
     if [[ "$(uname)" == "Darwin" ]]; then
         export HDF5_USE_FILE_LOCKING=FALSE
     fi
+
+    # Pass --map-by :OVERSUBSCRIBE only when using OpenMPI
+    if mpiexec --version 2>&1 | grep -Eqi "OpenRTE|Open MPI|OpenMPI|PRTE"; then
+        MPI_ARGS="--map-by :OVERSUBSCRIBE"
+    else
+        MPI_ARGS=""
+    fi
     
     for proc in 1 2 3 4 6; do
-        PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n $proc $UV_RUN python -m pytest ./test/test_mpi.py -v
+        PYTHONPATH=. mpiexec $MPI_ARGS -n $proc $UV_RUN python -m pytest ./test/test_mpi.py -v
     done
     
     for proc in 1 2 4; do
-        PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n $proc $UV_RUN python -m pytest ./test/test_detector_blocks.py -v
+        PYTHONPATH=. mpiexec $MPI_ARGS -n $proc $UV_RUN python -m pytest ./test/test_detector_blocks.py -v
     done
 
     for proc in 1 2; do
-        PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n $proc $UV_RUN python -m pytest ./test/test_shared_memory_pointings.py -v
+        PYTHONPATH=. mpiexec $MPI_ARGS -n $proc $UV_RUN python -m pytest ./test/test_shared_memory_pointings.py -v
     done
 
     for proc in 1 4; do
-        PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n $proc $UV_RUN python -m pytest ./test/test_mpi_n4.py -v
+        PYTHONPATH=. mpiexec $MPI_ARGS -n $proc $UV_RUN python -m pytest ./test/test_mpi_n4.py -v
     done
 }
 
