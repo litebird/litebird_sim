@@ -430,6 +430,20 @@ covariance is circulant. This matches the assumption of map-makers that apply
         model="keshner",
     )
 
+Circulant noise has a drawback: the first and the last samples of each chunk
+are as correlated as two consecutive samples, which is not physical. With
+``chunk_oversample=2``, the 1/f noise of each chunk is instead the central
+part of a realization twice as long, as TOAST does, so that the edges of the
+chunk are not correlated. The chunk length does not need to be a power of 2,
+but the generation of the noise takes twice as much time and memory::
+
+    # 1/f noise in chunks of one day, without correlation between the edges
+    sim.add_noise(
+        noise_type="one_over_f",
+        chunk_duration_s=86400.0,
+        chunk_oversample=2,
+    )
+
 Note that the realization differs from the one generated without chunks, even
 with the same seed, and that noise in chunks is not available yet for
 ``noise_type="correlated"``. The same options are available in

@@ -2408,6 +2408,7 @@ class Simulation:
         correlation: dict | None = None,
         chunk_samples: int | None = None,
         chunk_duration_s: float | None = None,
+        chunk_oversample: int = 1,
     ):
         """Adds noise to tods.
 
@@ -2467,6 +2468,11 @@ class Simulation:
             Same as `chunk_samples`, in seconds (it must be an integer number of
             samples). The seed of the chunks is `user_seed` or, if ``None``, the
             ``random_seed`` of the simulation; `rng_hierarchy` is not used.
+        chunk_oversample : int, optional
+            Generate the 1/f noise of each chunk over this many times its
+            length and keep the central part, as TOAST does: 1 (default) gives
+            circulant noise, 2 removes the correlation between the edges of
+            the chunks (see :func:`.add_noise_to_observations`).
         """
 
         dets_random = None
@@ -2493,6 +2499,7 @@ class Simulation:
             chunk_samples=chunk_samples,
             chunk_duration_s=chunk_duration_s,
             chunk_reference_time=self.start_time,
+            chunk_oversample=chunk_oversample,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

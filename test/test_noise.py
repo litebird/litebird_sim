@@ -837,6 +837,68 @@ def test_chunked_noise_is_circulant_with_power_of_two_chunks():
     assert abs(wrap - lag1) < 0.1
 
 
+def test_chunked_noise_with_oversampling_is_not_circulant():
+    # With chunk_oversample=2 each chunk is the central part of a realization
+    # twice as long (as in TOAST): the edges of the chunk are not correlated
+    length, n_chunks = 256, 400
+    sim = _chunk_noise_sim(
+        ["A"], n_obs=1, duration_s=float(length * n_chunks), fknee_mhz=200.0
+    )
+    sim.add_noise(
+        noise_type="one_over_f",
+        chunk_samples=length,
+        chunk_oversample=2,
+        engine="fft",
+        model="keshner",
+        append_to_report=False,
+    )
+    chunks = _concatenated_tod(sim, "A").reshape(n_chunks, length)
+    chunks = chunks - chunks.mean(axis=1, keepdims=True)
+    lag1 = np.mean(chunks[:, 1:] * chunks[:, :-1]) / np.mean(chunks**2)
+    wrap = np.mean(chunks[:, -1] * chunks[:, 0]) / np.mean(chunks**2)
+    assert lag1 > 0.5
+    assert wrap < lag1 - 0.3
+
+
+@pytest.mark.parametrize("n_obs", [2, 3, 5])
+def test_chunked_noise_with_oversampling_does_not_depend_on_the_observations(
+    n_obs,
+):
+    reference = _chunk_noise_sim(["A"], n_obs=1)
+    reference.add_noise(
+        noise_type="one_over_f",
+        chunk_samples=8,
+        chunk_oversample=2,
+        append_to_report=False,
+    )
+    sim = _chunk_noise_sim(["A"], n_obs=n_obs)
+    sim.add_noise(
+        noise_type="one_over_f",
+        chunk_samples=8,
+        chunk_oversample=2,
+        append_to_report=False,
+    )
+    np.testing.assert_array_equal(
+        _concatenated_tod(sim, "A"), _concatenated_tod(reference, "A")
+    )
+
+
+def test_chunked_white_noise_ignores_oversampling():
+    sims = []
+    for oversample in (1, 3):
+        sim = _chunk_noise_sim(["A"], n_obs=1)
+        sim.add_noise(
+            noise_type="white",
+            chunk_samples=8,
+            chunk_oversample=oversample,
+            append_to_report=False,
+        )
+        sims.append(sim)
+    np.testing.assert_array_equal(
+        _concatenated_tod(sims[0], "A"), _concatenated_tod(sims[1], "A")
+    )
+
+
 def test_chunked_noise_invalid_arguments():
     sim = _chunk_noise_sim(["A"], n_obs=1, sampling_hz=3.0)
 
@@ -859,6 +921,15 @@ def test_chunked_noise_invalid_arguments():
         lbs.add_noise_to_observations(
             sim.observations, "white", chunk_samples=8, user_seed=1
         )
+
+    for oversample in (0, 1.5):
+        with pytest.raises(ValueError):
+            sim.add_noise(
+                noise_type="one_over_f",
+                chunk_samples=8,
+                chunk_oversample=oversample,
+                append_to_report=False,
+            )
 
     with pytest.raises(NotImplementedError):
         lbs.add_noise_to_observations(
