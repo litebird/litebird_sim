@@ -72,7 +72,8 @@ class HMapsResult:
     """Result of :func:`make_h_maps`.
 
     :ivar h_maps: Mapping ``detector -> {(n, m): h_map_Re_and_Im}`` containing
-        all computed :math:`h_{n,m}` maps.
+        the computed :math:`h_{n,m}` maps. With MPI, only the detectors owned by
+        this process (the lowest rank observing them) are included.
     :type h_maps: dict[str, dict[tuple[int, int], h_map_Re_and_Im]]
     :ivar duration_s: Duration of the simulated observation in seconds.
     :type duration_s: float
@@ -286,7 +287,9 @@ def make_h_maps(
     :param comm: Communicator for the reductions. By default it is inferred from
         the observations. Pass it explicitly if some processes have no local
         observations; all processes in the communicator must call this function.
-    :returns: Result container with all computed maps and metadata.
+    :returns: Result container with the maps and files of the detectors owned by
+        this process, and the metadata. When ``save_to_file`` is ``True``, all the
+        files of all processes have been written when the function returns.
     :rtype: HnMapResult
     """
 
@@ -487,6 +490,9 @@ def make_h_maps(
         gc.collect()
 
     if save_to_file:
+        # Other processes may read files written by different owners right after
+        if comm is not None and comm.size > 1:
+            comm.Barrier()
         log.info(f"h_n maps saved to directory: {output_directory}")
     return result
 

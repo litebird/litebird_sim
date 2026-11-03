@@ -1037,6 +1037,59 @@ def test_h_maps_observations_split_over_processes(mpi_tmp_path):
     assert result.h_maps["a"][0, 0].real.sum() == ref_pointings.shape[1]
 
 
+def test_h_maps_files_of_all_owners_readable_after_call(mpi_tmp_path):
+    # Detectors split over the processes have different owners: each process
+    # returns only its own maps, but must find the files of all of them as soon
+    # as make_h_maps returns
+    from litebird_sim.mapmaking.h_maps import load_h_maps_from_file
+
+    comm = lbs.MPI_COMM_WORLD
+    sim = lbs.Simulation(start_time=0.0, duration_s=600.0, random_seed=1, mpi_comm=comm)
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45),
+            precession_rate_hz=1 / 3600 / 3.2,
+            spin_rate_hz=0.05 / 60,
+        )
+    )
+    sim.set_instrument(lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50)))
+    names = [f"det{i}" for i in range(comm.size)]
+    dets = [
+        lbs.DetectorInfo(name=n, sampling_rate_hz=1.0, pol_angle_rad=0.1 * i)
+        for i, n in enumerate(names)
+    ]
+    sim.create_observations(
+        detectors=dets, n_blocks_det=comm.size, split_list_over_processes=False
+    )
+    sim.prepare_pointings()
+
+    n_m_couples = np.array([[0, 0], [2, 0]])
+    result = sim.make_h_maps(
+        nside=4,
+        n_m_couples=n_m_couples,
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+        output_directory=str(mpi_tmp_path),
+    )
+
+    owned = set(result.h_maps)
+    assert set(result.filenames) == owned
+    all_owned = comm.allgather(owned) if lbs.MPI_ENABLED else [owned]
+    assert sum(len(x) for x in all_owned) == len(names)
+    assert set().union(*all_owned) == set(names)
+
+    for name in names:
+        loaded = load_h_maps_from_file(mpi_tmp_path / f"h_maps_det_{name}.h5")
+        assert loaded.h_maps[name][0, 0].real.sum() == sim.observations[0].n_samples
+        if name in owned:
+            for pair, cur_map in result.h_maps[name].items():
+                np.testing.assert_array_equal(
+                    loaded.h_maps[name][pair].real, cur_map.real
+                )
+                np.testing.assert_array_equal(
+                    loaded.h_maps[name][pair].imag, cur_map.imag
+                )
+
+
 def test_describe_mpi_layout():
     # A compact summary of the distribution, consistent on every process
     size = lbs.MPI_COMM_WORLD.size

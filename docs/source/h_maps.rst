@@ -119,7 +119,9 @@ Output: ``HMapsResult``
 :func:`~litebird_sim.mapmaking.h_maps.make_h_maps` returns a :class:`~litebird_sim.mapmaking.h_maps.HMapsResult` object, which contains:
 
 - ``h_maps``: a dictionary indexed by detector name, then by ``(n, m)``
-  tuple, each entry being a :class:`.h_map_Re_and_Im` object.
+  tuple, each entry being a :class:`.h_map_Re_and_Im` object. In MPI runs it
+  contains only the detectors owned by the current process (see
+  :ref:`h-maps-mpi-results`).
 - ``filenames``: HDF5 files written by the current process, indexed by
   detector name. Empty when ``save_to_file=False``.
 - ``coordinate_system``: the output coordinate system
@@ -220,6 +222,18 @@ Whole observations may be assigned to different MPI processes with
 same detector. Alternatively, detectors within each observation may be
 distributed using detector blocks. Splitting the time samples of a single
 observation across processes (``n_blocks_time > 1``) is not supported.
+
+.. _h-maps-mpi-results:
+
+Each detector is owned by the lowest rank that observes it: only the owner
+solves its maps, returns them in ``result.h_maps`` and ``result.filenames``,
+and writes its file. Maps are not gathered on the other processes, as the maps
+of the whole focal plane might not fit in the memory of one process. With
+``save_to_file=True``, the function waits for all processes before returning,
+so every process can read the files of any detector from
+``output_directory`` with
+:func:`~litebird_sim.mapmaking.h_maps.load_h_maps_from_file`.
+
 Example:
 
 .. code-block:: python
