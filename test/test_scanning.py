@@ -348,7 +348,11 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
         filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"
         reference = np.load(filename, allow_pickle=False)
         reference = wrap_phi(reference)
-        reference[..., 2] = np.mod(reference[..., 2], 2 * np.pi)
+        # These frozen fixtures used an HWP epoch at each observation's start.
+        # Account for the elapsed rotation since the simulation epoch instead.
+        elapsed_s = (obs.start_time_observation - sim.start_time).to_value("s")
+        reference = reference.astype(np.float64)
+        reference[..., 2] = np.mod(reference[..., 2] + 2 * elapsed_s, 2 * np.pi)
 
         assert np.allclose(pointings_and_orientation, reference, rtol=1e-5)
 
@@ -593,7 +597,7 @@ def test_chunked_pointing_generation():
     pointing_buf, hwp_buf = pp.get_pointings(
         detector_quat=lbs.RotQuaternion(quats=np.array([[0.0, 0.0, 0.0, 1.0]])),
         start_time=0.0,
-        start_time_global=0.0,
+        start_time_simulation=0.0,
         sampling_rate_hz=1.0,
         nsamples=num_of_samples,
     )
@@ -617,7 +621,7 @@ def test_pointings_use_only_the_needed_quaternions(use_astropy_time):
     # The pointings computed by PointingProvider on a short window far from the
     # beginning of a long simulation must match the slerp done on the
     # quaternions of the whole simulation
-    start_time_global = Time("2030-01-01T00:00:00") if use_astropy_time else 0.0
+    start_time_simulation = Time("2030-01-01T00:00:00") if use_astropy_time else 0.0
     duration_s = 30 * 86400.0
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=np.deg2rad(45.0),
@@ -625,7 +629,7 @@ def test_pointings_use_only_the_needed_quaternions(use_astropy_time):
         spin_rate_hz=0.05 / 60,
     )
     spin2ecl = sstr.generate_spin2ecl_quaternions(
-        start_time=start_time_global, time_span_s=duration_s, delta_time_s=60.0
+        start_time=start_time_simulation, time_span_s=duration_s, delta_time_s=60.0
     )
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50.0))
     bore2ecl = spin2ecl * lbs.RotQuaternion(instr.bore2spin_quat)
@@ -641,14 +645,14 @@ def test_pointings_use_only_the_needed_quaternions(use_astropy_time):
     nsamples = 3600
     offset_s = 20 * 86400.0 + 1234.5
     if use_astropy_time:
-        start_time = start_time_global + offset_s * u.s
+        start_time = start_time_simulation + offset_s * u.s
     else:
-        start_time = start_time_global + offset_s
+        start_time = start_time_simulation + offset_s
 
     pointings, _ = pp.get_pointings(
         detector_quat=det_quat,
         start_time=start_time,
-        start_time_global=start_time_global,
+        start_time_simulation=start_time_simulation,
         sampling_rate_hz=sampling_rate_hz,
         nsamples=nsamples,
     )

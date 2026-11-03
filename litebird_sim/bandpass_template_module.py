@@ -3,6 +3,8 @@ from scipy import signal
 from litebird_sim import BandPassInfo
 import logging
 
+log = logging.getLogger(__name__)
+
 
 # Chebyshev profile lowpass
 def lowpass_chebyshev(freqs, f0, order=3, ripple_dB=0.2):
@@ -169,13 +171,13 @@ def bandpass_profile(
             bandpass["normalize"] = False
         if "band_high_edge" not in bandpass.keys():
             bandpass["band_high_edge"] = freqs[-1]
-            logging.warning(
+            log.warning(
                 "high band edge not defined,\
                           assigned to highest frequency"
             )
         if "band_low_edge" not in bandpass.keys():
             bandpass["band_low_edge"] = freqs[0]
-            logging.warning(
+            log.warning(
                 "low band edge not defined,\
                           assigned to lowest frequency"
             )

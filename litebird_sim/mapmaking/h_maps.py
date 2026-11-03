@@ -343,7 +343,7 @@ def make_h_maps(
     hpx = Healpix_Base(nside, "RING")
     n_pix = HealpixMap.nside_to_npix(nside)
     # Same order on all processes, as the reductions are collective
-    for det in sorted(owner, key=str):
+    for det in sorted(owner):
         is_shared = det in shared_dets
         if owner[det] != rank and not is_shared:
             continue
@@ -362,7 +362,7 @@ def make_h_maps(
                 hpx=hpx,
                 pointings=cur_ptg,
                 pol_angle_detector=cur_obs.pol_angle_rad[idet],
-                num_of_samples=cur_obs.n_samples,
+                num_of_samples=cur_obs.n_samples_process,
                 detector_index=idet,
                 hwp_angle=hwp_angle,
                 output_coordinate_system=output_coordinate_system,

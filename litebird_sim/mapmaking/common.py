@@ -489,13 +489,13 @@ def _build_mask_time_split(
     time_mask = []
 
     for cur_obs in obs_list:
-        mask = np.zeros(cur_obs.n_samples, dtype=bool)
+        mask = np.zeros(cur_obs.n_samples_process, dtype=bool)
 
         if time_split == "full":
             # A read-only view needs no memory: a real array would take one
             # byte per sample for *all* the observations at once (~7 GB per
             # process for 3 years of one 75 Hz detector)
-            time_mask.append(np.broadcast_to(np.True_, cur_obs.n_samples))
+            time_mask.append(np.broadcast_to(np.True_, cur_obs.n_samples_process))
         elif time_split == "odd":
             mask[0::2] = True
             time_mask.append(mask)
@@ -503,10 +503,10 @@ def _build_mask_time_split(
             mask[1::2] = True
             time_mask.append(mask)
         elif time_split == "first_half":
-            mask[0 : cur_obs.n_samples // 2] = True
+            mask[0 : cur_obs.n_samples_process // 2] = True
             time_mask.append(mask)
         elif time_split == "second_half":
-            mask[cur_obs.n_samples // 2 :] = True
+            mask[cur_obs.n_samples_process // 2 :] = True
             time_mask.append(mask)
         max_years = 3
         for i in range(1, max_years + 1):
@@ -527,23 +527,62 @@ def _build_mask_time_split(
     return time_mask
 
 
+def _apply_flags_to_time_masks(
+    time_mask_list: list[npt.NDArray],
+    obs_list: list[Observation],
+    flags: str | list[str] | None,
+    flag_mask: int | None,
+) -> list[npt.NDArray]:
+    """Combine the time masks with the flags of the observations
+
+    Return one Boolean matrix ``(n_detectors, n_samples)`` per observation,
+    True for the samples to use: those in the time mask without flags.
+    `flags` are the names of the attributes holding the flags, either per
+    detector (e.g. ``"local_flags"``) or common to all the detectors (e.g.
+    ``"global_flags"``); attributes set to None mean that all the samples are
+    good. A sample is flagged if it has any of the bits in `flag_mask`, or any
+    nonzero value if `flag_mask` is None. Without flags the matrices are
+    read-only views of the time masks, which need no memory.
+    """
+    # ponytail: with flags this allocates one byte per sample for all the
+    # observations at once; test the bits inside the kernels if it matters
+    names = [flags] if isinstance(flags, str) else list(flags or [])
+
+    result = []
+    for cur_obs, cur_time_mask in zip(obs_list, time_mask_list):
+        mask = np.broadcast_to(
+            cur_time_mask, (cur_obs.n_detectors, cur_obs.n_samples_process)
+        )
+        for name in names:
+            cur_flags = getattr(cur_obs, name)
+            if cur_flags is None:
+                continue
+            if flag_mask is not None:
+                cur_flags = cur_flags & flag_mask
+            # Global flags (n_samples,) are broadcast over the detectors
+            mask = mask & (cur_flags == 0)
+        result.append(mask)
+
+    return result
+
+
 def _get_initial_time(
     observations: Observation,
 ):
-    if isinstance(observations.start_time_global, astropy.time.Time):
-        t_i = observations.start_time_global.cxcsec
+    if isinstance(observations.start_time_observation, astropy.time.Time):
+        t_i = observations.start_time_observation.cxcsec
     else:
-        t_i = observations.start_time_global
+        t_i = observations.start_time_observation
     return t_i
 
 
 def _get_end_time(
     observations: Observation,
 ):
-    if isinstance(observations.end_time_global, astropy.time.Time):
-        t_f = observations.end_time_global.cxcsec
+    if isinstance(observations.end_time_observation, astropy.time.Time):
+        t_f = observations.end_time_observation.cxcsec
     else:
-        t_f = observations.end_time_global
+        t_f = observations.end_time_observation
     return t_f
 
 

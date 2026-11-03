@@ -87,7 +87,10 @@ addopts = "--doctest-modules"
 testpaths = ["litebird_sim", "test"]
 
 [tool.ruff]
-lint.extend-select = []
+# Explicit list: ruff 0.17 widened its default rule set, so relying on the
+# default would change the checks with every ruff bump. E4, E7, E9 and F
+# are the default up to ruff 0.15
+lint.select = ["E4", "E7", "E9", "F", "B006", "LOG015"]
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402"]

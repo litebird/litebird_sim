@@ -1,12 +1,67 @@
 # HEAD
 
--   Fix the noise normalization of the pair-differencing map-maker: the variance of the detector difference is the sum of the two detector variances. The Q/U maps are unchanged up to roundoff, while their covariance is twice the previous value and the corresponding residual chi-square is halved.
+-   Fix `make_h_maps` with multiple observations: maps are associated with the detector name in each observation, and spin sums and normalizations are accumulated over all observations of each detector before solving, also when they are kept by different MPI processes (the partial sums are reduced on the lowest rank observing the detector, which returns and saves its maps). Observations no longer overwrite previous maps; `(0, 0)` contains the total hit counts. Working matrices are kept for one detector at a time. Reference PR: [#607](https://github.com/litebird/litebird_sim/pull/607).
 
--   Fix `make_h_maps` with multiple observations: maps are associated with the detector name in each observation, and spin sums and normalizations are accumulated over all observations of each detector before solving, also when they are kept by different MPI processes (the partial sums are reduced on the lowest rank observing the detector, which returns and saves its maps). Observations no longer overwrite previous maps; `(0, 0)` contains the total hit counts. Working matrices are kept for one detector at a time.
+-   `Simulation.add_planets` (and the low-level `add_planets_to_observations`) adds the signal of Mars, Jupiter, Saturn, Uranus, and Neptune to the TODs: unpolarized point sources with whole-disc temperatures measured by Planck (Planck intermediate results LII) and WMAP (Weiland et al. 2011), computed at the centre of the bands or, with `bandpass_integration=True`, integrated over the bandpasses of the detectors (from the IMo, or top-hat), as in PySM 3, and seen through circular Gaussian beams. The signal is converted into the units of the TOD component. The ephemerides and the prefilter on the boresight are shared with `flag_planets` in the new module `planets.py`. Reference PR: [#590](https://github.com/litebird/litebird_sim/pull/590).
 
--   Fix the beam-convolved dipole (`add_dipole` with `s_params`, `add_dipole_to_observations` with `apply_convolution=True`): the beam frame rotated by ψ in the opposite direction than in ducc0 and `add_convolved_sky`, so the dipole of beams that are not axially symmetric (elliptical, off-axis) was convolved with the beam rotated by −ψ instead of ψ. Moreover, `beam_alms` dictionaries keyed by channel now work when the channel has more than one detector, and `frequency_ghz` can be one value per detector. A new test compares the convolved dipole with a full 4π convolution by ducc0.
+-   `Simulation.flag_planets` (and the low-level `flag_planets_in_observations` and `flag_planet`) sets `FLAG_PLANET` in `local_flags` for the samples closer than `radius_fwhm` times the FWHM of the detector to Mars, Jupiter, Saturn, Uranus, or Neptune, seen from the position of the spacecraft. The pointings of the detectors are computed only in the segments of time in which the boresight, sampled every second, is close to a planet. The number of flagged samples per planet is returned and written in the report. With `threshold_k_cmb`, only the samples where the predicted signal of the planet is larger than `threshold_k_cmb` (in K_CMB) are flagged. `bandpass_integration` is the same as in `add_planets`. Reference PR: [#590](https://github.com/litebird/litebird_sim/pull/590).
 
--   Fix: with `user_seed`, the noise and the gain drifts of the detectors with the same local index were identical on all the MPI processes; `for_each_observation` now builds the generators with the communicator of the observations. Reference issue: [#585](https://github.com/litebird/litebird_sim/issues/585).
+-   Flags are bitmasks of dtype `FLAG_DTYPE` (`uint16`), with one bit per reason (`FLAG_PLANET`, …) defined in the new module `flags.py`. `Observation.local_flags` and `Observation.global_flags` are `None` until somebody writes them (all samples good); `get_local_flags` and `get_global_flags` allocate them on the first write. Reference PR: [#590](https://github.com/litebird/litebird_sim/pull/590).
+
+-   `make_binned_map`, `make_destriped_map` and the corresponding methods of `Simulation` (also the `_splits` variants) have the arguments `flags` (names of the `Observation` attributes holding the flags, as in `make_sanepic_gls_map`) and `flag_mask` (bits that exclude a sample; any nonzero flag by default). Flagged samples are excluded from the maps and, in the destriper, from the estimation of the baselines. `make_sanepic_gls_map` and `estimate_sanepic_noise` have `flag_mask` too, and skip flags set to `None`. Reference PR: [#590](https://github.com/litebird/litebird_sim/pull/590).
+
+-   `Observation.set_n_blocks` redistributes `local_flags` and `global_flags` together with the TODs; before, they were left with the old layout. The MPI dtype of the TODs is derived from their NumPy dtype, so TODs of any numeric dtype can be redistributed. Reference PR: [#590](https://github.com/litebird/litebird_sim/pull/590).
+
+-   Fix the HDF5 I/O of the flags: `global_flags` were read back still RLE-compressed, and `local_flags` with runs longer than the maximum value of their dtype (65535 samples for `uint16`, ~1 hour at 19 Hz) could not be read. The RLE matrices are now saved as `int64`, and the flags are read as `FLAG_DTYPE`. Reference PR: [#590](https://github.com/litebird/litebird_sim/pull/590).
+
+-   **Breaking change**: observation time references are now explicit:
+    `start_time`, `start_time_global` and `end_time_global` are renamed to
+    `start_time_process`, `start_time_observation` and `end_time_observation`.
+    Sample metadata follows the same naming: `n_samples_global`, `n_samples`
+    and `start_sample` become `n_samples_observation`, `n_samples_process` and
+    `start_sample_observation`. The old attribute names and the
+    `n_samples_global`/`start_time_global` arguments of `Observation` still
+    work, with a `DeprecationWarning`. HDF5 files preserve the complete-observation
+    sample count and the starting index of the samples of each process; reading an MPI fragment
+    allocates only its stored samples and retains its normalized sample times.
+    `Observation` also accepts `start_time_simulation` (defaults to the
+    observation start for standalone observations); `Simulation` sets it to
+    `sim.start_time`. `PointingProvider` uses `start_time_simulation` instead of
+    `start_time_global`. HWP angles and HWP wedge disturbances now keep a
+    continuous phase across observation and MPI boundaries. Outputs of
+    simulations split into multiple observations change. Observation HDF5 files
+    use the new time names and store Astropy times as `(jd1, jd2)` with their
+    scale, replacing the old MJD metadata. Files written by previous versions
+    are still readable: their HWP phase stays referred to the start of each
+    observation, as when they were simulated, so that the angles match the
+    stored TOD.
+    The `start_time_s` parameter of `HWP.get_hwp_angle()`, `HWP.add_hwp_angle()`
+    and `HWP.apply_hwp_to_pointings()` is renamed to `time_from_sim_start_s`, as it
+    is the time of the first sample in seconds since `start_time_simulation`;
+    `IdealHWP` and `NonIdealHWP` still accept `start_time_s` as a keyword, with a
+    `DeprecationWarning`.
+    Time-dependent detector rotations are interpolated on the detector sample
+    grid before composition with the spacecraft rotation, allowing HWP wedge
+    disturbances on observations whose time grids differ from the spacecraft.
+    Reference PR: [#609](https://github.com/litebird/litebird_sim/pull/609).
+
+-   Fix the velocity of the Lissajous orbit (`compute_lissajous_pos_and_vel`, used by `spacecraft_pos_and_vel`): it used the angle `earth_ang_speed_rad_s * time0` instead of the angle of the Earth `earth_angle_rad` used for the position, so it was not the derivative of the position (errors as large as the Lissajous velocity itself). The spacecraft velocities change by ~0.12 km/s (up to ~0.16 km/s), about 0.4% of the orbital dipole; the positions do not change. Reference PR: [#621](https://github.com/litebird/litebird_sim/pull/621).
+
+-   Fix `compute_start_and_span_for_obs`, used by `spacecraft_pos_and_vel` and `Simulation.compute_pos_and_vel`: with more than one observation in time, the span ended at the *earliest* end time of the observations instead of the latest, so the position and velocity of the spacecraft were computed only over the first observation, and `SpacecraftPositionAndVelocity.compute_velocities` kept the last velocity constant over the others. With four daily observations, the velocity of the last one was wrong by up to 1.6 km/s (~5% of the orbital velocity). Reference PR: [#620](https://github.com/litebird/litebird_sim/pull/620).
+
+-   Fix the time of the Lissajous orbit in `spacecraft_pos_and_vel`: when the time window started after `SpacecraftOrbit.start_time` (e.g. on an MPI process that does not hold the first observation, as `Simulation.set_spacecraft_orbit` uses `sim.start_time` for the orbit), the Lissajous time was stretched or even ran backwards, giving errors up to ~84,000 km in position and ~0.06 km/s in velocity (~0.2% of the orbital dipole). Even with no offset, the Lissajous time step was `time_span_s / N` instead of `time_span_s / (N − 1)`, so the positions and velocities of single-process runs change slightly, more at the end of the window (up to ~8,000 km and ~0.005 km/s in a one-year run). `sum_lissajous_pos_and_vel` now takes the array `times_s` of the sample times since the start of the orbit instead of `start_time_s` and `end_time_s`. Reference PR: [#619](https://github.com/litebird/litebird_sim/pull/619).
+
+-   litebird_sim logs through one logger per module (`litebird_sim.io`, `litebird_sim.simulations`, …) instead of the root logger, so applications can filter its messages by name. A module function that logs before the application has configured logging no longer calls `logging.basicConfig()` behind its back; `Simulation` still configures the root logger as before. The list defaults of `write_list_of_observations`, `read_one_observation`, `read_list_of_observations`, `save_simulation_for_madam`, `Simulation.append_to_report` and `Simulation.create_observations` are now `None`, with the same effective values, so they can no longer be shared between calls. Reference PR: [#618](https://github.com/litebird/litebird_sim/pull/618).
+
+-   Fix a race in the generic Mueller HWP path of `scan_map`: shared temporary Stokes vectors and rotation matrices could corrupt the TOD when running with multiple Numba threads. The kernel now expands the Mueller products in scalars, so it shares no mutable state and allocates nothing per sample; this also makes it ~20× faster. Reference PR: [#606](https://github.com/litebird/litebird_sim/pull/606).
+
+-   Fix the noise normalization of the pair-differencing map-maker: the variance of the detector difference is the sum of the two detector variances. The Q/U maps are unchanged up to roundoff, while their covariance is twice the previous value and the corresponding residual chi-square is halved. Reference PR: [#605](https://github.com/litebird/litebird_sim/pull/605).
+
+-   Fix the beam-convolved dipole (`add_dipole` with `s_params`, `add_dipole_to_observations` with `apply_convolution=True`): the beam frame rotated by ψ in the opposite direction than in ducc0 and `add_convolved_sky`, so the dipole of beams that are not axially symmetric (elliptical, off-axis) was convolved with the beam rotated by −ψ instead of ψ. Moreover, `beam_alms` dictionaries keyed by channel now work when the channel has more than one detector, and `frequency_ghz` can be one value per detector. A new test compares the convolved dipole with a full 4π convolution by ducc0. Reference PR: [#601](https://github.com/litebird/litebird_sim/pull/601).
+
+-   Fix the HWP state of observations read from HDF5: the reader now restores `has_hwp` from the pointing provider immediately, so map-making uses the HWP modulation without requiring a prior call to compute pointings or HWP angles. Reference PR: [#609](https://github.com/litebird/litebird_sim/pull/609).
+
+-   Fix: with `user_seed`, the noise and the gain drifts of the detectors with the same local index were identical on all the MPI processes; `for_each_observation` now builds the generators with the communicator of the observations. Reference issue: [#585](https://github.com/litebird/litebird_sim/issues/585). Reference PR: [#586](https://github.com/litebird/litebird_sim/pull/586).
 
 -   `make_sanepic_gls_map` (and `Simulation.make_sanepic_gls_map`) has `templates` (`{name: pysanepic.Template}`) and `template_covariance` arguments, which replace `bandpass_templates` and `bandpass_common` (not in a release): templates fitted with the maps, sky signals (e.g. `Template(sky=dfg_dnu, sum_zero=True)` for the bandpass mismatch of the foregrounds) or TOD components of the observations with the name of the template, with amplitudes per detector, common or per period, in `MapResult.templates`, and their covariance. Needs pysanepic 0.6.0 or later. Reference PR: [#600](https://github.com/litebird/litebird_sim/pull/600).
 

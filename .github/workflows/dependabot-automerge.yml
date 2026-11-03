@@ -1,0 +1,37 @@
+name: Dependabot auto-merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    # The actor, not the PR author: a human pushing to a Dependabot branch
+    # becomes the actor, so their commits are never auto-merged
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v3
+
+      # Patch bumps always, minor bumps only from 1.0 on: below 1.0 (numba,
+      # llvmlite, ducc0) a minor bump may break the API. Every dependency
+      # of a grouped PR must qualify.
+      - name: Enable auto-merge for patch and safe minor bumps
+        env:
+          DEPS: ${{ steps.meta.outputs.updated-dependencies-json }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if jq -e 'length > 0 and all(.[];
+                .updateType == "version-update:semver-patch"
+                or (.updateType == "version-update:semver-minor"
+                    and ((.prevVersion // "") | ltrimstr("v") | split(".")[0] // ""
+                         | . != "0" and . != "")))' <<< "$DEPS"; then
+            # Empty body: Dependabot's commit body quotes upstream release
+            # notes, and a "[skip ci]" there would suppress CI on master
+            gh pr merge --auto --squash --body "" "$PR_URL"
+          fi
