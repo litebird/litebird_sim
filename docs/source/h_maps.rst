@@ -52,7 +52,7 @@ equal weight: observations with different pixel hit counts are combined using
 those hit counts, rather than by averaging their normalized maps. The
 ``(0, 0)`` map contains the total hit counts across all observations.
 
-Accumulation matrices are kept for one detector at a time (one
+Accumulation matrices are reused for one detector at a time (one
 :math:`N_\mathrm{pix}\times 3` matrix per spin pair), and the pixel indices
 and angles of each detector/observation are reused for all spin pairs.
 
@@ -120,12 +120,46 @@ Output: ``HMapsResult``
 
 - ``h_maps``: a dictionary indexed by detector name, then by ``(n, m)``
   tuple, each entry being a :class:`.h_map_Re_and_Im` object.
+- ``filenames``: HDF5 files written by the current process, indexed by
+  detector name. Empty when ``save_to_file=False``.
 - ``coordinate_system``: the output coordinate system
   (a :class:`.CoordinateSystem` object).
 - ``detector_split``: the detector split used.
 - ``time_split``: the time split used.
 - ``duration_s``: the duration of the observation in seconds.
 - ``sampling_rate_Hz``: the sampling rate of the observation in Hz.
+
+Writing maps with bounded memory
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, ``keep_maps=True`` retains the maps in ``result.h_maps``, including
+when ``save_to_file=True``. For production runs that only need files, use::
+
+   result = sim.make_h_maps(
+       nside=512,
+       save_to_file=True,
+       keep_maps=False,
+       output_directory="h_maps",
+   )
+
+Each detector file is opened after all its observations and MPI contributions
+have been accumulated. Its spin pairs are normalized in place and written one
+at a time; the same accumulation buffers are reset for the next detector.
+No completed maps are retained in memory. The working map arrays therefore
+scale with ``Npix`` and the number of spin pairs, independently of the number
+of detectors. Pointings and observation data still require their own memory.
+
+In this mode ``result.h_maps`` is empty. Use ``result.filenames`` and
+:func:`~litebird_sim.mapmaking.h_maps.load_h_maps_from_file` to load a detector
+when needed. In MPI runs only the owner of a detector returns its filename;
+no global collection of maps or filenames is performed. ``keep_maps=False``
+requires ``save_to_file=True``.
+
+All processes in the reduction communicator must participate, including those
+without local observations. :meth:`.Simulation.make_h_maps` passes the
+simulation communicator automatically. When calling the low-level function
+with a distributed observation list, pass ``comm=...`` explicitly if any
+process has an empty list.
 
 Accessing individual maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -181,7 +215,11 @@ and all time samples.
 
 MPI support
 -----------
-The current implementation of :func:`~litebird_sim.mapmaking.h_maps.make_h_maps` only allows to distribute observation by detector, i.e. each MPI process computes the h maps for a subset of detectors, but using all time samples.
+Whole observations may be assigned to different MPI processes with
+``split_list_over_processes=True``, including multiple observations of the
+same detector. Alternatively, detectors within each observation may be
+distributed using detector blocks. Splitting the time samples of a single
+observation across processes (``n_blocks_time > 1``) is not supported.
 Example:
 
 .. code-block:: python

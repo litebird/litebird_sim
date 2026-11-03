@@ -1095,3 +1095,195 @@ def test_mpi_excepthook():
         assert sys.excepthook is _mpi_excepthook
     else:
         assert sys.excepthook is not _mpi_excepthook
+
+
+@pytest.mark.parametrize("keep_maps", [False, True])
+@pytest.mark.parametrize("num_observations", [1, 2])
+def test_h_maps_idle_processes(mpi_tmp_path, keep_maps, num_observations):
+    from litebird_sim.mapmaking.h_maps import load_h_maps_from_file
+
+    comm = lbs.MPI_COMM_WORLD
+    sim = lbs.Simulation(start_time=0.0, duration_s=8.0, random_seed=1, mpi_comm=comm)
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="A", sampling_rate_hz=1.0)],
+        num_of_obs_per_detector=num_observations,
+        allocate_tod=False,
+    )
+    for obs in sim.observations:
+        obs.pointing_matrix = np.broadcast_to(
+            np.array([1.0, 0.2, 0.3]),
+            (obs.n_detectors, obs.n_samples_process, 3),
+        ).copy()
+    result = sim.make_h_maps(
+        nside=1,
+        n_m_couples=np.array([[0, 0], [2, 0]]),
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+        output_directory=str(mpi_tmp_path),
+        keep_maps=keep_maps,
+    )
+    if comm.rank != 0:
+        assert result.h_maps == {}
+        assert result.filenames == {}
+        return
+    assert set(result.filenames) == {"A"}
+    loaded = load_h_maps_from_file(result.filenames["A"])
+    assert loaded.h_maps["A"][0, 0].real.sum() == 8
+    observed = loaded.h_maps["A"][0, 0].real > 0
+    np.testing.assert_allclose(loaded.h_maps["A"][2, 0].real[observed], np.cos(0.6))
+    np.testing.assert_allclose(loaded.h_maps["A"][2, 0].imag[observed], np.sin(0.6))
+    assert set(result.h_maps) == ({"A"} if keep_maps else set())
+
+
+def test_h_maps_empty_global_list():
+    with pytest.raises(ValueError, match="At least one observation"):
+        lbs.make_h_maps([], nside=1, comm=lbs.MPI_COMM_WORLD)
+
+
+def test_h_maps_stream_detector_subsets(mpi_tmp_path, monkeypatch):
+    import weakref
+    import healpy as hp
+    from litebird_sim.mapmaking.h_maps import load_h_maps_from_file
+
+    comm = lbs.MPI_COMM_WORLD
+    rank = comm.rank
+    observations = []
+    records = []
+    for chunk in range(2):
+        # Shared by everyone, shared by a pair of ranks, and local to one rank.
+        # Both ordering and the number of samples change between observations.
+        names = ["shared", f"pair_{rank // 2}", f"local_{rank}"]
+        if chunk:
+            names.reverse()
+        nsamples = 3 + rank + 2 * chunk
+        obs = lbs.Observation(
+            detectors=[{"name": name, "pol_angle_rad": 0.0} for name in names],
+            n_samples_observation=nsamples,
+            start_time_observation=float(chunk * 10),
+            sampling_rate_hz=1.0,
+            allocate_tod=False,
+        )
+        if lbs.MPI_ENABLED:
+            obs.list_comm = comm
+        obs.has_hwp = True
+        obs.hwp_angle = np.arange(nsamples) * 0.13 + chunk * 0.07
+        obs.pointing_matrix = np.empty((len(names), nsamples, 3))
+        for idet, name in enumerate(names):
+            pix = (np.arange(nsamples) + idet + rank) % 12
+            psi = np.arange(nsamples) * 0.17 + rank * 0.11 + chunk * 0.23
+            theta, phi = hp.pix2ang(1, pix)
+            obs.pointing_matrix[idet] = np.column_stack((theta, phi, psi))
+            records.append((name, pix, psi, obs.hwp_angle))
+        observations.append(obs)
+
+    pairs = np.array([[0, 0], [2, 0], [2, -4]])
+    original_zeros = np.zeros
+    refs = []
+    allocations = 0
+
+    def tracked_zeros(shape, *args, **kwargs):
+        nonlocal allocations
+        if isinstance(shape, tuple) and shape == (12, 3):
+            array = original_zeros(shape, *args, **kwargs)
+            refs.append(weakref.ref(array))
+            allocations += 1
+            # Includes non-owners and ranks without samples for this detector.
+            # No process may hold more than one detector's working matrices.
+            assert sum(ref() is not None for ref in refs) <= len(pairs)
+            return array
+        return original_zeros(shape, *args, **kwargs)
+
+    monkeypatch.setattr(np, "zeros", tracked_zeros)
+    result = lbs.make_h_maps(
+        observations,
+        nside=1,
+        n_m_couples=pairs,
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+        output_directory=str(mpi_tmp_path),
+        keep_maps=False,
+    )
+    assert result.h_maps == {}
+    assert allocations == len(pairs)
+    assert all(ref() is None for ref in refs)
+    all_records = comm.allgather(records) if lbs.MPI_ENABLED else [records]
+    all_files = (
+        comm.allgather(result.filenames) if lbs.MPI_ENABLED else [result.filenames]
+    )
+    expected = {}
+    owners = {}
+    for irank, local in enumerate(all_records):
+        for name, pix, psi, hwp in local:
+            expected.setdefault(name, []).append((pix, psi, hwp))
+            owners.setdefault(name, irank)
+    for name, chunks in expected.items():
+        assert [i for i, files in enumerate(all_files) if name in files] == [
+            owners[name]
+        ]
+        if rank != owners[name]:
+            continue
+        pix, psi, hwp = [np.concatenate(items) for items in zip(*chunks)]
+        counts = np.bincount(pix, minlength=12)
+        loaded = load_h_maps_from_file(result.filenames[name])
+        for n, m in pairs:
+            if (n, m) == (0, 0):
+                real, imag = counts, np.zeros(12)
+            else:
+                phase = n * psi + m * hwp
+                real = np.divide(
+                    np.bincount(pix, weights=np.cos(phase), minlength=12),
+                    counts,
+                    out=np.zeros(12),
+                    where=counts > 0,
+                )
+                imag = np.divide(
+                    np.bincount(pix, weights=np.sin(phase), minlength=12),
+                    counts,
+                    out=np.zeros(12),
+                    where=counts > 0,
+                )
+            np.testing.assert_allclose(loaded.h_maps[name][n, m].real, real, atol=1e-14)
+            np.testing.assert_allclose(loaded.h_maps[name][n, m].imag, imag, atol=1e-14)
+
+
+def test_h_maps_stream_with_idle_rank_zero(mpi_tmp_path):
+    from litebird_sim.mapmaking.h_maps import load_h_maps_from_file
+
+    comm = lbs.MPI_COMM_WORLD
+    # In a four-process run only ranks 1 and 3 have data; rank 1 owns A.
+    active = comm.size == 1 or comm.rank % 2 == 1
+    observations = []
+    count = 3 + comm.rank if active else 0
+    if active:
+        obs = lbs.Observation(
+            detectors=[{"name": "A", "pol_angle_rad": 0.0}],
+            n_samples_observation=count,
+            start_time_observation=float(comm.rank * 10),
+            sampling_rate_hz=1.0,
+            allocate_tod=False,
+        )
+        obs.pointing_matrix = np.broadcast_to(
+            np.array([1.0, 0.2, 0.3]), (1, count, 3)
+        ).copy()
+        observations.append(obs)
+    result = lbs.make_h_maps(
+        observations,
+        nside=1,
+        n_m_couples=np.array([[0, 0], [2, 0]]),
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+        output_directory=str(mpi_tmp_path),
+        keep_maps=False,
+        comm=comm,
+    )
+    assert result.h_maps == {}
+    owner = 0 if comm.size == 1 else 1
+    if comm.rank != owner:
+        assert result.filenames == {}
+        return
+    assert set(result.filenames) == {"A"}
+    loaded = load_h_maps_from_file(result.filenames["A"])
+    expected_hits = (
+        3 if comm.size == 1 else sum(3 + rank for rank in range(1, comm.size, 2))
+    )
+    assert loaded.h_maps["A"][0, 0].real.sum() == expected_hits
+    observed = loaded.h_maps["A"][0, 0].real > 0
+    np.testing.assert_allclose(loaded.h_maps["A"][2, 0].real[observed], np.cos(0.6))
+    np.testing.assert_allclose(loaded.h_maps["A"][2, 0].imag[observed], np.sin(0.6))

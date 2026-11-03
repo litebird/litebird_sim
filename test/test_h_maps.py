@@ -173,3 +173,100 @@ def test_h_maps_repeated_spin_pairs_do_not_count_samples_twice():
             np.tile([0.0, 0.2, 0.4], 2),
             np.zeros(6),
         )
+
+
+def test_h_maps_stream_to_disk(tmp_path):
+    chunks = [
+        {"A": ([0, 0, 1], [0.0, 0.2, 0.4]), "B": ([2, 3, 3], [0.1, 0.3, 0.5])},
+        {"B": ([2, 2], [0.7, 0.9]), "A": ([0, 1], [0.6, 0.8])},
+        {"C": ([4], [1.0])},
+    ]
+    observations = [
+        _make_observation(
+            chunk, hwp_angle=np.arange(len(next(iter(chunk.values()))[0])) * 0.13
+        )
+        for chunk in chunks
+    ]
+    reference = lbs.make_h_maps(
+        observations,
+        nside=1,
+        n_m_couples=SPIN_PAIRS,
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+        save_to_file=False,
+    )
+    result = lbs.make_h_maps(
+        observations,
+        nside=1,
+        n_m_couples=SPIN_PAIRS,
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+        output_directory=str(tmp_path),
+        keep_maps=False,
+    )
+    assert result.h_maps == {}
+    assert set(result.filenames) == set(reference.h_maps)
+    for name, filename in result.filenames.items():
+        loaded = load_h_maps_from_file(filename)
+        assert loaded.coordinate_system == reference.coordinate_system
+        assert loaded.duration_s == reference.duration_s
+        for pair, expected in reference.h_maps[name].items():
+            np.testing.assert_array_equal(loaded.h_maps[name][pair].real, expected.real)
+            np.testing.assert_array_equal(loaded.h_maps[name][pair].imag, expected.imag)
+
+
+def test_h_maps_stream_bounds_buffers_and_writes_before_next_detector(
+    tmp_path, monkeypatch
+):
+    import weakref
+    import importlib
+
+    h_maps_module = importlib.import_module("litebird_sim.mapmaking.h_maps")
+
+    samples = {name: ([0, 1], [0.2, 0.4]) for name in ("A", "B", "C")}
+    obs = _make_observation(samples)
+    original_zeros = np.zeros
+    refs = []
+    allocations = 0
+    pairs = len(SPIN_PAIRS)
+
+    def tracked_zeros(shape, *args, **kwargs):
+        nonlocal allocations
+        if isinstance(shape, tuple) and shape == (12, 3):
+            array = original_zeros(shape, *args, **kwargs)
+            refs.append(weakref.ref(array))
+            allocations += 1
+            assert sum(ref() is not None for ref in refs) <= pairs
+            return array
+        return original_zeros(shape, *args, **kwargs)
+
+    original_compute = h_maps_module._compute_pixel_indices_single_detector
+
+    def compute_after_previous_write(*args, **kwargs):
+        idet = kwargs["detector_index"]
+        if idet:
+            previous = list(samples)[idet - 1]
+            assert (tmp_path / f"h_maps_det_{previous}.h5").exists()
+        return original_compute(*args, **kwargs)
+
+    monkeypatch.setattr(np, "zeros", tracked_zeros)
+    monkeypatch.setattr(
+        h_maps_module,
+        "_compute_pixel_indices_single_detector",
+        compute_after_previous_write,
+    )
+    result = lbs.make_h_maps(
+        obs,
+        nside=1,
+        n_m_couples=SPIN_PAIRS,
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+        output_directory=str(tmp_path),
+        keep_maps=False,
+    )
+    assert result.h_maps == {}
+    assert allocations == pairs
+    assert all(ref() is None for ref in refs)
+
+
+def test_h_maps_require_an_output():
+    obs = _make_observation({"A": ([0], [0.2])})
+    with pytest.raises(ValueError, match="save_to_file"):
+        lbs.make_h_maps(obs, nside=1, save_to_file=False, keep_maps=False)

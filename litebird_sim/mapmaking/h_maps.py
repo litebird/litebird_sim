@@ -1,7 +1,8 @@
 import gc
 import logging
 import os
-from dataclasses import dataclass
+from contextlib import contextmanager, nullcontext
+from dataclasses import dataclass, field
 
 import h5py
 import numpy as np
@@ -83,6 +84,8 @@ class HMapsResult:
     :type detector_split: str
     :ivar time_split: Time split used to build the maps.
     :type time_split: str
+    :ivar filenames: Files written by this process, indexed by detector name.
+    :type filenames: dict[str, str]
     """
 
     h_maps: dict[str, dict[tuple[int, int], h_map_Re_and_Im]]
@@ -92,6 +95,7 @@ class HMapsResult:
 
     detector_split: str = "full"
     time_split: str = "full"
+    filenames: dict[str, str] = field(default_factory=dict)
 
 
 def load_h_maps_from_file(
@@ -238,6 +242,9 @@ def make_h_maps(
     save_to_file: bool = True,
     output_directory: str = "./h_n_maps",
     nthreads: int | None = None,
+    *,
+    keep_maps: bool = True,
+    comm=None,
 ) -> HMapsResult:
     """Generate complex harmonic maps :math:`h_{n,m}` from observations.
 
@@ -272,11 +279,20 @@ def make_h_maps(
     :param nthreads: Number of threads to use for ducc0 calls. If None,
         resolved via :func:`.resolve_nthreads`.
     :type nthreads: int | None
+    :param keep_maps: Retain computed maps in the returned ``h_maps`` dictionary.
+        If ``False``, ``save_to_file`` must be ``True``: each detector is written
+        before computing the next, and the returned dictionary is empty.
+    :type keep_maps: bool
+    :param comm: Communicator for the reductions. By default it is inferred from
+        the observations. Pass it explicitly if some processes have no local
+        observations; all processes in the communicator must call this function.
     :returns: Result container with all computed maps and metadata.
     :rtype: HnMapResult
     """
 
     nthreads = resolve_nthreads(nthreads)
+    if not keep_maps and not save_to_file:
+        raise ValueError("save_to_file must be True when keep_maps is False")
 
     assert (
         n_m_couples.shape[1] == 2
@@ -289,8 +305,6 @@ def make_h_maps(
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
     )
-    if not obs_list:
-        raise ValueError("At least one observation is required to compute h maps")
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
     time_mask_list = _build_mask_time_split(time_split, obs_list)
@@ -299,6 +313,8 @@ def make_h_maps(
     # may change between observations. Grouping also bounds the working matrices
     # to one detector, rather than keeping matrices for the whole focal plane.
     detector_observations = {}
+    duration_s = 0.0
+    sampling_rate = 0.0
     for obs_idx, (cur_obs, cur_d_mask) in enumerate(zip(obs_list, detector_mask_list)):
         assert cur_d_mask.ravel().any(), (
             "No detectors is selected by the current detector split"
@@ -322,33 +338,59 @@ def make_h_maps(
     # on several processes. Each detector is owned by the lowest rank that
     # observes it: its partial sums are reduced there, and only the owner
     # solves, keeps and saves the maps of that detector.
-    comm = _get_reduction_comm(obs_list)
+    if comm is None:
+        comm = _get_reduction_comm(obs_list)
     rank = comm.rank if comm is not None else 0
+    local_info = (list(detector_observations), duration_s, sampling_rate)
     if comm is not None and comm.size > 1:
-        dets_per_rank = comm.allgather(list(detector_observations))
+        info_per_rank = comm.allgather(local_info)
     else:
-        dets_per_rank = [list(detector_observations)]
+        info_per_rank = [local_info]
     owner = {}
     shared_dets = set()
-    for cur_rank, dets in enumerate(dets_per_rank):
+    for cur_rank, (dets, _, _) in enumerate(info_per_rank):
         for det in dets:
             if det in owner:
                 shared_dets.add(det)
             else:
                 owner[det] = cur_rank
+    if not owner:
+        raise ValueError("At least one observation is required to compute h maps")
+    if not obs_list:
+        # Idle processes still participate in the reductions. Their result has
+        # no maps or files; copy metadata from the first process with data.
+        _, duration_s, sampling_rate = next(info for info in info_per_rank if info[0])
 
     # Repeated spin pairs must not accumulate the same samples twice.
     spin_pairs = list(dict.fromkeys(map(tuple, n_m_couples)))
-    h_maps = {det: {} for det in owner if owner[det] == rank}
+    result = HMapsResult(
+        h_maps=({det: {} for det in owner if owner[det] == rank} if keep_maps else {}),
+        coordinate_system=output_coordinate_system,
+        duration_s=duration_s,
+        sampling_rate_Hz=sampling_rate,
+        detector_split=detector_split,
+        time_split=time_split,
+    )
+    if save_to_file:
+        os.makedirs(output_directory, exist_ok=True)
     hpx = Healpix_Base(nside, "RING")
     n_pix = HealpixMap.nside_to_npix(nside)
+    working_matrices = None
     # Same order on all processes, as the reductions are collective
     for det in sorted(owner):
         is_shared = det in shared_dets
         if owner[det] != rank and not is_shared:
             continue
 
-        nobs_matrices = {pair: np.zeros((n_pix, 3)) for pair in spin_pairs}
+        if working_matrices is None:
+            working_matrices = {pair: np.zeros((n_pix, 3)) for pair in spin_pairs}
+        else:
+            for matrix in working_matrices.values():
+                matrix.fill(0.0)
+        # Reuse one detector's buffers. Repeatedly freeing and allocating large
+        # NumPy arrays can grow the allocator's resident memory even after the
+        # arrays themselves have been released. Only this small dict is copied.
+        nobs_matrices = working_matrices.copy()
         for obs_idx, idet in detector_observations.get(det, []):
             cur_obs = obs_list[obs_idx]
             cur_ptg = ptg_list[obs_idx]
@@ -387,53 +429,85 @@ def make_h_maps(
                 )
             del pixidx
             del polang
+            del hwp_angle
             gc.collect()
 
         if is_shared:
             from litebird_sim.mpi import MPI
 
-            for (n, m), nobs_matrix in nobs_matrices.items():
+            for n, m in spin_pairs:
                 if rank == owner[det]:
-                    comm.Reduce(MPI.IN_PLACE, nobs_matrix, op=MPI.SUM, root=rank)
+                    comm.Reduce(
+                        MPI.IN_PLACE, nobs_matrices[n, m], op=MPI.SUM, root=rank
+                    )
                     if (n, m) == (0, 0):
                         # Each process set the normalization to one in the
                         # pixels it observed: keep it at one after the sum
-                        np.minimum(nobs_matrix[:, 0], 1.0, out=nobs_matrix[:, 0])
+                        counts = nobs_matrices[n, m][:, 0]
+                        np.minimum(counts, 1.0, out=counts)
+                        del counts
                 else:
-                    comm.Reduce(nobs_matrix, None, op=MPI.SUM, root=owner[det])
+                    comm.Reduce(nobs_matrices[n, m], None, op=MPI.SUM, root=owner[det])
 
         if owner[det] != rank:
+            # Drop this detector's references; the working buffers will be
+            # reset and reused, also on processes without local samples.
+            nobs_matrices.clear()
             continue
 
         # Solve once, after every observation of this detector has contributed.
-        for n, m in spin_pairs:
-            nobs_matrix = nobs_matrices.pop((n, m))
-            rhs = _extract_rhs(nobs_matrix)
-            _solve_binning(nobs_matrix, rhs)
-            h_maps[det][n, m] = h_map_Re_and_Im(
-                real=rhs.T[0].copy(),
-                imag=rhs.T[1].copy(),
-                det_info=det,
-                n=n,
-                m=m,
-            )
-            log.info(f"h_map n={n} m={m} for detector {det} computed.")
-            del rhs
-            del nobs_matrix
-            gc.collect()
+        filename = os.path.join(output_directory, f"h_maps_det_{det}.h5")
+        file_context = (
+            _h_map_file(filename, result, det) if save_to_file else nullcontext()
+        )
+        with file_context as output_file:
+            for n, m in spin_pairs:
+                nobs_matrix = nobs_matrices.pop((n, m))
+                # Normalize the spin sums in place. Streaming writes these views
+                # directly, without allocating separate real and imaginary maps.
+                rhs = nobs_matrix[:, 1:]
+                _solve_binning(nobs_matrix, rhs)
+                component = h_map_Re_and_Im(
+                    real=rhs[:, 0].copy() if keep_maps else rhs[:, 0],
+                    imag=rhs[:, 1].copy() if keep_maps else rhs[:, 1],
+                    det_info=det,
+                    n=n,
+                    m=m,
+                )
+                if output_file is not None:
+                    _write_h_map(output_file, component)
+                if keep_maps:
+                    result.h_maps[det][n, m] = component
+                log.info(f"h_map n={n} m={m} for detector {det} computed.")
+                del component
+                del rhs
+                del nobs_matrix
+        if save_to_file:
+            result.filenames[det] = filename
+        gc.collect()
 
-    result = HMapsResult(
-        h_maps=h_maps,
-        coordinate_system=output_coordinate_system,
-        duration_s=duration_s,
-        sampling_rate_Hz=sampling_rate,
-        detector_split=detector_split,
-        time_split=time_split,
-    )
     if save_to_file:
-        save_h_maps(result, output_directory)
         log.info(f"h_n maps saved to directory: {output_directory}")
     return result
+
+
+@contextmanager
+def _h_map_file(filename: str, result: HMapsResult, det: str):
+    """Open one detector file and write the common HDF5 metadata."""
+    with h5py.File(filename, "w") as output_file:
+        output_file.attrs["coordinate_system"] = result.coordinate_system.name
+        output_file.attrs["det"] = str(det)
+        output_file.attrs["detector_split"] = result.detector_split
+        output_file.attrs["time_split"] = result.time_split
+        output_file.attrs["duration_s"] = result.duration_s
+        output_file.attrs["sampling_rate_Hz"] = result.sampling_rate_Hz
+        yield output_file
+
+
+def _write_h_map(output_file, component: h_map_Re_and_Im) -> None:
+    group = output_file.create_group(f"{component.n},{component.m}")
+    group.create_dataset("Re", data=component.real)
+    group.create_dataset("Im", data=component.imag)
 
 
 def save_h_maps(result, output_directory: str) -> None:
@@ -453,16 +527,8 @@ def save_h_maps(result, output_directory: str) -> None:
     # Several MPI processes may create the directory at the same time
     os.makedirs(output_directory, exist_ok=True)
     for det in result.h_maps.keys():
-        with h5py.File(
-            os.path.join(output_directory, f"h_maps_det_{det}.h5"), "w"
-        ) as f:
-            f.attrs["coordinate_system"] = result.coordinate_system.name
-            f.attrs["det"] = str(det)
-            f.attrs["detector_split"] = result.detector_split
-            f.attrs["time_split"] = result.time_split
-            f.attrs["duration_s"] = result.duration_s
-            f.attrs["sampling_rate_Hz"] = result.sampling_rate_Hz
+        filename = os.path.join(output_directory, f"h_maps_det_{det}.h5")
+        with _h_map_file(filename, result, det) as f:
             for hn_map in result.h_maps[det].values():
-                grp = f.create_group(f"{hn_map.n},{hn_map.m}")
-                grp.create_dataset("Re", data=hn_map.real)
-                grp.create_dataset("Im", data=hn_map.imag)
+                _write_h_map(f, hn_map)
+        result.filenames[det] = filename
