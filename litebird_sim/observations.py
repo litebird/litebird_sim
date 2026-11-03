@@ -484,7 +484,7 @@ class Observation:
                             nan_or_none[cur_key] = np.nan * cur_det_dict[cur_key]
                         except TypeError:
                             nan_or_none[cur_key] = None
-                    break
+                        break
 
             # Finally, build `dict_of_array`
             for cur_det_dict in list_of_dict:
