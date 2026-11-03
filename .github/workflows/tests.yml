@@ -101,43 +101,13 @@ jobs:
           PIP_CACHE_DIR: ${{ env.UV_CACHE_DIR }}
 
       - name: Tests
-        run: |
-          set -euo pipefail
-          uv run python -m pytest --cov=litebird_sim --cov-report=xml --cov-report=term --durations=5 -vv
+        run: ./bin/run_tests.sh --unittests
         env:
           COVERAGE_FILE: .coverage.${{ matrix.os }}-${{ matrix.mpi }}-${{ matrix.python }}
 
-      - name: Tests MPICH
-        if: ${{ matrix.mpi == 'mpich' }}
-        run: |
-            # See issue #457: <https://github.com/litebird/litebird_sim/issues/457>
-            if [[ "$(uname)" == "Darwin" ]]; then
-              export HDF5_USE_FILE_LOCKING=FALSE
-            fi
-            for proc in 1 2 ; do
-              echo "Running MPI test ($MPI) with $proc processes"
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_mpi.py
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_detector_blocks.py
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_shared_memory_pointings.py
-            done
-            echo "Running MPI test ($MPI) with 4 processes"
-            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 uv run python -m pytest ./test/test_mpi_n4.py
-
-      - name: Tests OpenMPI
-        if: ${{ matrix.mpi == 'openmpi' }}
-        run: |
-            # See issue #457: <https://github.com/litebird/litebird_sim/issues/457>
-            if [[ "$(uname)" == "Darwin" ]]; then
-              export HDF5_USE_FILE_LOCKING=FALSE
-            fi
-            for proc in 1 2 ; do
-              echo "Running MPI test ($MPI) with $proc processes"
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_mpi.py
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_detector_blocks.py
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_shared_memory_pointings.py
-            done
-            echo "Running MPI test ($MPI) with 4 processes"
-            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 uv run python -m pytest ./test/test_mpi_n4.py
+      - name: Tests MPI
+        if: ${{ matrix.mpi != 'none' }}
+        run: ./bin/run_tests.sh --mpitests
 
       - name: Store coverage data
         uses: actions/upload-artifact@v7
