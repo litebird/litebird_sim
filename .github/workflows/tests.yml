@@ -9,12 +9,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        mpi: ["none", openmpi] # mpich
+        mpi: ["none", mpich, openmpi]
         python: ["3.11", "3.14"]
         exclude:
-          - os: macos-latest
-            mpi: mpich
+          - mpi: openmpi
             python: "3.11"
+          - mpi: mpich
+            python: "3.14"
 
     # Only run tests if there is no [skipci] or [skip ci] in the commit message
     if: |
