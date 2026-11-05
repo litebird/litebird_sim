@@ -1,9 +1,9 @@
-import numpy as np
-from numpy.typing import DTypeLike
-from numba import njit, prange
 import logging
 
+import numpy as np
 from ducc0.healpix import Healpix_Base
+from numba import njit, prange
+from numpy.typing import DTypeLike
 
 from .coordinates import CoordinateSystem
 from .hwp import HWP, IdealHWP
@@ -16,14 +16,13 @@ from .maps_and_harmonics import (
     _interpolation_epsilon_for_tod,
     interpolate_alm,
 )
-from .observations import Observation
 from .observation_utilities import (
     _get_hwp_angle,
     _get_pointings_array,
     _get_pol_angle,
     _normalize_observations_and_pointings,
 )
-
+from .observations import Observation
 from .utilities import cos_sin, resolve_nthreads
 
 log = logging.getLogger(__name__)
@@ -561,3 +560,162 @@ def scan_map_in_observations(
                 pointings_dtype=pointings_dtype,
                 nthreads=nthreads,
             )
+
+
+def build_spin_array_one_det(
+    input_T, input_Q, input_U,detector_idx, pol_eff_det, pixel_ind_det, spin_maps, spins
+):
+    spin_array = np.zeros((len(spins), input_T.shape[0]), dtype=np.complex128)
+    for i, spin in enumerate(spins):
+        if spin == 0:
+            spin_array[i] = 0.5*(input_T + spin_maps[spin][detector_idx][pixel_ind_det])
+        elif spin == 2:
+            spin_array[i] = pol_eff_det * (input_Q + 1j * input_U) / 2 + spin_maps[spin][detector_idx][pixel_ind_det]
+        else:
+            spin_array[i] = spin_maps[spin][detector_idx][pixel_ind_det]
+    return spin_array
+
+
+@njit(parallel=True)
+def scan_spin_maps_for_one_detector(
+    tod_det,           # float64 1-D
+    pol_angle_det,     # float64 1-D
+    spin_array,        # complex128 2-D, shape (n_spins, n_samples)
+    spins,             # int64 1-D  (NOT a Python list!)
+):
+    n_spins = len(spins)
+    n_samples = len(tod_det)
+    for i in prange(n_samples):
+        for ispin in range(n_spins):
+            spin = spins[ispin]
+            pointing_factor = np.exp(-1j * spin * pol_angle_det[i])
+            tod_det[i] += 2.0 * (spin_array[ispin, i] * pointing_factor).real
+
+
+def scan_spin_maps(
+    tod,
+    pointings,
+    maps: SkyInput,
+    spin_maps: dict[str, np.ndarray],
+    spins: np.ndarray,
+    pol_angle_detectors: np.ndarray | None = None,
+    pol_eff_detectors: np.ndarray | None = None,
+    input_names: str | None = None,
+    interpolation: str | None = "",
+    pointings_dtype=np.float64,
+    nthreads: int | None = None,
+):
+    """
+    Scan spin maps to fill time-ordered data (TOD): using tod_t= spin_map(pix_t)*exp(-i*spin*psi_t).
+    """
+    nthreads = resolve_nthreads(nthreads)
+
+    n_detectors = tod.shape[0]
+
+    if type(pointings) is np.ndarray:
+        assert tod.shape == pointings.shape[0:2]
+
+    if pol_angle_detectors is None:
+        pol_angle_detectors = np.zeros(n_detectors)
+
+    if pol_eff_detectors is None:
+        pol_eff_detectors = np.ones(n_detectors)
+
+    for detector_idx in range(n_detectors):
+        # ----------------------------------------------------------
+        # Select per-detector sky object
+        # ----------------------------------------------------------
+        if isinstance(maps, dict):
+            if input_names is None:
+                raise ValueError(
+                    "scan_map: maps is a dict, but input_names is None. "
+                    "You must provide per-detector keys."
+                )
+            key = input_names[detector_idx]
+            try:
+                maps_det = maps[key]
+            except KeyError as exc:
+                raise KeyError(
+                    f"scan_map: maps does not contain an entry for '{key}' "
+                    f"(detector index {detector_idx})"
+                ) from exc
+        else:
+            maps_det = maps
+
+        # ----------------------------------------------------------
+        # Determine coordinate system from the object
+        # ----------------------------------------------------------
+        coordinates = getattr(maps_det, "coordinates", None)
+        if coordinates is None:
+            logging.warning(
+                "scan_map: maps_det.coordinates is None — assuming "
+                "CoordinateSystem.Galactic"
+            )
+            coordinates = CoordinateSystem.Galactic
+
+        # ----------------------------------------------------------
+        # Get pointings in the correct coordinate system
+        # ----------------------------------------------------------
+        curr_pointings_det, hwp_angle = _get_pointings_array(
+            detector_idx=detector_idx,
+            pointings=pointings,
+            hwp_angle=None,
+            output_coordinate_system=coordinates,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
+
+        # ----------------------------------------------------------
+        # REAL SPACE (HealpixMap)
+        # ----------------------------------------------------------
+        if isinstance(maps_det, HealpixMap):
+            pixmap = maps_det.values  # (nstokes, Npix)
+            scheme = "NESTED" if maps_det.nest else "RING"
+            hpx = Healpix_Base(maps_det.nside, scheme)
+
+            pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2], nthreads=nthreads)
+
+            if maps_det.nstokes == 1:
+                input_T = pixmap[0, pixel_ind_det]
+                input_Q = np.zeros_like(input_T)
+                input_U = input_Q
+            else:
+                input_T = pixmap[0, pixel_ind_det]
+                input_Q = pixmap[1, pixel_ind_det]
+                input_U = pixmap[2, pixel_ind_det]
+
+        else:
+            raise TypeError(
+                f"scan_map: maps_det must be HealpixMap (got {type(maps_det)!r})"
+            )
+
+        # (T + Q ρ Cos[2 (θ + ψ])] + U ρ Sin[2 (θ + ψ)])
+        # ρ: polarization efficiency
+        # θ: polarization angle
+        # ψ: angle of the telescope
+        # α: HWP angle
+        print(
+            f"shapes: input_T: {input_T.shape}, input_Q: {input_Q.shape}, input_U: {input_U.shape} spin_maps: {spin_maps[spins[0]].shape}, spins: {spins.shape}",flush=True
+        )
+        print(
+            f"detector_idx: {detector_idx}, pol_eff_detectors[detector_idx]: {pol_eff_detectors[detector_idx]}, pixel_ind_det: {pixel_ind_det.shape}, pol_angle_detectors[detector_idx]: {pol_angle_detectors[detector_idx]}",flush=True
+        )
+        spin_array = build_spin_array_one_det(
+            input_T=input_T,
+            input_Q=input_Q,
+            input_U=input_U,
+            pol_eff_det=pol_eff_detectors[detector_idx],
+            pixel_ind_det=pixel_ind_det,
+            detector_idx=detector_idx,
+            spin_maps=spin_maps,
+            spins=spins,
+        )
+        print(f"spin_array shape: {spin_array.shape}, tod shape: {(tod[detector_idx]).shape}, ",flush=True)
+        scan_spin_maps_for_one_detector(
+            tod_det=tod[detector_idx],
+            pol_angle_det=_get_pol_angle(
+                curr_pointings_det, hwp_angle, pol_angle_detectors[detector_idx]
+            ),
+            spin_array=spin_array,
+            spins=spins,
+        )
