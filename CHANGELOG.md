@@ -1,5 +1,7 @@
 # HEAD
 
+-   Add (`SpinMap`, `scan_spin_maps`, `Simulation.scan_spin_maps`) to fill the TODs by scanning spin maps, containing the sky and/or systematics [#624](https://github.com/litebird/litebird_sim/pull/624)
+
 -   Extend `bin/run_tests.sh` with CLI flags (`--all`, `--codestyle`, `--docs`, `--notebooks`, `--unittests`, `--mpitests`, `--help`) to run any subset of the CI test suites locally, and update the GitHub Actions workflows to use it directly. Reference PR: [#623](https://github.com/litebird/litebird_sim/pull/623).
 
 -   `Simulation.add_planets` (and the low-level `add_planets_to_observations`) adds the signal of Mars, Jupiter, Saturn, Uranus, and Neptune to the TODs: unpolarized point sources with whole-disc temperatures measured by Planck (Planck intermediate results LII) and WMAP (Weiland et al. 2011), computed at the centre of the bands or, with `bandpass_integration=True`, integrated over the bandpasses of the detectors (from the IMo, or top-hat), as in PySM 3, and seen through circular Gaussian beams. The signal is converted into the units of the TOD component. The ephemerides and the prefilter on the boresight are shared with `flag_planets` in the new module `planets.py`. Reference PR: [#590](https://github.com/litebird/litebird_sim/pull/590).
