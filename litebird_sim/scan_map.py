@@ -1,5 +1,7 @@
 import logging
 
+from collections.abc import Sequence
+
 import numpy as np
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
@@ -13,6 +15,7 @@ from .input_sky import SkyInput
 from .maps_and_harmonics import (
     HealpixMap,
     SphericalHarmonics,
+    SpinMap,
     _interpolation_epsilon_for_tod,
     interpolate_alm,
 )
@@ -562,51 +565,111 @@ def scan_map_in_observations(
             )
 
 
-def build_spin_array_one_det(
-    input_T, input_Q, input_U,detector_idx, pol_eff_det, pixel_ind_det, spin_maps, spins
-):
-    spin_array = np.zeros((len(spins), input_T.shape[0]), dtype=np.complex128)
-    for i, spin in enumerate(spins):
-        if spin == 0:
-            spin_array[i] = 0.5*(input_T + spin_maps[spin][detector_idx][pixel_ind_det])
-        elif spin == 2:
-            spin_array[i] = pol_eff_det * (input_Q + 1j * input_U) / 2 + spin_maps[spin][detector_idx][pixel_ind_det]
-        else:
-            spin_array[i] = spin_maps[spin][detector_idx][pixel_ind_det]
-    return spin_array
-
-
 @njit(parallel=True)
 def scan_spin_maps_for_one_detector(
-    tod_det,           # float64 1-D
-    pol_angle_det,     # float64 1-D
-    spin_array,        # complex128 2-D, shape (n_spins, n_samples)
-    spins,             # int64 1-D  (NOT a Python list!)
+    tod_det,
+    spin_values,
+    spins,
+    pixel_ind,
+    pol_angle_det,
 ):
+    """Add the contribution of a set of spin maps to one detector."""
     n_spins = len(spins)
-    n_samples = len(tod_det)
-    for i in prange(n_samples):
+    for i in prange(len(tod_det)):
+        pixel = pixel_ind[i]
+        alpha = pol_angle_det[i]
         for ispin in range(n_spins):
             spin = spins[ispin]
-            pointing_factor = np.exp(-1j * spin * pol_angle_det[i])
-            tod_det[i] += 2.0 * (spin_array[ispin, i] * pointing_factor).real
+            value = spin_values[ispin, pixel]
+            if spin == 0:
+                tod_det[i] += value.real # no factor 2, since the convention is that we put T in the spin 0 map, and not T/2
+            else:
+                co, si = cos_sin(spin * alpha)
+                tod_det[i] += 2.0 * (value.real * co + value.imag * si) # factor 2 for spin != 0, since the convention is that we put (Q + iU)/2 in the spin 2 map
 
 
 def scan_spin_maps(
     tod,
     pointings,
-    maps: SkyInput,
-    spin_maps: dict[str, np.ndarray],
-    spins: np.ndarray,
-    pol_angle_detectors: np.ndarray | None = None,
-    pol_eff_detectors: np.ndarray | None = None,
-    input_names: str | None = None,
-    interpolation: str | None = "",
+    spin_maps: SpinMap | dict[str, SpinMap],
+    detector_names: Sequence[str] | None = None,
+    pol_angle_rad: np.ndarray | None = None,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
 ):
-    """
-    Scan spin maps to fill time-ordered data (TOD): using tod_t= spin_map(pix_t)*exp(-i*spin*psi_t).
+    r"""Scan a set of spin maps and add them to time-ordered data (TOD).
+
+    This function adds to `tod` the contribution of a set of spin maps, such as those used by the the spin-mapmaking codes SMARTIES and SBM.
+
+    .. math::
+
+        d_t = \sum_s c_s \, \mathrm{Re}\!\left(S_s(p_t)\,e^{-i s \alpha_t}\right),
+
+    where :math:`c_s = 1` for :math:`s = 0` and :math:`c_s = 2` otherwise,
+    :math:`p_t` is the pixel observed at time :math:`t`, and :math:`\alpha_t =
+    \psi_t + \gamma_d` is the parallactic angle of the telescope :math:`\psi_t` plus
+    the polarization angle :math:`\gamma_d` of the detector.
+
+    The spin maps are taken from :class:`.SpinMap` objects, which hold one
+    complex map per spin order, in the detector frame, and are selected per
+    detector. A single :class:`.SpinMap` is used for all the detectors when
+    `spin_maps` is not a dictionary.
+
+    Parameters
+    ----------
+    tod : np.ndarray
+        Time-ordered data of shape ``(n_detectors, n_samples)``, modified in
+        place.
+
+    pointings : np.ndarray or callable
+        Pointing information for each detector. If an array, it must have
+        shape ``(n_detectors, n_samples, 3)``, holding the colatitude and
+        longitude in radians and the telescope orientation. If a callable, it
+        is passed the detector index and must return the pointings.
+
+    spin_maps : SpinMap or dict[str, SpinMap]
+        Spin maps to scan. In dictionary form, the key for each detector is
+        taken from `detector_names`.
+
+    detector_names : sequence of str, optional
+        Names used as keys of `spin_maps`, one per detector. It is required
+        when `spin_maps` is a dictionary.
+
+    pol_angle_rad : np.ndarray, optional
+        Polarization angle of each detector in radians, one entry per
+        detector. If ``None``, all the angles are set to zero.
+
+    pointings_dtype : dtype, default=np.float64
+        Data type used when pointings are computed on the fly.
+
+    nthreads : int, optional
+        Number of threads used by ``ang2pix``. If ``None``, it is resolved
+        through :func:`.resolve_nthreads`.
+
+    Raises
+    ------
+    TypeError
+        If `spin_maps` is neither a :class:`.SpinMap` nor a dictionary of
+        :class:`.SpinMap` objects.
+
+    ValueError
+        If `spin_maps` is a dictionary but `detector_names` is missing or does
+        not have one entry per detector.
+
+    KeyError
+        If `spin_maps` does not contain an entry for a detector.
+
+    AssertionError
+        If `tod` and `pointings` are both arrays with inconsistent shapes.
+
+    Notes
+    -----
+    - The presence of an HWP is currently unsupported
+    - The signal is added in place; the function returns ``None``.
+    - Maps are sampled with nearest-neighbour lookup (``ang2pix``). Only
+      real-space maps are supported.
+    - The spin maps are evaluated at the observed pixel on the fly, so no
+      array indexed by spin and by sample is ever allocated.
     """
     nthreads = resolve_nthreads(nthreads)
 
@@ -615,48 +678,67 @@ def scan_spin_maps(
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
 
-    if pol_angle_detectors is None:
-        pol_angle_detectors = np.zeros(n_detectors)
+    if isinstance(spin_maps, SpinMap):
+        maps_per_detector = [spin_maps] * n_detectors
+    elif isinstance(spin_maps, dict):
+        if detector_names is None:
+            raise ValueError(
+                "scan_spin_maps: spin_maps is a dict, but detector_names is None. "
+                "You must provide the names used as keys."
+            )
+        detector_names = list(detector_names)
+        if len(detector_names) != n_detectors:
+            raise ValueError(
+                f"scan_spin_maps: detector_names has {len(detector_names)} "
+                f"entries but tod has {n_detectors} detectors"
+            )
+        missing_names = [name for name in detector_names if name not in spin_maps]
+        if missing_names:
+            raise KeyError(
+                "scan_spin_maps: spin_maps does not contain an entry for "
+                + ", ".join(repr(name) for name in missing_names)
+            )
+        maps_per_detector = []
+        for name in detector_names:
+            cur_maps = spin_maps[name]
+            if not isinstance(cur_maps, SpinMap):
+                raise TypeError(
+                    "scan_spin_maps: every entry of spin_maps must be a "
+                    f"SpinMap, got {type(cur_maps)!r} for '{name}'"
+                )
+            maps_per_detector.append(cur_maps)
+    else:
+        raise TypeError(
+            "scan_spin_maps: spin_maps must be a SpinMap or a dict of SpinMap "
+            f"objects, got {type(spin_maps)!r}"
+        )
 
-    if pol_eff_detectors is None:
-        pol_eff_detectors = np.ones(n_detectors)
+    if not maps_per_detector:
+        return
+
+    if pol_angle_rad is None:
+        pol_angle_rad = np.zeros(n_detectors)
+    detector_pol_angles = np.asarray(pol_angle_rad, dtype=np.float64)
+    if detector_pol_angles.shape != (n_detectors,):
+        raise ValueError(
+            "scan_spin_maps: pol_angle_rad must have one entry per "
+            f"detector ({n_detectors}), got shape {detector_pol_angles.shape}"
+        )
+
+    if any(cur.coordinates is None for cur in maps_per_detector):
+        log.warning(
+            "scan_spin_maps: some spin maps have coordinates=None — assuming "
+            "CoordinateSystem.Galactic for them"
+        )
 
     for detector_idx in range(n_detectors):
-        # ----------------------------------------------------------
-        # Select per-detector sky object
-        # ----------------------------------------------------------
-        if isinstance(maps, dict):
-            if input_names is None:
-                raise ValueError(
-                    "scan_map: maps is a dict, but input_names is None. "
-                    "You must provide per-detector keys."
-                )
-            key = input_names[detector_idx]
-            try:
-                maps_det = maps[key]
-            except KeyError as exc:
-                raise KeyError(
-                    f"scan_map: maps does not contain an entry for '{key}' "
-                    f"(detector index {detector_idx})"
-                ) from exc
-        else:
-            maps_det = maps
+        cur_maps = maps_per_detector[detector_idx]
 
-        # ----------------------------------------------------------
-        # Determine coordinate system from the object
-        # ----------------------------------------------------------
-        coordinates = getattr(maps_det, "coordinates", None)
+        coordinates = cur_maps.coordinates
         if coordinates is None:
-            logging.warning(
-                "scan_map: maps_det.coordinates is None — assuming "
-                "CoordinateSystem.Galactic"
-            )
             coordinates = CoordinateSystem.Galactic
 
-        # ----------------------------------------------------------
-        # Get pointings in the correct coordinate system
-        # ----------------------------------------------------------
-        curr_pointings_det, hwp_angle = _get_pointings_array(
+        curr_pointings_det, _ = _get_pointings_array(
             detector_idx=detector_idx,
             pointings=pointings,
             hwp_angle=None,
@@ -665,57 +747,95 @@ def scan_spin_maps(
             nthreads=nthreads,
         )
 
-        # ----------------------------------------------------------
-        # REAL SPACE (HealpixMap)
-        # ----------------------------------------------------------
-        if isinstance(maps_det, HealpixMap):
-            pixmap = maps_det.values  # (nstokes, Npix)
-            scheme = "NESTED" if maps_det.nest else "RING"
-            hpx = Healpix_Base(maps_det.nside, scheme)
+        scheme = "NESTED" if cur_maps.nest else "RING"
+        hpx = Healpix_Base(cur_maps.nside, scheme)
+        pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2], nthreads=nthreads)
 
-            pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2], nthreads=nthreads)
-
-            if maps_det.nstokes == 1:
-                input_T = pixmap[0, pixel_ind_det]
-                input_Q = np.zeros_like(input_T)
-                input_U = input_Q
-            else:
-                input_T = pixmap[0, pixel_ind_det]
-                input_Q = pixmap[1, pixel_ind_det]
-                input_U = pixmap[2, pixel_ind_det]
-
-        else:
-            raise TypeError(
-                f"scan_map: maps_det must be HealpixMap (got {type(maps_det)!r})"
-            )
-
-        # (T + Q ρ Cos[2 (θ + ψ])] + U ρ Sin[2 (θ + ψ)])
-        # ρ: polarization efficiency
-        # θ: polarization angle
-        # ψ: angle of the telescope
-        # α: HWP angle
-        print(
-            f"shapes: input_T: {input_T.shape}, input_Q: {input_Q.shape}, input_U: {input_U.shape} spin_maps: {spin_maps[spins[0]].shape}, spins: {spins.shape}",flush=True
+        pol_angle_det = _get_pol_angle(
+            curr_pointings_det,
+            None,
+            detector_pol_angles[detector_idx],
         )
-        print(
-            f"detector_idx: {detector_idx}, pol_eff_detectors[detector_idx]: {pol_eff_detectors[detector_idx]}, pixel_ind_det: {pixel_ind_det.shape}, pol_angle_detectors[detector_idx]: {pol_angle_detectors[detector_idx]}",flush=True
-        )
-        spin_array = build_spin_array_one_det(
-            input_T=input_T,
-            input_Q=input_Q,
-            input_U=input_U,
-            pol_eff_det=pol_eff_detectors[detector_idx],
-            pixel_ind_det=pixel_ind_det,
-            detector_idx=detector_idx,
-            spin_maps=spin_maps,
-            spins=spins,
-        )
-        print(f"spin_array shape: {spin_array.shape}, tod shape: {(tod[detector_idx]).shape}, ",flush=True)
+
         scan_spin_maps_for_one_detector(
             tod_det=tod[detector_idx],
-            pol_angle_det=_get_pol_angle(
-                curr_pointings_det, hwp_angle, pol_angle_detectors[detector_idx]
-            ),
-            spin_array=spin_array,
-            spins=spins,
+            spin_values=cur_maps.values,
+            spins=cur_maps.spins,
+            pixel_ind=pixel_ind_det,
+            pol_angle_det=pol_angle_det,
+        )
+
+
+def scan_spin_maps_in_observations(
+    observations: Observation | list[Observation],
+    spin_maps: SpinMap | dict[str, SpinMap],
+    pointings: np.ndarray | list[np.ndarray] | None = None,
+    component: str = "tod",
+    pointings_dtype: DTypeLike = np.float64,
+    nthreads: int | None = None,
+):
+    r"""Scan spin maps and add them to the TODs of a set of observations.
+
+    This is a wrapper around :func:`.scan_spin_maps` that reads the TODs, the
+    pointings, the detector polarization angles and the detector names from
+    the :class:`.Observation` objects. It accepts either a single
+    :class:`.Observation` and a pointing matrix, or a list of observations
+    and a list of pointing matrices with the same length.
+
+    The maps are selected through the names of the detectors of the current
+    observation, so a dictionary containing only the detectors owned by the
+    current MPI process is enough.
+
+    Parameters
+    ----------
+    observations : Observation or list[Observation]
+        One or more observations whose TODs will be filled.
+
+    spin_maps : SpinMap or dict[str, SpinMap]
+        Spin maps to scan. In dictionary form, the key for each detector is
+        taken from the detector names of the observation.
+
+    pointings : np.ndarray or list[np.ndarray], optional
+        Pointing matrices associated with the observations. If ``None``, the
+        pointings are read from the observations.
+
+    component : str, default="tod"
+        The TOD component of the :class:`.Observation` objects to fill.
+
+    pointings_dtype : dtype, default=np.float64
+        Data type used when pointings are computed on the fly.
+
+    nthreads : int, optional
+        Number of threads used by ``ang2pix``. If ``None``, it is resolved
+        through :func:`.resolve_nthreads`.
+
+    Raises
+    ------
+    ValueError
+        If the number of observations and pointings do not match.
+
+    KeyError
+        If `spin_maps` does not contain an entry for a detector.
+
+    Notes
+    -----
+    - The TODs are modified in place; the function returns ``None``.
+    - No MPI communication is performed: each process fills the observations
+      it owns.
+    """
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=observations, pointings=pointings
+    )
+
+    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+        detector_names = list(cur_obs.name) if isinstance(spin_maps, dict) else None
+
+        scan_spin_maps(
+            tod=getattr(cur_obs, component),
+            pointings=cur_ptg,
+            spin_maps=spin_maps,
+            detector_names=detector_names,
+            pol_angle_rad=cur_obs.pol_angle_rad,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
         )

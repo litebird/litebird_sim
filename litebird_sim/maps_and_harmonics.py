@@ -1,5 +1,5 @@
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from pathlib import Path
 from collections.abc import Sequence
 import logging
@@ -2359,6 +2359,293 @@ class HealpixMap:
 
         # 5. Check numerical equality
         return np.allclose(self.values, other.values, rtol=rtol, atol=atol)
+
+
+# ======================================================================
+# SpinMap
+# ======================================================================
+
+
+@dataclass
+class SpinMap:
+    r"""A set of HEALPix maps, one per spin order, sharing the same geometry.
+
+    This is the container used by :func:`.scan_spin_maps`. Each row of
+    ``values`` holds the complex map :math:`S_s` of a spin order :math:`s`,
+    and the timestream is built as
+
+    The conventions followed is that a map of spin order :math:`s` appears in the timestream multiplied by :math:`e^{-i s \alpha_t}`,
+    where :math:`\alpha_t` is the sum of the paralalctic angle `\psi_t` and the polarisation angle of the detector `\gamma_d`.
+
+    Maps are always stored without the detector polarization factor :math:`e^{-i s \gamma_d}`.
+    Maps that already contain it, such as the "spin_systematics" maps used by
+    SMARTIES, must declare it at construction through
+    `contain_polarization_angle`: :class:`.SpinMap` then multiplies them by
+    :math:`e^{+i s \gamma_d}` before storing them.
+
+    Negative spins are the complex conjugates of the positive ones and are not stored explicitly.
+
+    Attributes
+    ----------
+    values : np.ndarray
+        Complex maps of shape ``(n_spins, npix)``, one row per entry of
+        `spins`, in the detector frame. Real input is promoted to complex; the
+        array is made C-contiguous on construction.
+    spins : np.ndarray
+        Spin order of each row: an ascending array of unique, non-negative
+        integers.
+    nside : int | None, default=None
+        HEALPix resolution parameter. If ``None``, it is inferred from
+        ``values.shape[1]``.
+    nest : bool, default=False
+        Whether the maps are in NESTED ordering (RING otherwise).
+    coordinates : CoordinateSystem | None, default=None
+        Sky coordinate system of the maps.
+    units : Units | None, default=None
+        Physical units of the maps.
+
+    Other Parameters
+    ----------------
+    contain_polarization_angle : bool, default=False
+        Whether the ``values`` passed to the constructor already contain the
+        detector polarization factor :math:`e^{-i s \gamma_d}`, as the
+        beam-convolved maps produced by SMARTIES do. This is only an argument
+        of the constructor: when it is ``True``, `pol_angle_rad` is required
+        and the maps are rotated to the detector frame before being stored.
+    pol_angle_rad : float | None, default=None
+        Polarization angle of the detector the maps belong to, in radians.
+        It is required when `contain_polarization_angle` is ``True`` and it
+        must be ``None`` otherwise.
+    """
+
+    values: np.ndarray
+    spins: np.ndarray
+    nside: int | None = None
+    nest: bool = False
+    coordinates: CoordinateSystem | None = None
+    units: Units | None = None
+    contain_polarization_angle: InitVar[bool] = False
+    pol_angle_rad: InitVar[float | None] = None
+
+    def __post_init__(
+        self,
+        contain_polarization_angle: bool,
+        pol_angle_rad: float | None,
+    ):
+        self.values = np.asarray(self.values)
+
+        if self.values.ndim != 2:
+            raise ValueError(
+                "SpinMap values must be a 2-D array of shape (n_spins, npix), "
+                f"got a {self.values.ndim}-D array."
+            )
+
+        if self.values.dtype.kind == "f":
+            target = np.complex64 if self.values.dtype == np.float32 else np.complex128
+            self.values = self.values.astype(target, copy=False)
+        elif self.values.dtype.kind != "c":
+            raise TypeError(
+                "SpinMap values must be a real or complex array, "
+                f"got dtype {self.values.dtype}"
+            )
+
+        if not self.values.flags["C_CONTIGUOUS"]:
+            self.values = np.ascontiguousarray(self.values)
+
+        self.spins = np.asarray(self.spins, dtype=np.int64)
+        if self.spins.ndim != 1:
+            raise ValueError("SpinMap spins must be a 1-D array.")
+        if self.spins.size != self.values.shape[0]:
+            raise ValueError(
+                f"SpinMap has {self.values.shape[0]} map(s) but "
+                f"{self.spins.size} spin order(s)."
+            )
+        if np.any(self.spins < 0):
+            raise ValueError(
+                "SpinMap spins must be non-negative: a negative spin is the "
+                "complex conjugate of the corresponding positive one and must "
+                "not be stored."
+            )
+        if np.any(np.diff(self.spins) <= 0):
+            raise ValueError("SpinMap spins must be sorted and must not repeat.")
+
+        npix = self.values.shape[1]
+        if self.nside is None:
+            if not HealpixMap.is_npix_ok(npix):
+                raise ValueError(
+                    f"SpinMap has {npix} pixels, which is not a valid HEALPix map size."
+                )
+            self.nside = HealpixMap.npix_to_nside(npix)
+        else:
+            expected = HealpixMap.nside_to_npix(self.nside)
+            if npix != expected:
+                raise ValueError(
+                    f"Wrong number of pixels for SpinMap: data has {npix}, "
+                    f"but expected {expected} for nside={self.nside}."
+                )
+
+        if self.units is not None and not isinstance(self.units, Units):
+            raise ValueError(
+                f"units must be an instance of Units or None, got {type(self.units)!r}"
+            )
+        if self.coordinates is not None and not isinstance(
+            self.coordinates, CoordinateSystem
+        ):
+            raise ValueError(
+                "coordinates must be an instance of CoordinateSystem or None, "
+                f"got {type(self.coordinates)!r}"
+            )
+        if contain_polarization_angle:
+            if pol_angle_rad is None:
+                raise ValueError(
+                    "A SpinMap whose maps contain the detector polarization "
+                    "angle must also be given that angle (pol_angle_rad), so "
+                    "that the maps can be rotated to the detector frame."
+                )
+            factor = np.exp(1j * self.spins * float(pol_angle_rad))
+            self.values = self.values * factor[:, np.newaxis]
+        elif pol_angle_rad is not None:
+            raise ValueError(
+                "pol_angle_rad is only meaningful when "
+                "contain_polarization_angle is True: maps that do not contain "
+                "the detector polarization angle have no associated angle."
+            )
+
+    @property
+    def npix(self) -> int:
+        """Return the number of pixels in each map."""
+        return self.values.shape[1]
+
+    @classmethod
+    def from_tqu(cls, map: HealpixMap, pol_efficiency: float = 1.0) -> "SpinMap":
+        r"""Build the spin maps of a T/Q/U map, following the SMARTIES convention.
+
+        The result holds two spin orders: :math:`S_0 = I` and
+        :math:`S_2 = \epsilon (Q + iU)/2`, where :math:`\epsilon` is
+        `pol_efficiency`. The maps are built without any detector
+        polarization angle, so `contain_polarization_angle` is ``False``.
+
+        Parameters
+        ----------
+        map : HealpixMap
+            A single-frequency, three-component map holding I, Q and U.
+        pol_efficiency : float, default=1.0
+            Polarization efficiency applied to Q and U.
+
+        Returns
+        -------
+        SpinMap
+            The spin maps of `map`.
+        """
+        if not isinstance(map, HealpixMap):
+            raise TypeError(f"map must be a HealpixMap, got {type(map)!r}")
+        if map.nfreqs is not None:
+            raise ValueError("SpinMap.from_tqu only supports single-frequency maps")
+        if map.nstokes != 3:
+            raise ValueError(
+                "SpinMap.from_tqu except a three-component (I, Q, U) HealpixMap, "
+                f"got {map.nstokes} component(s)"
+            )
+
+        if map.values.dtype is np.float32:
+            dtype = np.complex64
+        elif map.values.dtype is np.float64:
+            dtype = np.complex128
+        else:
+            raise TypeError(
+                f" Unexpected tqu map dtype: {map.values.dtype}"
+            )
+
+        values = np.empty((2, map.npix), dtype=dtype)
+        values[0] = map.values[0] #spin 0 is I
+        values[1] = 0.5 * pol_efficiency * (map.values[1] + 1j * map.values[2]) #spin 2 is (Q + iU)/2
+
+        return cls(
+            values=values,
+            spins=np.array([0, 2]),
+            nside=map.nside,
+            nest=map.nest,
+            coordinates=map.coordinates,
+            units=map.units,
+            contain_polarization_angle=False,
+        )
+
+    @classmethod
+    def from_tqu_detectors(
+        cls,
+        maps: dict[str, HealpixMap],
+        pol_efficiency: float | np.ndarray = 1.0,
+    ) -> dict[str, "SpinMap"]:
+        """Build one :class:`.SpinMap` per detector from a dictionary of maps.
+
+        Parameters
+        ----------
+        maps : dict[str, HealpixMap]
+            T/Q/U maps, keyed by detector name.
+        pol_efficiency : float or np.ndarray, default=1.0
+            Polarization efficiency of each detector, either a scalar used
+            for all of them or an array with the same order as `maps`.
+
+        Returns
+        -------
+        dict[str, SpinMap]
+            Spin maps keyed by detector name.
+        """
+        names = list(maps)
+        efficiency = np.broadcast_to(
+            np.asarray(pol_efficiency, dtype=np.float64), (len(names),)
+        )
+
+        return {
+            name: cls.from_tqu(maps[name], pol_efficiency=float(efficiency[i]))
+            for i, name in enumerate(names)
+        }
+
+    def __add__(self, other: "SpinMap") -> "SpinMap":
+        """Add two sets of spin maps with the same geometry.
+
+        Both operands are stored in the detector frame, so the sum is an
+        element-wise addition: this is what makes ``sky + systematics`` work
+        even when the systematics maps were built from SMARTIES maps that
+        already contained the detector polarization angle.
+
+        The two objects do not need to hold the same spin orders: the result
+        contains the union of the two, and the spins that are missing from one
+        of the operands are filled with zeros.
+        """
+        if not isinstance(other, SpinMap):
+            return NotImplemented
+
+        for name in ("nside", "nest", "coordinates", "units"):
+            x, y = getattr(self, name), getattr(other, name)
+            if x is not None and y is not None and x != y:
+                raise ValueError(
+                    f"Cannot add spin maps with different {name}: {x} vs {y}"
+                )
+
+        spins = np.union1d(self.spins, other.spins)
+        values = np.zeros(
+            (spins.size, self.values.shape[1]),
+            dtype=np.result_type(self.values.dtype, other.values.dtype),
+        )
+        values[np.searchsorted(spins, self.spins)] = self.values
+        values[np.searchsorted(spins, other.spins)] += other.values
+
+        return SpinMap(
+            values=values,
+            spins=spins,
+            nside=self.nside,
+            nest=self.nest,
+            coordinates=(
+                self.coordinates if self.coordinates is not None else other.coordinates
+            ),
+            units=self.units if self.units is not None else other.units,
+        )
+
+# ``dataclasses.InitVar`` defaults leave class attributes behind, but these
+# two are constructor-only: reading them on an instance must fail.
+del SpinMap.contain_polarization_angle
+del SpinMap.pol_angle_rad
 
 
 # ======================================================================

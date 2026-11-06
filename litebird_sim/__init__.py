@@ -146,6 +146,7 @@ from .madam import save_simulation_for_madam
 from .maps_and_harmonics import (
     SphericalHarmonics,
     HealpixMap,
+    SpinMap,
     interpolate_alm,
     pixelize_alm,
     estimate_alm,
@@ -213,7 +214,12 @@ from .quaternions import (
     quat_rotation_y_brdcast,
     quat_rotation_z_brdcast,
 )
-from .scan_map import scan_map, scan_map_in_observations
+from .scan_map import (
+    scan_map,
+    scan_map_in_observations,
+    scan_spin_maps,
+    scan_spin_maps_in_observations,
+)
 from .scanning import (
     compute_pointing_and_orientation,
     all_compute_pointing_and_orientation,
@@ -437,6 +443,8 @@ __all__ = [
     # scan_map.py
     "scan_map",
     "scan_map_in_observations",
+    "scan_spin_maps",
+    "scan_spin_maps_in_observations",
     # dipole.py
     "add_dipole",
     "add_dipole_to_observations",
@@ -499,6 +507,7 @@ __all__ = [
     # maps_and_harmonics.py
     "SphericalHarmonics",
     "HealpixMap",
+    "SpinMap",
     "interpolate_alm",
     "pixelize_alm",
     "estimate_alm",
