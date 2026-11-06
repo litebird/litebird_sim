@@ -68,7 +68,7 @@ from .mapmaking import (
     make_pair_differenced_map,
     save_destriper_results,
 )
-from .maps_and_harmonics import HealpixMap, SphericalHarmonics
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics, SpinMap
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
@@ -78,7 +78,7 @@ from .observation_utilities import (
     prepare_pointings,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
-from .scan_map import scan_map_in_observations
+from .scan_map import scan_map_in_observations, scan_spin_maps_in_observations
 from .scanning import (
     RotQuaternion,
     ScanningStrategy,
@@ -2225,6 +2225,51 @@ class Simulation:
                     has_fg="N/A",
                     fg_model="N/A",
                 )
+
+    @_profile
+    def scan_spin_maps(
+        self,
+        spin_maps: SpinMap | dict[str, SpinMap],
+        component: str = "tod",
+        pointings_dtype=np.float64,
+        append_to_report: bool = True,
+        nthreads: int | None = None,
+    ):
+        """Fills the Time-Ordered Data (TOD) by scanning a set of spin maps.
+
+        This is a wrapper to the function
+        :func:`.scan_spin_maps_in_observations`.
+
+        """
+        if nthreads is None:
+            nthreads = self.numba_threads
+
+        scan_spin_maps_in_observations(
+            observations=self.observations,
+            spin_maps=spin_maps,
+            component=component,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            assert self.observations, "No observations available"
+            template_file_path = get_template_file_path("report_scan_spin_maps.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            if isinstance(spin_maps, dict):
+                assert spin_maps, "spin_maps must not be empty"
+                first_maps = next(iter(spin_maps.values()))
+            else:
+                first_maps = spin_maps
+
+            self.append_to_report(
+                markdown_template,
+                spins=", ".join(str(spin) for spin in first_maps.spins),
+                nside=first_maps.nside,
+                n_detectors=sum(len(obs.name) for obs in self.observations),
+            )
 
     @_profile
     def get_gauss_beam_alms(
