@@ -25,6 +25,18 @@ def get_map_values(map_obj):
     return map_obj
 
 
+def random_pointings(rng, n_det, n_samples):
+    """Return random (theta, phi, psi) pointings for `n_det` detectors."""
+    return np.stack(
+        [
+            np.arccos(rng.uniform(-1, 1, (n_det, n_samples))),
+            rng.uniform(0, 2 * np.pi, (n_det, n_samples)),
+            rng.uniform(-np.pi, np.pi, (n_det, n_samples)),
+        ],
+        axis=-1,
+    )
+
+
 @pytest.mark.parametrize("num_threads", [1, 2, 4])
 @pytest.mark.parametrize("tod_dtype", [np.float32, np.float64])
 def test_scan_map_generic_hwp_matches_mueller_equation(num_threads, tod_dtype):
@@ -625,3 +637,175 @@ def test_scan_map_alms_float32_tod():
         rtol=0,
         atol=1e-6 * np.abs(tods[np.float64]).max(),
     )
+
+
+def test_scan_spin_maps_matches_scan_map():
+    # A SpinMap built from a T/Q/U map must reproduce the TOD computed by
+    # scan_map, both when the maps are per-detector (with their own
+    # polarization efficiency) and when a single SpinMap is shared.
+    rng = np.random.default_rng(12345)
+    nside = 16
+    npix = lbs.HealpixMap.nside_to_npix(nside)
+    n_det, n_samples = 2, 1000
+    tolerance = 1e-12
+
+    pointings = random_pointings(rng, n_det, n_samples)
+
+    map_gal = lbs.HealpixMap(
+        rng.normal(0, 1, (3, npix)), coordinates=lbs.CoordinateSystem.Galactic
+    )
+    names = ["detA", "detB"]
+    pol_angles = np.array([0.1, -0.7])
+    pol_eff = np.array([1.0, 0.9])
+
+    expected = np.zeros((n_det, n_samples))
+    lbs.scan_map(
+        tod=expected,
+        pointings=pointings,
+        maps=map_gal,
+        pol_angle_detectors=pol_angles,
+        pol_eff_detectors=pol_eff,
+    )
+
+    spin_maps = lbs.SpinMap.from_tqu_detectors(
+        {name: map_gal for name in names}, pol_efficiency=pol_eff
+    )
+    tod = np.zeros((n_det, n_samples))
+    lbs.scan_spin_maps(
+        tod=tod,
+        pointings=pointings,
+        spin_maps=spin_maps,
+        detector_names=names,
+        pol_angle_rad=pol_angles,
+    )
+    np.testing.assert_allclose(tod, expected, rtol=tolerance, atol=tolerance)
+
+    # A single SpinMap object is used for all the detectors
+    shared_expected = np.zeros((n_det, n_samples))
+    lbs.scan_map(
+        tod=shared_expected,
+        pointings=pointings,
+        maps=map_gal,
+        pol_angle_detectors=pol_angles,
+    )
+    shared_tod = np.zeros((n_det, n_samples))
+    lbs.scan_spin_maps(
+        tod=shared_tod,
+        pointings=pointings,
+        spin_maps=lbs.SpinMap.from_tqu(map_gal),
+        pol_angle_rad=pol_angles,
+    )
+    np.testing.assert_allclose(
+        shared_tod, shared_expected, rtol=tolerance, atol=tolerance
+    )
+
+
+def test_scan_spin_maps_add_systematics():
+    # Systematics maps built from SMARTIES already contain the detector
+    # polarization angle: SpinMap rotates them to the detector frame when it
+    # is constructed, so they can be added to the sky maps and scanned.
+    rng = np.random.default_rng(4321)
+    nside = 16
+    npix = lbs.HealpixMap.nside_to_npix(nside)
+    n_det, n_samples = 2, 4000
+    tolerance = 1e-12
+
+    pointings = random_pointings(rng, n_det, n_samples)
+    pol_angles = np.array([0.3, -1.1])
+    names = [f"det{i}" for i in range(n_det)]
+
+    sky = lbs.SpinMap.from_tqu(
+        lbs.HealpixMap(
+            rng.normal(0, 1, (3, npix)), coordinates=lbs.CoordinateSystem.Galactic
+        )
+    )
+
+    systematics_values = np.stack(
+        [
+            rng.normal(0.0, 0.1, npix),
+            0.1 * (rng.normal(size=npix) + 1j * rng.normal(size=npix)),
+        ]
+    )
+    untouched = systematics_values.copy()
+
+    # One object per detector: the polarization angle is detector-specific
+    systematics = {
+        names[i]: lbs.SpinMap(
+            values=systematics_values,
+            spins=np.array([0, 2]),
+            nside=nside,
+            coordinates=lbs.CoordinateSystem.Galactic,
+            contain_polarization_angle=True,
+            pol_angle_rad=pol_angles[i],
+        )
+        for i in range(n_det)
+    }
+
+    # The constructor rotates the maps to the detector frame, and it leaves
+    # the array it was given untouched (it is shared by the two detectors)
+    np.testing.assert_array_equal(systematics_values, untouched)
+    np.testing.assert_allclose(
+        systematics[names[0]].values,
+        untouched * np.exp(1j * np.array([0, 2]) * pol_angles[0])[:, np.newaxis],
+        rtol=0,
+        atol=1e-14,
+    )
+
+    combined = {name: sky + systematics[name] for name in names}
+
+    tod_sky = np.zeros((n_det, n_samples))
+    lbs.scan_spin_maps(
+        tod=tod_sky,
+        pointings=pointings,
+        spin_maps={name: sky for name in names},
+        detector_names=names,
+        pol_angle_rad=pol_angles,
+    )
+
+    tod_systematics = np.zeros((n_det, n_samples))
+    lbs.scan_spin_maps(
+        tod=tod_systematics,
+        pointings=pointings,
+        spin_maps=systematics,
+        detector_names=names,
+        pol_angle_rad=pol_angles,
+    )
+
+    tod_combined = np.zeros((n_det, n_samples))
+    lbs.scan_spin_maps(
+        tod=tod_combined,
+        pointings=pointings,
+        spin_maps=combined,
+        detector_names=names,
+        pol_angle_rad=pol_angles,
+    )
+
+    np.testing.assert_allclose(
+        tod_combined, tod_sky + tod_systematics, rtol=tolerance, atol=tolerance
+    )
+
+
+def test_scan_spin_maps_per_detector_geometry():
+    # Each detector is sampled with the geometry of its own SpinMap: maps with
+    # different resolutions, orderings and coordinate systems can be mixed.
+    rng = np.random.default_rng(7)
+    pointings = random_pointings(rng, 2, 100)
+    maps = {
+        "detA": lbs.SpinMap(
+            values=np.ones((1, lbs.HealpixMap.nside_to_npix(8)), dtype=complex),
+            spins=np.array([0]),
+            nside=8,
+            coordinates=lbs.CoordinateSystem.Galactic,
+        ),
+        "detB": lbs.SpinMap(
+            values=np.ones((1, lbs.HealpixMap.nside_to_npix(16)), dtype=complex),
+            spins=np.array([0]),
+            nside=16,
+            nest=True,
+            coordinates=lbs.CoordinateSystem.Ecliptic,
+        ),
+    }
+
+    tod = np.zeros((2, 100))
+    lbs.scan_spin_maps(tod, pointings, spin_maps=maps, detector_names=["detA", "detB"])
+    np.testing.assert_allclose(tod, 1.0)
