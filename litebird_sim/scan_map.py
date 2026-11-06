@@ -582,10 +582,14 @@ def scan_spin_maps_for_one_detector(
             spin = spins[ispin]
             value = spin_values[ispin, pixel]
             if spin == 0:
-                tod_det[i] += value.real # no factor 2, since the convention is that we put T in the spin 0 map, and not T/2
+                # no factor 2, since the convention is that we put T in the
+                # spin 0 map, and not T/2
+                tod_det[i] += value.real
             else:
                 co, si = cos_sin(spin * alpha)
-                tod_det[i] += 2.0 * (value.real * co + value.imag * si) # factor 2 for spin != 0, since the convention is that we put (Q + iU)/2 in the spin 2 map
+                # factor 2 for spin != 0, since the convention is that we put
+                # (Q + iU)/2 in the spin 2 map
+                tod_det[i] += 2.0 * (value.real * co + value.imag * si)
 
 
 def scan_spin_maps(

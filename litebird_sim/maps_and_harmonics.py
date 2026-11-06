@@ -2547,18 +2547,17 @@ class SpinMap:
                 f"got {map.nstokes} component(s)"
             )
 
-        if map.values.dtype is np.float32:
+        if map.values.dtype == np.float32:
             dtype = np.complex64
-        elif map.values.dtype is np.float64:
+        elif map.values.dtype == np.float64:
             dtype = np.complex128
         else:
-            raise TypeError(
-                f" Unexpected tqu map dtype: {map.values.dtype}"
-            )
+            raise TypeError(f"Unexpected tqu map dtype: {map.values.dtype}")
 
         values = np.empty((2, map.npix), dtype=dtype)
-        values[0] = map.values[0] #spin 0 is I
-        values[1] = 0.5 * pol_efficiency * (map.values[1] + 1j * map.values[2]) #spin 2 is (Q + iU)/2
+        values[0] = map.values[0]  # spin 0 is I
+        # spin 2 is (Q + iU)/2
+        values[1] = 0.5 * pol_efficiency * (map.values[1] + 1j * map.values[2])
 
         return cls(
             values=values,
@@ -2641,6 +2640,7 @@ class SpinMap:
             ),
             units=self.units if self.units is not None else other.units,
         )
+
 
 # ``dataclasses.InitVar`` defaults leave class attributes behind, but these
 # two are constructor-only: reading them on an instance must fail.
