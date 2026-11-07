@@ -976,6 +976,32 @@ def test_binner_split_list_over_processes():
     assert np.allclose(invnpp[0], invnpp[1])
 
 
+def test_reduction_for_observations():
+    # Whatever the distribution of the observations, the reduction of the
+    # map-makers must sum over all the processes holding them
+    from litebird_sim.mapmaking.reduction import reduction_for_observations
+
+    size = lbs.MPI_COMM_WORLD.size
+    for split in (True, False):
+        sim = lbs.Simulation(
+            start_time=0.0, duration_s=600.0, random_seed=1, mpi_comm=lbs.MPI_COMM_WORLD
+        )
+        sim.create_observations(
+            detectors=[lbs.DetectorInfo(name="a", sampling_rate_hz=1.0)],
+            num_of_obs_per_detector=2 * size,
+            split_list_over_processes=split,
+            n_blocks_time=1 if split else size,
+        )
+        red = reduction_for_observations(sim.observations)
+        assert red.size == size
+
+        values = np.full(3, lbs.MPI_COMM_WORLD.rank + 1.0)
+        red.sum_in_place(values)
+        np.testing.assert_array_equal(values, size * (size + 1) / 2)
+        assert red.sum(1) == size
+        assert red.max(lbs.MPI_COMM_WORLD.rank) == size - 1
+
+
 def test_describe_mpi_layout():
     # A compact summary of the distribution, consistent on every process
     size = lbs.MPI_COMM_WORLD.size
