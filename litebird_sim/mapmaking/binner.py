@@ -28,8 +28,8 @@ from litebird_sim.maps_and_harmonics import HealpixMap
 
 from ..utilities import cos_sin, resolve_nthreads
 
+from .reduction import reduction_for_observations
 from .common import (
-    _get_reduction_comm,
     _build_mask_detector_split,
     _build_mask_time_split,
     _apply_flags_to_time_masks,
@@ -282,11 +282,7 @@ def _build_nobs_matrix(
         del pixidx_all, polang_all
 
     assert obs_list, "No observations provided"
-    comm = _get_reduction_comm(obs_list)
-    if comm is not None:
-        from litebird_sim.mpi import MPI
-
-        comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
+    reduction_for_observations(obs_list).sum_in_place(nobs_matrix)
 
     return nobs_matrix
 
