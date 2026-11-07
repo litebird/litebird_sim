@@ -3284,6 +3284,7 @@ class Simulation:
             template_covariance=template_covariance,
             pointing_form=pointing_form,
             verbose=verbose,
+            comm=self.mpi_comm,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -3327,6 +3328,7 @@ class Simulation:
             dtype=dtype,
             pointings_dtype=pointings_dtype,
             nthreads=nthreads,
+            comm=self.mpi_comm,
         )
 
     @_profile
@@ -3362,6 +3364,7 @@ class Simulation:
             nthreads=nthreads,
             correlation=correlation,
             n_modes=n_modes,
+            comm=self.mpi_comm,
         )
 
     @_profile
