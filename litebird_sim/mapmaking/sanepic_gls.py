@@ -17,7 +17,6 @@ from ducc0.healpix import Healpix_Base
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
-from litebird_sim.mpi import MPI_COMM_WORLD, MPI_ENABLED
 from litebird_sim.noise import (
     _build_detector_groups,
     _normalize_rho,
@@ -32,6 +31,7 @@ from litebird_sim.observation_utilities import (
 from litebird_sim.utilities import resolve_nthreads
 
 from .common import get_pol_efficiency
+from .reduction import reduction_for_observations
 
 if TYPE_CHECKING:
     import pysanepic
@@ -76,6 +76,17 @@ def _sky_array(x):
             raise ValueError("pysanepic needs alm at one frequency")
         return np.asarray(x.values)
     return np.asarray(x)
+
+
+def _sanepic_comm(obs_list, comm):
+    """The communicator to pass to pysanepic: `comm` if given, otherwise the one
+    of the observations (see :func:`.reduction_for_observations`); ``None`` for
+    a serial run"""
+    if comm is None:
+        comm = reduction_for_observations(obs_list).comm
+    if comm is not None and comm.size == 1:
+        return None
+    return comm
 
 
 def _import_pysanepic(feature: str = "OneOverFNoise", version: str = "0.3.0"):
@@ -299,6 +310,8 @@ def make_sanepic_gls_map(
     pointing_form: str = "auto",
     verbose: bool = False,
     flag_mask: int | None = None,
+    *,
+    comm=None,
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -417,6 +430,11 @@ def make_sanepic_gls_map(
         Print the progress of pysanepic on the first MPI process: the PCG
         iterations and, with calibration, the largest gain correction of
         each iteration. False by default.
+    comm : mpi4py communicator, optional
+        The processes that share the observations; every one of them must
+        call this function. By default it is inferred from the observations
+        (see :func:`.reduction_for_observations`); pass it if some processes
+        have no local observations. :class:`.Simulation` passes its own.
 
     Returns
     -------
@@ -506,7 +524,7 @@ def make_sanepic_gls_map(
         tod_templates=tod_templates,
     )
 
-    comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
+    comm = _sanepic_comm(obs_list, comm)
     return pysanepic.make_maps(
         data,
         nside,
@@ -530,6 +548,8 @@ def compute_sanepic_beam_templates(
     dtype=np.float64,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
+    *,
+    comm=None,
 ) -> dict:
     """
     Beam templates for :func:`.make_sanepic_gls_map`: pointing offsets and
@@ -585,7 +605,11 @@ def compute_sanepic_beam_templates(
         dtype used to compute pointings on the fly, by default `np.float64`
     nthreads : int, optional
         Threads per process; by default resolved with :func:`.resolve_nthreads`
-
+    comm : mpi4py communicator, optional
+        The processes that share the observations; every one of them must
+        call this function. By default it is inferred from the observations
+        (see :func:`.reduction_for_observations`); pass it if some processes
+        have no local observations. :class:`.Simulation` passes its own.
     Returns
     -------
     dict
@@ -650,8 +674,9 @@ def compute_sanepic_beam_templates(
                 out[k][det_idx] = v
         for k, v in out.items():
             setattr(obs, k, v)
-    if MPI_ENABLED and MPI_COMM_WORLD.size > 1:
-        has_hwp = set().union(*MPI_COMM_WORLD.allgather(has_hwp))
+    comm = _sanepic_comm(obs_list, comm)
+    if comm is not None:
+        has_hwp = set().union(*comm.allgather(has_hwp))
     if len(has_hwp) > 1:
         raise ValueError(
             "compute_sanepic_beam_templates: observations with and without HWP "
@@ -685,6 +710,8 @@ def estimate_sanepic_noise(
     n_modes: int = 1,
     flag_mask: int | None = None,
     dipole_component: str | None = None,
+    *,
+    comm=None,
 ) -> dict:
     """
     Noise spectrum of each detector from the residual of a pysanepic map.
@@ -719,6 +746,9 @@ def estimate_sanepic_noise(
     group. Pass it to :func:`.make_sanepic_gls_map` with the same
     `correlation`. The parameters of the model (``rho``, the spectrum of
     the mode) are not used.
+
+    `comm` is the communicator of the processes sharing the observations, as
+    in :func:`.make_sanepic_gls_map`.
     """
     pysanepic = _import_pysanepic("estimate_noise", "0.4.0")
     extra = {}
@@ -777,7 +807,7 @@ def estimate_sanepic_noise(
         angles=angles,
         tod_templates=tod_templates,
     )
-    comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
+    comm = _sanepic_comm(obs_list, comm)
     return pysanepic.estimate_noise(
         data,
         result,
