@@ -79,3 +79,21 @@ def test_h_maps_accumulate_over_observations():
             split.h_maps["a"][nm].imag, single.h_maps["a"][nm].imag, atol=1e-12
         )
     np.testing.assert_allclose(split.duration_s, single.duration_s)
+
+
+def test_h_maps_duration_is_union_of_time_intervals():
+    # Observations with the same start but different lengths must give the
+    # length of their union, whatever their order
+    short = _observations(["a"], duration_s=600.0)
+    long = _observations(["b"], duration_s=1200.0)
+
+    assert _make(short + long).duration_s == _make(long + short).duration_s
+    np.testing.assert_allclose(_make(short + long).duration_s, 1200.0)
+
+
+def test_union_length_s():
+    from litebird_sim.mapmaking.h_maps import _union_length_s
+
+    assert _union_length_s([]) == 0.0
+    assert _union_length_s([(0, 10), (0, 5)]) == 10.0
+    assert _union_length_s([(20, 30), (0, 10), (5, 12)]) == 22.0
