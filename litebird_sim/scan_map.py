@@ -17,8 +17,10 @@ from .maps_and_harmonics import (
     interpolate_alm,
 )
 from .observations import Observation
-from .observation_pointings import ObservationPointings, observation_pointings
+
 from .observation_utilities import (
+    ObservationPointings,
+    observation_pointings,
     _get_pointings_array,
     _get_pol_angle,
 )

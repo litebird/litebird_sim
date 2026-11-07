@@ -6,7 +6,7 @@ import pytest
 
 import litebird_sim as lbs
 from litebird_sim import CoordinateSystem
-from litebird_sim.observation_pointings import (
+from litebird_sim.observation_utilities import (
     ObservationPointings,
     observation_pointings,
 )
