@@ -2915,10 +2915,17 @@ class Simulation:
         pointings_dtype=np.float64,
         save_to_file: bool = True,
         output_directory: str = "./h_n_maps",
+        *,
+        keep_maps: bool = True,
     ) -> HMapsResult:
         """
         Computes the Hn maps from the pointings  of `sim.observations`.
         This is a wrapper around :func:`litebird_sim.mapmaking.make_h_maps`.
+
+        Set ``keep_maps=False`` with ``save_to_file=True`` to write detector
+        files progressively and return their paths in ``result.filenames``
+        without retaining the maps. All simulation processes must participate,
+        including processes without local observations.
 
         """
         return make_h_maps(
@@ -2932,6 +2939,8 @@ class Simulation:
             pointings_dtype=pointings_dtype,
             save_to_file=save_to_file,
             output_directory=output_directory,
+            keep_maps=keep_maps,
+            comm=self.mpi_comm,
         )
 
     def _impose_and_check_full_split(self, detector_splits, time_splits):

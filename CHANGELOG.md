@@ -1,5 +1,9 @@
 # HEAD
 
+-   `make_h_maps` and `Simulation.make_h_maps` accept `keep_maps=False` with `save_to_file=True`: each detector is written progressively, reusing one detector's accumulation buffers and retaining no completed maps. The default still returns maps in memory. `HMapsResult.filenames` lists the files written by the current process. With MPI, `HMapsResult.h_maps` contains only the detectors owned by the current process; with `save_to_file=True` all processes wait until every file is written, so the files of all the detectors can be read right after the call. The simulation wrapper also includes MPI processes without local observations in the reductions. Reference PR: [#607](https://github.com/litebird/litebird_sim/pull/607).
+
+-   `make_h_maps` with MPI: the spin sums of a detector observed by several processes are reduced on the lowest rank observing it, which returns and saves its maps; processes without observations take part in the reductions; repeated `(n, m)` pairs no longer count the samples twice. Reference PR: [#607](https://github.com/litebird/litebird_sim/pull/607).
+
 -   `make_destriped_map` sums its observations over their MPI communicator (via `reduction_for_observations`) instead of `MPI_COMM_WORLD`, so it gives correct maps when the observations live on a sub-communicator. `bytes_in_temporary_buffers` is no longer summed over the processes twice. Reference PR: [#653](https://github.com/litebird/litebird_sim/pull/653).
 
 -   New module `mapmaking/reduction.py`: `reduction_for_observations` decides the MPI communicator over which a map-maker sums its observations and returns an `MpiReduction` or a `SerialReduction`. The binner and pair-differencing use it; it replaces `_get_reduction_comm`. Reference PR: [#652](https://github.com/litebird/litebird_sim/pull/652).

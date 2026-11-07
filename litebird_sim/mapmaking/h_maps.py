@@ -1,7 +1,8 @@
 import gc
 import logging
 import os
-from dataclasses import dataclass
+from contextlib import contextmanager, nullcontext
+from dataclasses import dataclass, field
 
 import h5py
 import numpy as np
@@ -21,6 +22,7 @@ from litebird_sim.observation_utilities import (
 )
 from litebird_sim.utilities import cos_sin, resolve_nthreads
 
+from .reduction import reduction_for_observations
 from .common import (
     _build_mask_detector_split,
     _build_mask_time_split,
@@ -70,7 +72,8 @@ class HMapsResult:
     """Result of :func:`make_h_maps`.
 
     :ivar h_maps: Mapping ``detector -> {(n, m): h_map_Re_and_Im}`` containing
-        all computed :math:`h_{n,m}` maps.
+        the computed :math:`h_{n,m}` maps. With MPI, only the detectors owned by
+        this process (the lowest rank observing them) are included.
     :type h_maps: dict[str, dict[tuple[int, int], h_map_Re_and_Im]]
     :ivar duration_s: Duration of the simulated observation in seconds.
     :type duration_s: float
@@ -82,6 +85,8 @@ class HMapsResult:
     :type detector_split: str
     :ivar time_split: Time split used to build the maps.
     :type time_split: str
+    :ivar filenames: Files written by this process, indexed by detector name.
+    :type filenames: dict[str, str]
     """
 
     h_maps: dict[str, dict[tuple[int, int], h_map_Re_and_Im]]
@@ -91,6 +96,7 @@ class HMapsResult:
 
     detector_split: str = "full"
     time_split: str = "full"
+    filenames: dict[str, str] = field(default_factory=dict)
 
 
 def load_h_maps_from_file(
@@ -132,15 +138,8 @@ def load_h_maps_from_file(
 
 @njit(parallel=True)
 def _solve_binning(nobs_matrix, atd):
-    # Solve the map-making equation
-    #
-    # This method alters the parameter `nobs_matrix`, so that after its completion
-    # each 3×3 matrix in nobs_matrix[idx, :, :] will be the *inverse*.
-
-    # Expected shape:
-    # - `nobs_matrix`: array of shape (Ndet,N_p,3), where
-    #   N_p is the number of pixels in the map and Ndet the number of detectors
-    # - `atd`: (Ndet,N_p, 2)
+    # Normalize the accumulated cosine/sine sums, in place in `atd`.
+    # Shapes are (Npix, 3) for nobs_matrix and (Npix, 2) for atd.
     npix = atd.shape[0]
     for ipix in prange(npix):  # type: ignore[not-iterable]
         if nobs_matrix[ipix, 0] != 0:
@@ -170,9 +169,9 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
 
             cos_n_m, sin_n_m = cos_sin(n * cur_psi + m * cur_hwp_angle)
             if (n, m) == (0, 0):
-                info_pix[0] = (
-                    1  # if n=m=0 we compute the hit count, beceause it is useful to combine h maps later on
-                )
+                # Keep the normalization at one across all observations so
+                # the cosine sum remains a hit count after solving.
+                info_pix[0] = 1
             else:
                 info_pix[0] += 1
             info_pix[1] += cos_n_m
@@ -181,17 +180,14 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
 
 @njit
 def _numba_extract_rhs(nobs_matrix: npt.NDArray, rhs: npt.NDArray) -> None:
-    # This is used internally by _extract_map_and_fill_info.
     for idx in range(nobs_matrix.shape[0]):
-        # Extract the vector from the lower left triangle of the 3×3 matrix
-        # nobs_matrix[idx, :, :]
+        # Extract the accumulated cosine and sine sums.
         rhs[idx, 0] = nobs_matrix[idx, 1]
         rhs[idx, 1] = nobs_matrix[idx, 2]
 
 
 def _extract_rhs(n_obs: npt.NDArray) -> npt.NDArray:
-    # Extract the RHS of the mapmaking equation from the lower triangle of info
-    # The RHS has a shape (Ndet,Np,2)
+    # The RHS contains the spin sums and has shape (Npix, 2).
     rhs = np.empty((n_obs.shape[0], 2), dtype=n_obs.dtype)
 
     # The implementation in Numba of this code is ~5 times faster than the older
@@ -199,6 +195,39 @@ def _extract_rhs(n_obs: npt.NDArray) -> npt.NDArray:
     _numba_extract_rhs(n_obs, rhs)
 
     return rhs
+
+
+def _build_nobs_matrix(
+    n: int,
+    m: int,
+    nside: int,
+    pixidx: npt.NDArray,
+    polang: npt.NDArray,
+    hwp_angle: npt.NDArray | None,
+    time_mask: npt.NDArray,
+    nobs_matrix: npt.NDArray | None = None,
+) -> npt.NDArray:
+    """Accumulate one detector's spin terms and normalization in a (Npix, 3)
+    matrix. Pass an existing matrix to include another observation before
+    solving; otherwise a zero-filled matrix is allocated.
+    """
+    if nobs_matrix is None:
+        n_pix = HealpixMap.nside_to_npix(nside)
+        nobs_matrix = np.zeros((n_pix, 3))
+
+    if hwp_angle is None:
+        hwp_angle = np.zeros_like(polang)
+    _accumulate_spin_terms_and_build_nobs_matrix(
+        n,
+        m,
+        pixidx,
+        polang,
+        hwp_angle,
+        time_mask,
+        nobs_matrix,
+    )
+
+    return nobs_matrix
 
 
 def _time_interval_s(obs: Observation) -> tuple[float, float]:
@@ -243,10 +272,15 @@ def make_h_maps(
     save_to_file: bool = True,
     output_directory: str = "./h_n_maps",
     nthreads: int | None = None,
+    *,
+    keep_maps: bool = True,
+    comm=None,
 ) -> HMapsResult:
     """Generate complex harmonic maps :math:`h_{n,m}` from observations.
 
     The map for ``(n, m) = (0, 0)`` contains hit counts per pixel.
+    Observations with the same detector name contribute to one map: their
+    spin terms and normalizations are accumulated before solving.
 
     :param observations: Observation object or list of observations used to build
         the maps.
@@ -275,11 +309,22 @@ def make_h_maps(
     :param nthreads: Number of threads to use for ducc0 calls. If None,
         resolved via :func:`.resolve_nthreads`.
     :type nthreads: int | None
-    :returns: Result container with all computed maps and metadata.
+    :param keep_maps: Retain computed maps in the returned ``h_maps`` dictionary.
+        If ``False``, ``save_to_file`` must be ``True``: each detector is written
+        before computing the next, and the returned dictionary is empty.
+    :type keep_maps: bool
+    :param comm: Communicator for the reductions. By default it is inferred from
+        the observations. Pass it explicitly if some processes have no local
+        observations; all processes in the communicator must call this function.
+    :returns: Result container with the maps and files of the detectors owned by
+        this process, and the metadata. When ``save_to_file`` is ``True``, all the
+        files of all processes have been written when the function returns.
     :rtype: HnMapResult
     """
 
     nthreads = resolve_nthreads(nthreads)
+    if not keep_maps and not save_to_file:
+        raise ValueError("save_to_file must be True when keep_maps is False")
 
     assert (
         n_m_couples.shape[1] == 2
@@ -292,20 +337,16 @@ def make_h_maps(
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
     )
-    assert obs_list, "No observations were provided"
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
-
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
-    hpx = Healpix_Base(nside, "RING")
-    n_pix = HealpixMap.nside_to_npix(nside)
-
-    # The same detector can appear in several observations (e.g., when the
-    # time stream is split): list them per detector, so that its hits can be
-    # accumulated over all of them while only one detector is in memory
-    det_occurrences: dict[str, list[tuple[int, int]]] = {}
+    # Store local indices with their observation; detector order and membership
+    # may change between observations. Grouping also bounds the working matrices
+    # to one detector, rather than keeping matrices for the whole focal plane.
+    detector_observations = {}
     time_intervals = []
+    sampling_rate = 0.0
     for obs_idx, (cur_obs, cur_d_mask) in enumerate(zip(obs_list, detector_mask_list)):
         assert cur_d_mask.ravel().any(), (
             "No detectors is selected by the current detector split"
@@ -314,31 +355,89 @@ def make_h_maps(
             "The current implementation of make_h_maps only supports one time block per observation, you can set several detector blocks though."
         )
         time_intervals.append(_time_interval_s(cur_obs))
-
+        sampling_rate = cur_obs.sampling_rate_hz
         for idet in range(cur_obs.n_detectors):
-            det_name = str(cur_obs.name[idet])
             if not cur_d_mask[idet]:
-                log.info(f"skipping detector {det_name}")
+                log.info(f"skipping detector {idet}")
                 continue
-            det_occurrences.setdefault(det_name, []).append((obs_idx, idet))
+            det = cur_obs.name[idet]
+            detector_observations.setdefault(det, []).append((obs_idx, idet))
 
-    sampling_rate = obs_list[-1].sampling_rate_hz
-    duration_s = _union_length_s(time_intervals)
+    # Observations split in time over the MPI processes put the same detector
+    # on several processes. Each detector is owned by the lowest rank that
+    # observes it: its partial sums are reduced there, and only the owner
+    # solves, keeps and saves the maps of that detector.
+    if comm is None:
+        comm = reduction_for_observations(obs_list).comm
+    rank = comm.rank if comm is not None else 0
+    local_info = (list(detector_observations), time_intervals, sampling_rate)
+    if comm is not None and comm.size > 1:
+        info_per_rank = comm.allgather(local_info)
+    else:
+        info_per_rank = [local_info]
+    owner = {}
+    shared_dets = set()
+    for cur_rank, (dets, _, _) in enumerate(info_per_rank):
+        for det in dets:
+            if det in owner:
+                shared_dets.add(det)
+            else:
+                owner[det] = cur_rank
+    if not owner:
+        raise ValueError("At least one observation is required to compute h maps")
+    if not obs_list:
+        # Idle processes still participate in the reductions. Their result has
+        # no maps or files; copy metadata from the first process with data.
+        _, _, sampling_rate = next(info for info in info_per_rank if info[0])
 
-    h_maps = {}
-    for det_name, occurrences in det_occurrences.items():
-        nobs_matrices = {(int(n), int(m)): np.zeros((n_pix, 3)) for n, m in n_m_couples}
+    # The duration covers the time intervals of all the processes, whatever
+    # the order of the observations
+    duration_s = _union_length_s(
+        [interval for _, intervals, _ in info_per_rank for interval in intervals]
+    )
 
-        for obs_idx, idet in occurrences:
+    # Repeated spin pairs must not accumulate the same samples twice.
+    spin_pairs = list(dict.fromkeys(map(tuple, n_m_couples)))
+    result = HMapsResult(
+        h_maps=({det: {} for det in owner if owner[det] == rank} if keep_maps else {}),
+        coordinate_system=output_coordinate_system,
+        duration_s=duration_s,
+        sampling_rate_Hz=sampling_rate,
+        detector_split=detector_split,
+        time_split=time_split,
+    )
+    if save_to_file:
+        os.makedirs(output_directory, exist_ok=True)
+    hpx = Healpix_Base(nside, "RING")
+    n_pix = HealpixMap.nside_to_npix(nside)
+    working_matrices = None
+    # Same order on all processes, as the reductions are collective
+    for det in sorted(owner):
+        is_shared = det in shared_dets
+        if owner[det] != rank and not is_shared:
+            continue
+
+        if working_matrices is None:
+            working_matrices = {pair: np.zeros((n_pix, 3)) for pair in spin_pairs}
+        else:
+            for matrix in working_matrices.values():
+                matrix.fill(0.0)
+        # Reuse one detector's buffers. Repeatedly freeing and allocating large
+        # NumPy arrays can grow the allocator's resident memory even after the
+        # arrays themselves have been released. Only this small dict is copied.
+        nobs_matrices = working_matrices.copy()
+        for obs_idx, idet in detector_observations.get(det, []):
             cur_obs = obs_list[obs_idx]
-            log.info(f" Computing pixel indices and angles for detector {det_name}")
+            cur_ptg = ptg_list[obs_idx]
+            cur_t_mask = time_mask_list[obs_idx]
+            log.info(f"Computing pixel indices and angles for detector {det}")
 
             hwp_angle = _get_hwp_angle(
                 obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
             )
             pixidx, polang = _compute_pixel_indices_single_detector(
                 hpx=hpx,
-                pointings=ptg_list[obs_idx],
+                pointings=cur_ptg,
                 pol_angle_detector=cur_obs.pol_angle_rad[idet],
                 num_of_samples=cur_obs.n_samples_process,
                 detector_index=idet,
@@ -348,53 +447,105 @@ def make_h_maps(
                 hmap_generation=True,
                 nthreads=nthreads,
             )
-            if hwp_angle is None:
-                hwp_angle = np.zeros_like(polang)
-
             log.info(
-                f"Pixel indices and angles for detector {det_name} computed, now accumulating nobs matrices"
+                f"Pixel indices and angles for detector {det} computed, now accumulating nobs matrices"
             )
-            for (n, m), nobs_matrix in nobs_matrices.items():
-                _accumulate_spin_terms_and_build_nobs_matrix(
+
+            for n, m in spin_pairs:
+                nobs_matrices[n, m] = _build_nobs_matrix(
                     n,
                     m,
-                    pixidx,
-                    polang,
-                    hwp_angle,
-                    time_mask_list[obs_idx],
-                    nobs_matrix,
+                    nside=nside,
+                    pixidx=pixidx,
+                    polang=polang,
+                    hwp_angle=hwp_angle,
+                    time_mask=cur_t_mask,
+                    nobs_matrix=nobs_matrices[n, m],
                 )
             del pixidx
             del polang
+            del hwp_angle
             gc.collect()
 
-        h_maps[det_name] = {}
-        for (n, m), nobs_matrix in nobs_matrices.items():
-            rhs = _extract_rhs(nobs_matrix)
-            _solve_binning(nobs_matrix, rhs)
-            h_maps[det_name][n, m] = h_map_Re_and_Im(
-                real=rhs.T[0].copy(),
-                imag=rhs.T[1].copy(),
-                det_info=det_name,
-                n=n,
-                m=m,
-            )
-            log.info(f"  h_map n={n} m={m} for detector {det_name} computed.")
-        del nobs_matrices
+        if is_shared:
+            from litebird_sim.mpi import MPI
+
+            for n, m in spin_pairs:
+                if rank == owner[det]:
+                    comm.Reduce(
+                        MPI.IN_PLACE, nobs_matrices[n, m], op=MPI.SUM, root=rank
+                    )
+                    if (n, m) == (0, 0):
+                        # Each process set the normalization to one in the
+                        # pixels it observed: keep it at one after the sum
+                        counts = nobs_matrices[n, m][:, 0]
+                        np.minimum(counts, 1.0, out=counts)
+                        del counts
+                else:
+                    comm.Reduce(nobs_matrices[n, m], None, op=MPI.SUM, root=owner[det])
+
+        if owner[det] != rank:
+            # Drop this detector's references; the working buffers will be
+            # reset and reused, also on processes without local samples.
+            nobs_matrices.clear()
+            continue
+
+        # Solve once, after every observation of this detector has contributed.
+        filename = os.path.join(output_directory, f"h_maps_det_{det}.h5")
+        file_context = (
+            _h_map_file(filename, result, det) if save_to_file else nullcontext()
+        )
+        with file_context as output_file:
+            for n, m in spin_pairs:
+                nobs_matrix = nobs_matrices.pop((n, m))
+                # Normalize the spin sums in place. Streaming writes these views
+                # directly, without allocating separate real and imaginary maps.
+                rhs = nobs_matrix[:, 1:]
+                _solve_binning(nobs_matrix, rhs)
+                component = h_map_Re_and_Im(
+                    real=rhs[:, 0].copy() if keep_maps else rhs[:, 0],
+                    imag=rhs[:, 1].copy() if keep_maps else rhs[:, 1],
+                    det_info=det,
+                    n=n,
+                    m=m,
+                )
+                if output_file is not None:
+                    _write_h_map(output_file, component)
+                if keep_maps:
+                    result.h_maps[det][n, m] = component
+                log.info(f"h_map n={n} m={m} for detector {det} computed.")
+                del component
+                del rhs
+                del nobs_matrix
+        if save_to_file:
+            result.filenames[det] = filename
         gc.collect()
 
-    result = HMapsResult(
-        h_maps=h_maps,
-        coordinate_system=output_coordinate_system,
-        duration_s=duration_s,
-        sampling_rate_Hz=sampling_rate,
-        detector_split=detector_split,
-        time_split=time_split,
-    )
     if save_to_file:
-        save_h_maps(result, output_directory)
+        # Other processes may read files written by different owners right after
+        if comm is not None and comm.size > 1:
+            comm.Barrier()
         log.info(f"h_n maps saved to directory: {output_directory}")
     return result
+
+
+@contextmanager
+def _h_map_file(filename: str, result: HMapsResult, det: str):
+    """Open one detector file and write the common HDF5 metadata."""
+    with h5py.File(filename, "w") as output_file:
+        output_file.attrs["coordinate_system"] = result.coordinate_system.name
+        output_file.attrs["det"] = str(det)
+        output_file.attrs["detector_split"] = result.detector_split
+        output_file.attrs["time_split"] = result.time_split
+        output_file.attrs["duration_s"] = result.duration_s
+        output_file.attrs["sampling_rate_Hz"] = result.sampling_rate_Hz
+        yield output_file
+
+
+def _write_h_map(output_file, component: h_map_Re_and_Im) -> None:
+    group = output_file.create_group(f"{component.n},{component.m}")
+    group.create_dataset("Re", data=component.real)
+    group.create_dataset("Im", data=component.imag)
 
 
 def save_h_maps(result, output_directory: str) -> None:
@@ -411,19 +562,11 @@ def save_h_maps(result, output_directory: str) -> None:
     :rtype: None
     """
 
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
+    # Several MPI processes may create the directory at the same time
+    os.makedirs(output_directory, exist_ok=True)
     for det in result.h_maps.keys():
-        with h5py.File(
-            os.path.join(output_directory, f"h_maps_det_{det}.h5"), "w"
-        ) as f:
-            f.attrs["coordinate_system"] = result.coordinate_system.name
-            f.attrs["det"] = str(det)
-            f.attrs["detector_split"] = result.detector_split
-            f.attrs["time_split"] = result.time_split
-            f.attrs["duration_s"] = result.duration_s
-            f.attrs["sampling_rate_Hz"] = result.sampling_rate_Hz
+        filename = os.path.join(output_directory, f"h_maps_det_{det}.h5")
+        with _h_map_file(filename, result, det) as f:
             for hn_map in result.h_maps[det].values():
-                grp = f.create_group(f"{hn_map.n},{hn_map.m}")
-                grp.create_dataset("Re", data=hn_map.real)
-                grp.create_dataset("Im", data=hn_map.imag)
+                _write_h_map(f, hn_map)
+        result.filenames[det] = filename
