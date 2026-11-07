@@ -7,7 +7,7 @@
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,11 +29,9 @@ from litebird_sim.maps_and_harmonics import HealpixMap
 from ..utilities import cos_sin, resolve_nthreads
 
 from .reduction import reduction_for_observations
+from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
     COND_THRESHOLD,
-    _build_mask_detector_split,
-    _build_mask_time_split,
-    _check_valid_splits,
     _compute_pixel_indices,
     get_map_making_weights,
     get_pol_efficiency,
@@ -325,7 +323,7 @@ def _get_detector_pairs(
 
 def _check_tb_detector_pairs(
     obs_list: list[Observation],
-    detector_mask_list: list[npt.NDArray | None] | None = None,
+    detector_mask_list: Sequence[npt.NDArray | None] | None = None,
 ) -> None:
     """Verify that detectors form valid T/B pairs sharing the same wafer and pixel.
 
@@ -445,68 +443,3 @@ def make_pair_differenced_map(
         detector_split=detector_split,
         time_split=time_split,
     )
-
-
-def check_valid_splits(
-    observations: Observation | list[Observation],
-    detector_splits: str | list[str] = "full",
-    time_splits: str | list[str] = "full",
-):
-    """Check if the splits are valid
-
-    For each observation in the list, check if the detector and time splits
-    are valid.
-    In particular, the compatibility between the detectors in each observation
-    and the desired split in detector domain is checked. On the other hand, this
-    assess whether the desired time split fits inside the duration of the
-    observation (when this applies).
-    If the splits are not compatible with the input data, an error is raised.
-
-    Args:
-        observations (list of :class:`Observations`): observations to be mapped.
-            They are required to have the following attributes as arrays
-
-            * `pointings`: the pointing information (in radians) for each tod
-               sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
-               with ``N_d`` number of detectors and ``N_t`` number of
-               samples in the TOD.
-            * any attribute listed in `components` (by default, `tod`) and
-              containing the TOD(s) to be binned together.
-
-            If the observations are distributed over some communicator(s), they
-            must share the same group processes.
-            If pointings and psi are not included in the observations, they can
-            be provided through an array (or a list of arrays) of dimension
-            (Ndetectors x Nsamples x 3), containing theta, phi and psi
-        detector_splits (str | list[str], optional): detector-domain splits
-            used to produce maps.
-
-            * "full": every detector in the observation will be used;
-            * "waferXXX": the mapmaking will be performed on the intersection
-                of the detectors specified in the input and the detectors specified
-                in the detector_split.
-                The wafer must be specified in the format "waferXXX". The valid values
-                for "XXX" are all the 3-digits strings corresponding to the wafers
-                in the LITEBIRD focal plane (e.g. L00, M01, H02).
-
-        time_splits (str | list[str], optional): time-domain splits
-            used to produce maps. This defaults to "full" indicating that every
-            sample in the observation will be used. In addition, the user can specify
-            a string, or a list of strings, to indicate a subsample of the observation
-            to be used:
-
-            * "full": every sample in the observation will be used;
-            * "first_half" and/or "second_half": the first and/or second half of the
-                observation will be used;
-            * "odd" and/or "even": the odd and/or even samples in the observation
-                will be used;
-            * "yearX": the samples in the observation will be
-                used according to the year they belong to (relative to the
-                starting time). The valid values for "X" are ["1", "2", "3"].
-            * "surveyX": the samples in the observation will be used according
-                to the requested survey. In this context, a survey is taken to
-                be complete in 6 months, thus the valid values for "X" are
-                ["1", "2", "3", "4", "5", "6"].
-
-    """
-    _check_valid_splits(observations, detector_splits, time_splits)

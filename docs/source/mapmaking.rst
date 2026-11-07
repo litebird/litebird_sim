@@ -357,6 +357,10 @@ split is compatible with the observation duration and the detector
 list. Thus, for example, if the observation lasts one year, the split ``year2``
 will raise an ``AssertionError``. Similarly, if some detector in the L00 wafer
 does the observation, ``waferL03`` will also raise an ``AssertionError``.
+The map-makers run the same checks every time they build the masks of the
+splits, also when they are called directly instead of through
+:class:`.Simulation`. The splits for ``yearX`` and ``surveyX`` require the
+observation to last at least X years or X half-years.
 
 
 Flags

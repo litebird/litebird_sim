@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from collections.abc import Callable
 
-import astropy.time
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
@@ -15,15 +14,6 @@ from litebird_sim.utilities import resolve_nthreads
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not
 COND_THRESHOLD = 1e10
-
-# Definition of time splits
-t_year_sec = 365 * 24 * 3600
-t_survey_sec = 365 * 24 * 3600 / 2
-
-# Definition of detector splits
-lft_wafers = ["L00", "L01", "L02", "L03", "L04", "L05", "L06", "L07"]
-mft_wafers = ["M00", "M01", "M02", "M03", "M04", "M05", "M06"]
-hft_wafers = ["H00", "H01", "H02"]
 
 
 @dataclass
@@ -482,61 +472,6 @@ def estimate_cond_number(
     return (max_abs_eval / min_abs_eval, True)
 
 
-def _build_mask_time_split(
-    time_split: str,
-    obs_list: list[Observation],
-):
-    max_years = 3
-    max_surveys = 6
-    valid_splits = (
-        ["full", "odd", "even", "first_half", "second_half"]
-        + [f"year{i}" for i in range(1, max_years + 1)]
-        + [f"survey{i}" for i in range(1, max_surveys + 1)]
-    )
-    if time_split not in valid_splits:
-        raise ValueError(
-            f"Unknown time split '{time_split}', valid ones are {valid_splits}"
-        )
-
-    time_mask = []
-
-    for cur_obs in obs_list:
-        mask = np.zeros(cur_obs.n_samples_process, dtype=bool)
-
-        if time_split == "full":
-            # A read-only view needs no memory: a real array would take one
-            # byte per sample for *all* the observations at once (~7 GB per
-            # process for 3 years of one 75 Hz detector)
-            time_mask.append(np.broadcast_to(np.True_, cur_obs.n_samples_process))
-        elif time_split == "odd":
-            mask[0::2] = True
-            time_mask.append(mask)
-        elif time_split == "even":
-            mask[1::2] = True
-            time_mask.append(mask)
-        elif time_split == "first_half":
-            mask[0 : cur_obs.n_samples_process // 2] = True
-            time_mask.append(mask)
-        elif time_split == "second_half":
-            mask[cur_obs.n_samples_process // 2 :] = True
-            time_mask.append(mask)
-        for i in range(1, max_years + 1):
-            if time_split == f"year{i}":
-                t_i = _get_initial_time(cur_obs)
-                time_mask.append(
-                    ((cur_obs.get_times() - t_i) >= (i - 1) * t_year_sec)
-                    * ((cur_obs.get_times() - t_i) < i * t_year_sec)
-                )
-        for i in range(1, max_surveys + 1):
-            if time_split == f"survey{i}":
-                t_i = _get_initial_time(cur_obs)
-                time_mask.append(
-                    ((cur_obs.get_times() - t_i) >= (i - 1) * t_survey_sec)
-                    * ((cur_obs.get_times() - t_i) < i * t_survey_sec)
-                )
-    return time_mask
-
-
 def _apply_flags_to_time_masks(
     time_mask_list: list[npt.NDArray],
     obs_list: list[Observation],
@@ -574,100 +509,3 @@ def _apply_flags_to_time_masks(
         result.append(mask)
 
     return result
-
-
-def _get_initial_time(
-    observations: Observation,
-):
-    if isinstance(observations.start_time_observation, astropy.time.Time):
-        t_i = observations.start_time_observation.cxcsec
-    else:
-        t_i = observations.start_time_observation
-    return t_i
-
-
-def _get_end_time(
-    observations: Observation,
-):
-    if isinstance(observations.end_time_observation, astropy.time.Time):
-        t_f = observations.end_time_observation.cxcsec
-    else:
-        t_f = observations.end_time_observation
-    return t_f
-
-
-def _build_mask_detector_split(
-    detector_split: str,
-    obs_list: list[Observation],
-):
-    detector_mask = []
-
-    if detector_split == "full":
-        for cur_obs in obs_list:
-            detector_mask.append(np.ones(cur_obs.n_detectors, dtype=bool))
-    elif "wafer" in detector_split:
-        for cur_obs in obs_list:
-            detector_mask.append(cur_obs.wafer == detector_split.replace("wafer", ""))
-
-    return detector_mask
-
-
-def _check_valid_splits(
-    observations: Observation | list[Observation],
-    detector_splits: str | list[str] = "full",
-    time_splits: str | list[str] = "full",
-):
-    valid_detector_splits = ["full"]
-    valid_detector_splits.extend(
-        [f"wafer{wafer}" for wafer in lft_wafers + mft_wafers + hft_wafers]
-    )
-    valid_time_splits = [
-        "full",
-        "first_half",
-        "second_half",
-        "odd",
-        "even",
-    ]
-    max_years = 3
-    max_surveys = 6
-    valid_time_splits.extend([f"year{i}" for i in range(1, max_years + 1)])
-    valid_time_splits.extend([f"survey{i}" for i in range(1, max_surveys + 1)])
-
-    if isinstance(observations, Observation):
-        observations = [observations]
-    if isinstance(detector_splits, str):
-        detector_splits = [detector_splits]
-    if isinstance(time_splits, str):
-        time_splits = [time_splits]
-
-    _validate_detector_splits(observations, detector_splits, valid_detector_splits)
-    _validate_time_splits(observations, time_splits, valid_time_splits)
-    print("Splits are valid!")
-
-
-def _validate_detector_splits(observations, detector_splits, valid_detector_splits):
-    for ds in detector_splits:
-        if ds not in valid_detector_splits:
-            msg = f"Detector split '{ds}' not recognized!\nValid detector splits are {valid_detector_splits}"
-            raise ValueError(msg)
-        for cur_obs in observations:
-            if "wafer" in ds:
-                requested_wafer = ds.replace("wafer", "")
-                if requested_wafer not in cur_obs.wafer:
-                    msg = f"The requested wafer '{ds}' is not part of the requested observation with wafers {cur_obs.wafer}!"
-                    raise AssertionError(msg)
-
-
-def _validate_time_splits(observations, time_splits, valid_time_splits):
-    for ts in time_splits:
-        if ts not in valid_time_splits:
-            msg = f"Time split '{ts}' not recognized!\nValid time splits are {valid_time_splits}"
-            raise ValueError(msg)
-        if "year" in ts:
-            for cur_obs in observations:
-                duration = round(_get_end_time(cur_obs) - _get_initial_time(cur_obs), 0)
-                max_years = duration // t_year_sec
-                requested_years = int(ts.replace("year", ""))
-                if requested_years > max_years:
-                    msg = f"Time split '{ts}' not possible for observation with a duration of {round(duration / t_year_sec, 1)} years!"
-                    raise AssertionError(msg)
