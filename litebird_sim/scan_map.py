@@ -17,11 +17,10 @@ from .maps_and_harmonics import (
     interpolate_alm,
 )
 from .observations import Observation
+from .observation_pointings import ObservationPointings, observation_pointings
 from .observation_utilities import (
-    _get_hwp_angle,
     _get_pointings_array,
     _get_pol_angle,
-    _normalize_observations_and_pointings,
 )
 
 from .utilities import cos_sin, resolve_nthreads
@@ -123,7 +122,7 @@ def scan_map(
     hwp: HWP | None = None,
     hwp_angle: np.ndarray | None = None,
     mueller_hwp: np.ndarray | None = None,
-    input_names: str | None = None,
+    input_names: list[str] | None = None,
     interpolation: str | None = "",
     pointings_dtype=np.float64,
     nthreads: int | None = None,
@@ -158,8 +157,10 @@ def scan_map(
         Time-ordered data (TOD) array of shape (n_detectors, n_samples) that will be
         filled with the simulated sky signal.
 
-    pointings : np.ndarray or callable
-        Pointing information for each detector. If an array, it should have shape
+    pointings : np.ndarray, callable or ObservationPointings
+        Pointing information for each detector. An :class:`.ObservationPointings`
+        gives them in the coordinate system of each map, together with the HWP
+        angle if `hwp_angle` is None. If an array, it should have shape
         (n_detectors, n_samples, 2 or 3), where the first two entries are (theta, phi)
         in radians, and the optional third entry is the telescope orientation.
         If a callable, it should return pointing data when passed a detector index.
@@ -263,14 +264,21 @@ def scan_map(
         # ----------------------------------------------------------
         # Get pointings in the correct coordinate system
         # ----------------------------------------------------------
-        curr_pointings_det, hwp_angle = _get_pointings_array(
-            detector_idx=detector_idx,
-            pointings=pointings,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=coordinates,
-            pointings_dtype=pointings_dtype,
-            nthreads=nthreads,
-        )
+        if isinstance(pointings, ObservationPointings):
+            curr_pointings_det = pointings.detector(
+                detector_idx, output_coordinate_system=coordinates
+            )
+            if hwp_angle is None:
+                hwp_angle = pointings.hwp_angle
+        else:
+            curr_pointings_det, hwp_angle = _get_pointings_array(
+                detector_idx=detector_idx,
+                pointings=pointings,
+                hwp_angle=hwp_angle,
+                output_coordinate_system=coordinates,
+                pointings_dtype=pointings_dtype,
+                nthreads=nthreads,
+            )
 
         # ----------------------------------------------------------
         # REAL SPACE (HealpixMap)
@@ -481,9 +489,16 @@ def scan_map_in_observations(
       handling each one separately.
     """
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
+    # Pointings in Ecliptic coordinates by default: scan_map asks for those
+    # of the coordinate system of each map
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
     )
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
 
     if maps is None:
         try:
@@ -497,7 +512,7 @@ def scan_map_in_observations(
             )
             raise AttributeError(msg)
 
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+    for cur_obs, cur_ptg in obs_pointings:
         # Decide how to select maps for this observation
         if isinstance(maps, dict):
             if all(name in maps for name in cur_obs.name):
@@ -519,11 +534,7 @@ def scan_map_in_observations(
 
         # HWP handling: external HWP overrides, otherwise use obs.hwp
         cur_hwp = hwp if hwp is not None else cur_obs.hwp
-
-        # Could still be None here; _get_hwp_angle should handle that
-        hwp_angle = _get_hwp_angle(
-            obs=cur_obs, hwp=cur_hwp, pointing_dtype=pointings_dtype
-        )
+        hwp_angle = cur_ptg.hwp_angle
 
         # Set number of threads
         nthreads = resolve_nthreads(nthreads)
@@ -534,7 +545,8 @@ def scan_map_in_observations(
                 hwp=cur_hwp,
                 observation=cur_obs,
                 tod=getattr(cur_obs, component),
-                pointings=cur_ptg,
+                # This path still needs all the pointings in Ecliptic coordinates
+                pointings=cur_ptg.detector("all"),
                 maps=maps,
                 hwp_angle=hwp_angle,
                 pointings_dtype=pointings_dtype,

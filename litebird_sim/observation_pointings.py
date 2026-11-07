@@ -38,8 +38,8 @@ class ObservationPointings:
         pointings precomputed by :meth:`.Observation.precompute_pointings`
         are used if present, otherwise they are computed on the fly.
     :param hwp: An :class:`.HWP` that overrides the one of the observation
-    :param output_coordinate_system: The coordinate system of the pointings
-        returned by :meth:`.detector`
+    :param output_coordinate_system: The default coordinate system of the
+        pointings returned by :meth:`.detector`
     :param nside_centering: If given, (θ, φ) are moved to the center of their
         Healpix pixel at this resolution, after the rotation; ψ is unchanged
     :param pointings_dtype: The dtype of the pointings and of the HWP angle
@@ -111,13 +111,20 @@ class ObservationPointings:
             return obs.hwp_angle
         return obs.get_hwp_angle(pointings_dtype=self.pointings_dtype)
 
-    def detector(self, detector_idx: DetectorIndex) -> npt.NDArray:
+    def detector(
+        self,
+        detector_idx: DetectorIndex,
+        output_coordinate_system: CoordinateSystem | None = None,
+    ) -> npt.NDArray:
         """The pointings (θ, φ, ψ) of some detectors, in radians.
 
         `detector_idx` is an index (the result has shape ``(n_samples, 3)``),
         a list of indices or ``"all"`` (shape ``(n_detectors, n_samples, 3)``),
-        as in :meth:`.Observation.get_pointings`. The result must not be
+        as in :meth:`.Observation.get_pointings`. `output_coordinate_system`
+        overrides the one passed to the constructor. The result must not be
         modified: it may be a view of a precomputed array."""
+        if output_coordinate_system is None:
+            output_coordinate_system = self.output_coordinate_system
         if self._ecliptic_array is None:
             pointings, _ = self.observation.get_pointings(
                 detector_idx,
@@ -125,7 +132,7 @@ class ObservationPointings:
                 nside_centering=self.nside_centering,
                 nthreads=self.nthreads,
                 compute_hwp_angle=False,
-                output_coordinate_system=self.output_coordinate_system,
+                output_coordinate_system=output_coordinate_system,
             )
             return pointings
 
@@ -135,7 +142,7 @@ class ObservationPointings:
         else:
             selected = self._ecliptic_array[detector_idx]
 
-        if self.output_coordinate_system == CoordinateSystem.Galactic:
+        if output_coordinate_system == CoordinateSystem.Galactic:
             if selected.ndim == 2:
                 selected = rotate_coordinates_e2g(selected)
             else:

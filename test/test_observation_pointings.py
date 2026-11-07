@@ -158,3 +158,20 @@ def test_observation_pointings_on_lists():
     ptg = [o.get_pointings("all")[0] for o in obs_list]
     with pytest.raises(AssertionError, match="elements"):
         list(observation_pointings(obs_list, pointings=ptg[:1]))
+
+
+def test_coordinate_system_override():
+    for ptg in _three_ways(False, output_coordinate_system=CoordinateSystem.Ecliptic):
+        galactic = ObservationPointings(
+            ptg.observation,
+            pointings=ptg._ecliptic_array
+            if ptg._ecliptic_array is not None
+            and not hasattr(ptg.observation, "pointing_matrix")
+            else None,
+            output_coordinate_system=CoordinateSystem.Galactic,
+        )
+        _assert_same_angles(
+            ptg.detector(1, output_coordinate_system=CoordinateSystem.Galactic),
+            galactic.detector(1),
+        )
+        assert ptg.output_coordinate_system == CoordinateSystem.Ecliptic
