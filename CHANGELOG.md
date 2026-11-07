@@ -1,5 +1,7 @@
 # HEAD
 
+-   `make_destriped_map` keeps the pixel indices, polarization angles and weights for itself instead of storing them in the observations (`keep_weights`, `keep_pixel_idx` and `keep_pol_angle_rad` still store them at the end), and restores the TOD components it sums also when an exception is raised. Reference PR: [#657](https://github.com/litebird/litebird_sim/pull/657).
+
 -   `make_sanepic_gls_map`, `estimate_sanepic_noise` and `compute_sanepic_beam_templates` pass pysanepic the MPI communicator of the observations instead of `MPI_COMM_WORLD`, or the new keyword-only argument `comm`; the `Simulation` methods pass their own communicator. A new MPI test checks that every map-maker sums only over the communicator of its observations. Reference PR: [#655](https://github.com/litebird/litebird_sim/pull/655).
 
 -   `make_h_maps` and `Simulation.make_h_maps` accept `keep_maps=False` with `save_to_file=True`: each detector is written progressively, reusing one detector's accumulation buffers and retaining no completed maps. The default still returns maps in memory. `HMapsResult.filenames` lists the files written by the current process. With MPI, `HMapsResult.h_maps` contains only the detectors owned by the current process; with `save_to_file=True` all processes wait until every file is written, so the files of all the detectors can be read right after the call. The simulation wrapper also includes MPI processes without local observations in the reductions. Reference PR: [#607](https://github.com/litebird/litebird_sim/pull/607).
