@@ -1,5 +1,7 @@
 # HEAD
 
+-   `make_destriped_map` sums its observations over their MPI communicator (via `reduction_for_observations`) instead of `MPI_COMM_WORLD`, so it gives correct maps when the observations live on a sub-communicator. `bytes_in_temporary_buffers` is no longer summed over the processes twice. Reference PR: [#653](https://github.com/litebird/litebird_sim/pull/653).
+
 -   New module `mapmaking/reduction.py`: `reduction_for_observations` decides the MPI communicator over which a map-maker sums its observations and returns an `MpiReduction` or a `SerialReduction`. The binner and pair-differencing use it; it replaces `_get_reduction_comm`. Reference PR: [#652](https://github.com/litebird/litebird_sim/pull/652).
 
 -   Fix six bugs found in the architecture review ([#625](https://github.com/litebird/litebird_sim/issues/625)): unknown `time_split` names raise instead of producing an empty map; `make_h_maps` uses the right detector names and accumulates hits over all the observations of a detector, and its `duration_s` is the length of the union of their time intervals; `add_2f_to_observations` reads `amplitude_2f_k` from each observation; harmonic-HWP scanning honours `component` and no longer stores uninitialised pointings in `obs.pointing_matrix`; `Simulation.fill_tods`/`convolve_sky` no longer pass the Numba thread count to ducc0; `Observation.get_pointings` forwards `nthreads`. Reference PR: [#651](https://github.com/litebird/litebird_sim/pull/651).
