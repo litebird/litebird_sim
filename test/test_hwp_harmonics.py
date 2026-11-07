@@ -174,6 +174,19 @@ def test_hwp_harmonics(calculus):
         verbose=True,
     )
 
+    # The harmonic expansion must honour `component` and leave `tod` untouched
+    obs = list_of_sims[1].observations[0]
+    tod_before = obs.tod.copy()
+    obs.tod_harm = np.zeros_like(obs.tod)
+    scan_map_in_observations(
+        observations=obs,
+        maps=input_maps,
+        mueller_phases=mueller_phases,
+        component="tod_harm",
+    )
+    np.testing.assert_array_equal(obs.tod, tod_before)
+    np.testing.assert_array_equal(obs.tod_harm, tod_before)
+
 
 def test_hwp_harmonics_kernels_regression():
     # Generic (non-ideal) Mueller and Jones parameters, random phases, non-uniform

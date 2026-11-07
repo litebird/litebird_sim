@@ -486,6 +486,18 @@ def _build_mask_time_split(
     time_split: str,
     obs_list: list[Observation],
 ):
+    max_years = 3
+    max_surveys = 6
+    valid_splits = (
+        ["full", "odd", "even", "first_half", "second_half"]
+        + [f"year{i}" for i in range(1, max_years + 1)]
+        + [f"survey{i}" for i in range(1, max_surveys + 1)]
+    )
+    if time_split not in valid_splits:
+        raise ValueError(
+            f"Unknown time split '{time_split}', valid ones are {valid_splits}"
+        )
+
     time_mask = []
 
     for cur_obs in obs_list:
@@ -508,7 +520,6 @@ def _build_mask_time_split(
         elif time_split == "second_half":
             mask[cur_obs.n_samples_process // 2 :] = True
             time_mask.append(mask)
-        max_years = 3
         for i in range(1, max_years + 1):
             if time_split == f"year{i}":
                 t_i = _get_initial_time(cur_obs)
@@ -516,7 +527,6 @@ def _build_mask_time_split(
                     ((cur_obs.get_times() - t_i) >= (i - 1) * t_year_sec)
                     * ((cur_obs.get_times() - t_i) < i * t_year_sec)
                 )
-        max_surveys = 6
         for i in range(1, max_surveys + 1):
             if time_split == f"survey{i}":
                 t_i = _get_initial_time(cur_obs)

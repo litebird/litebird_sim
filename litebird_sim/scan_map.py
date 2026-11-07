@@ -533,7 +533,7 @@ def scan_map_in_observations(
             fill_tod_with_hwp_harmonics(
                 hwp=cur_hwp,
                 observation=cur_obs,
-                tod=cur_obs.tod,
+                tod=getattr(cur_obs, component),
                 pointings=cur_ptg,
                 maps=maps,
                 hwp_angle=hwp_angle,

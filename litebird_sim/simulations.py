@@ -2172,9 +2172,6 @@ class Simulation:
 
         """
 
-        if nthreads is None:
-            nthreads = self.numba_threads
-
         scan_map_in_observations(
             observations=self.observations,
             maps=maps,
@@ -2379,9 +2376,6 @@ class Simulation:
         :class:`.SkyGenerator`
 
         """
-
-        if nthreads is None:
-            nthreads = self.numba_threads
 
         add_convolved_sky_to_observations(
             observations=self.observations,

@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
-from astropy.time import TimeDelta
+from astropy.time import Time, TimeDelta
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
@@ -201,32 +201,33 @@ def _extract_rhs(n_obs: npt.NDArray) -> npt.NDArray:
     return rhs
 
 
-def _build_nobs_matrix(
-    n: int,
-    m: int,
-    nside: int,
-    pixidx: npt.NDArray,
-    polang: npt.NDArray,
-    hwp_angle: npt.NDArray | None,
-    time_mask: npt.NDArray,
-) -> npt.NDArray:
-    """Build the nobs matrix for all detectors and pixels, it has shape (Npix,3) and contains the accumulated spin terms and hit counts of each pixel for the considered detector."""
-    n_pix = HealpixMap.nside_to_npix(nside)
+def _time_interval_s(obs: Observation) -> tuple[float, float]:
+    """Return the (start, end) time of the local samples of `obs`, in seconds"""
+    start = obs.start_time_process
+    if isinstance(start, Time):
+        # Same reference as `Observation.get_times`
+        start = start.cxcsec
+    span = obs.get_time_span()
+    if isinstance(span, TimeDelta):
+        span = span.to_value("sec")
+    return float(start), float(start) + float(span)
 
-    nobs_matrix = np.zeros((n_pix, 3))
-    if hwp_angle is None:
-        hwp_angle = np.zeros_like(polang)
-    _accumulate_spin_terms_and_build_nobs_matrix(
-        n,
-        m,
-        pixidx,
-        polang,
-        hwp_angle,
-        time_mask,
-        nobs_matrix,
-    )
 
-    return nobs_matrix
+def _union_length_s(intervals: list[tuple[float, float]]) -> float:
+    """Return the total length of the union of time intervals, in seconds"""
+    if not intervals:
+        return 0.0
+
+    sorted_intervals = sorted(intervals)
+    total = 0.0
+    cur_start, cur_end = sorted_intervals[0]
+    for start, end in sorted_intervals[1:]:
+        if start > cur_end:
+            total += cur_end - cur_start
+            cur_start, cur_end = start, end
+        else:
+            cur_end = max(cur_end, end)
+    return total + cur_end - cur_start
 
 
 def make_h_maps(
@@ -288,48 +289,56 @@ def make_h_maps(
 
     assert detector_split == "full", "detectors split over wafers is not implemented"
 
-    h_maps = {}
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
     )
-    all_dets_list = np.concatenate([obs.name for obs in obs_list])
+    assert obs_list, "No observations were provided"
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
-    h_maps = {det: {} for det in all_dets_list}
+    hpx = Healpix_Base(nside, "RING")
+    n_pix = HealpixMap.nside_to_npix(nside)
 
-    for cur_obs, cur_ptg, cur_d_mask, cur_t_mask in zip(
-        obs_list, ptg_list, detector_mask_list, time_mask_list
-    ):
+    # The same detector can appear in several observations (e.g., when the
+    # time stream is split): list them per detector, so that its hits can be
+    # accumulated over all of them while only one detector is in memory
+    det_occurrences: dict[str, list[tuple[int, int]]] = {}
+    time_intervals = []
+    for obs_idx, (cur_obs, cur_d_mask) in enumerate(zip(obs_list, detector_mask_list)):
         assert cur_d_mask.ravel().any(), (
             "No detectors is selected by the current detector split"
         )
         assert cur_obs.n_blocks_time == 1, (
             "The current implementation of make_h_maps only supports one time block per observation, you can set several detector blocks though."
         )
+        time_intervals.append(_time_interval_s(cur_obs))
+
         for idet in range(cur_obs.n_detectors):
+            det_name = str(cur_obs.name[idet])
             if not cur_d_mask[idet]:
-                log.info(f"skipping detector {idet}")
+                log.info(f"skipping detector {det_name}")
                 continue
+            det_occurrences.setdefault(det_name, []).append((obs_idx, idet))
 
-            log.info(
-                f" Computing pixel indices and angles for detector {all_dets_list[idet]}"
-            )
+    sampling_rate = obs_list[-1].sampling_rate_hz
+    duration_s = _union_length_s(time_intervals)
 
-            hpx = Healpix_Base(nside, "RING")
+    h_maps = {}
+    for det_name, occurrences in det_occurrences.items():
+        nobs_matrices = {(int(n), int(m)): np.zeros((n_pix, 3)) for n, m in n_m_couples}
+
+        for obs_idx, idet in occurrences:
+            cur_obs = obs_list[obs_idx]
+            log.info(f" Computing pixel indices and angles for detector {det_name}")
+
             hwp_angle = _get_hwp_angle(
                 obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
             )
-            duration_s = cur_obs.get_time_span()
-            if isinstance(duration_s, TimeDelta):
-                duration_s = duration_s.to_value("sec")
-            assert isinstance(duration_s, float)
-            sampling_rate = cur_obs.sampling_rate_hz
             pixidx, polang = _compute_pixel_indices_single_detector(
                 hpx=hpx,
-                pointings=cur_ptg,
+                pointings=ptg_list[obs_idx],
                 pol_angle_detector=cur_obs.pol_angle_rad[idet],
                 num_of_samples=cur_obs.n_samples_process,
                 detector_index=idet,
@@ -339,41 +348,40 @@ def make_h_maps(
                 hmap_generation=True,
                 nthreads=nthreads,
             )
+            if hwp_angle is None:
+                hwp_angle = np.zeros_like(polang)
+
             log.info(
-                f"Pixel indices and angles for detector {all_dets_list[idet]} computed, now building nobs matrices"
+                f"Pixel indices and angles for detector {det_name} computed, now accumulating nobs matrices"
             )
-
-            for i in range(n_m_couples.shape[0]):
-                n = n_m_couples[i, 0]
-                m = n_m_couples[i, 1]
-
-                nobs_matrix = _build_nobs_matrix(
+            for (n, m), nobs_matrix in nobs_matrices.items():
+                _accumulate_spin_terms_and_build_nobs_matrix(
                     n,
                     m,
-                    nside=nside,
-                    pixidx=pixidx,
-                    polang=polang,
-                    hwp_angle=hwp_angle,
-                    time_mask=cur_t_mask,
+                    pixidx,
+                    polang,
+                    hwp_angle,
+                    time_mask_list[obs_idx],
+                    nobs_matrix,
                 )
-                rhs = _extract_rhs(nobs_matrix)
-                _solve_binning(nobs_matrix, rhs)
-                h_maps[all_dets_list[idet]][n, m] = h_map_Re_and_Im(
-                    real=rhs.T[0].copy(),
-                    imag=rhs.T[1].copy(),
-                    det_info=all_dets_list[idet],
-                    n=n,
-                    m=m,
-                )
-                log.info(
-                    f"  h_map n={n} m={m} for detector {all_dets_list[idet]} computed."
-                )
-                del rhs
-                del nobs_matrix
-                gc.collect()
             del pixidx
             del polang
             gc.collect()
+
+        h_maps[det_name] = {}
+        for (n, m), nobs_matrix in nobs_matrices.items():
+            rhs = _extract_rhs(nobs_matrix)
+            _solve_binning(nobs_matrix, rhs)
+            h_maps[det_name][n, m] = h_map_Re_and_Im(
+                real=rhs.T[0].copy(),
+                imag=rhs.T[1].copy(),
+                det_info=det_name,
+                n=n,
+                m=m,
+            )
+            log.info(f"  h_map n={n} m={m} for detector {det_name} computed.")
+        del nobs_matrices
+        gc.collect()
 
     result = HMapsResult(
         h_maps=h_maps,

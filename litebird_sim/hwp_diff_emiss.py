@@ -87,9 +87,12 @@ def add_2f_to_observations(
     """
     # iterate through each observation
     for cur_obs, tod, _ in for_each_observation(observations, component):
-        if amplitude_2f_k is None:
-            amplitude_2f_k = getattr(cur_obs, "amplitude_2f_k", None)
-        assert amplitude_2f_k is not None, (
+        cur_amplitude_2f_k = (
+            amplitude_2f_k
+            if amplitude_2f_k is not None
+            else getattr(cur_obs, "amplitude_2f_k", None)
+        )
+        assert cur_amplitude_2f_k is not None, (
             "The amplitude_2f_k parameter must be provided either "
             "as an argument to add_2f_to_observations or as an "
             "attribute of the Observation instance."
@@ -104,5 +107,5 @@ def add_2f_to_observations(
             tod=tod,
             hwp_angle=hwp_angle,
             pol_angle_rad=cur_obs.pol_angle_rad,
-            amplitude_2f_k=amplitude_2f_k,
+            amplitude_2f_k=cur_amplitude_2f_k,
         )
