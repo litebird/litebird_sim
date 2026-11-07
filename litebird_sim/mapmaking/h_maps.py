@@ -215,18 +215,19 @@ def _time_interval_s(obs: Observation) -> tuple[float, float]:
 
 def _union_length_s(intervals: list[tuple[float, float]]) -> float:
     """Return the total length of the union of time intervals, in seconds"""
+    if not intervals:
+        return 0.0
+
+    sorted_intervals = sorted(intervals)
     total = 0.0
-    cur_start, cur_end = None, None
-    for start, end in sorted(intervals):
-        if cur_end is None or start > cur_end:
-            if cur_end is not None:
-                total += cur_end - cur_start
+    cur_start, cur_end = sorted_intervals[0]
+    for start, end in sorted_intervals[1:]:
+        if start > cur_end:
+            total += cur_end - cur_start
             cur_start, cur_end = start, end
         else:
             cur_end = max(cur_end, end)
-    if cur_end is not None:
-        total += cur_end - cur_start
-    return total
+    return total + cur_end - cur_start
 
 
 def make_h_maps(
