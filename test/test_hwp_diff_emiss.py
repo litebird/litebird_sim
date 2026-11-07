@@ -100,3 +100,35 @@ def test_add_2f():
     np.testing.assert_array_equal(
         sim.observations[0].tod2f_2_self, sim.observations[0].tod2f_2_det
     )
+
+
+def test_add_2f_amplitude_per_observation():
+    # The amplitude stored in each observation must be used for that
+    # observation only, not reused for the following ones
+    def make_obs(amplitude):
+        sim = lbs.Simulation(start_time=0.0, duration_s=60.0, random_seed=1)
+        sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.7, 1e-4, 1e-2))
+        sim.set_instrument(lbs.InstrumentInfo(name="i", spin_boresight_angle_rad=0.8))
+        sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=1.0))
+        sim.create_observations(
+            detectors=[lbs.DetectorInfo(name="d", sampling_rate_hz=10.0)]
+        )
+        sim.prepare_pointings()
+        obs = sim.observations[0]
+        obs.amplitude_2f_k = np.array([amplitude])
+        return obs, sim.hwp
+
+    obs1, hwp = make_obs(1.0)
+    obs2, _ = make_obs(5.0)
+
+    lbs.hwp_diff_emiss.add_2f_to_observations([obs1, obs2], hwp=hwp)
+
+    for obs in (obs1, obs2):
+        expected = np.zeros_like(obs.tod)
+        lbs.hwp_diff_emiss.add_2f(
+            tod=expected,
+            hwp_angle=_get_hwp_angle(obs, hwp),
+            pol_angle_rad=obs.pol_angle_rad,
+            amplitude_2f_k=obs.amplitude_2f_k,
+        )
+        np.testing.assert_allclose(obs.tod, expected)
