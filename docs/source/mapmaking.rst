@@ -357,6 +357,10 @@ split is compatible with the observation duration and the detector
 list. Thus, for example, if the observation lasts one year, the split ``year2``
 will raise an ``AssertionError``. Similarly, if some detector in the L00 wafer
 does the observation, ``waferL03`` will also raise an ``AssertionError``.
+The map-makers run the same checks every time they build the masks of the
+splits, also when they are called directly instead of through
+:class:`.Simulation`. The splits for ``yearX`` and ``surveyX`` require the
+observation to last at least X years or X half-years.
 
 
 Flags
@@ -872,6 +876,19 @@ later):
 
 With ``fit="toast"`` or ``fit="keshner"`` the spectra are fitted with a 1/f
 model instead of being tabulated.
+
+The residual is that of the whole TOD model fitted by the map-maker (with
+pysanepic newer than 0.6.4): the maps and their sub-pixel gradient, the gains
+and the dipole with ``calibration``, and the fitted templates. Call it with
+the observations, ``components``, ``flags`` and ``correlation`` of the
+map-making call, and, with calibration, the same ``dipole_component``:
+
+.. code-block:: python
+
+  first = sim.make_sanepic_gls_map(
+      nside=nside, params=params, calibration=cal, dipole_component="dipole"
+  )
+  noise = sim.estimate_sanepic_noise(first, dipole_component="dipole")
 
 Noise correlated between detectors, simulated with the common-mode model of
 :func:`.add_noise_to_observations` (``noise_type="correlated"``), is modelled
