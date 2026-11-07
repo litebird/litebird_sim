@@ -3343,6 +3343,7 @@ class Simulation:
         correlation: dict | None = None,
         n_modes: int = 1,
         flag_mask: int | None = None,
+        dipole_component: str | None = None,
     ) -> dict:
         """Noise spectra of the detectors from the residual of a pysanepic map.
 
@@ -3362,6 +3363,7 @@ class Simulation:
             nthreads=nthreads,
             correlation=correlation,
             n_modes=n_modes,
+            dipole_component=dipole_component,
         )
 
     @_profile

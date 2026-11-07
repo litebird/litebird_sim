@@ -494,6 +494,74 @@ def test_sanepic_sky_model_and_templates():
     assert r.template_covariance["labels"][-1] == ("thermal", "d")
 
 
+def test_sanepic_noise_estimation_tod_model():
+    # With calibration and templates, the noise is estimated from the residual
+    # of the whole TOD model of the map-maker: the dipole, the gains and the
+    # fitted templates (a TOD one and a sky one as alm, which needs the angles)
+    # are not left in the spectrum
+    import dataclasses
+
+    fields = {f.name for f in dataclasses.fields(pysanepic.MapResult)}
+    if "template_definitions" not in fields:
+        pytest.skip("pysanepic without the TOD model in estimate_noise")
+    sim, sky = _calibration_sim(n_days=4)
+    sim.add_dipole(append_to_report=False)
+    sim.add_dipole(component="dipole", append_to_report=False)
+    rng = np.random.default_rng(13)
+    fg = hp.smoothing(rng.normal(0, 3e-4, (3, 12 * 8**2)), fwhm=np.radians(15))
+    fg_alm = np.array(hp.map2alm(fg, lmax=16))
+    amp = {"a": 0.04, "b": -0.01, "c": 0.02, "d": -0.03}
+    coupling = {"a": 2e-4, "b": -1e-4, "c": 5e-5, "d": 3e-4}
+    for obs in sim.observations:
+        signal = obs.tod.copy()
+        obs.tod[:] = 0.0
+        lbs.scan_map_in_observations(
+            obs,
+            maps=lbs.SphericalHarmonics(
+                values=fg_alm, lmax=16, coordinates=lbs.CoordinateSystem.Galactic
+            ),
+        )
+        obs.thermal = rng.normal(size=obs.tod.shape)
+        for i, name in enumerate(obs.name):
+            obs.tod[i] = (
+                signal[i] + amp[name] * obs.tod[i] + coupling[name] * obs.thermal[i]
+            )
+    _apply_gains(sim)
+    sim.add_noise(noise_type="white", append_to_report=False)
+    params = pysanepic.GLSParameters(
+        chunk_s=86400.0, tol=1e-10, min_pol_rcond=0.0, subpixel_order=1
+    )
+    templates = {
+        "fg": pysanepic.Template(sky=fg_alm, sum_zero=True),
+        "thermal": pysanepic.Template(),
+    }
+    r = sim.make_sanepic_gls_map(
+        nside=8,
+        params=params,
+        calibration=pysanepic.CalibrationParameters(gain_period_s=86400.0),
+        dipole_component="dipole",
+        templates=templates,
+        append_to_report=False,
+    )
+    assert r.gradient is not None
+    est = sim.estimate_sanepic_noise(
+        r, chunk_s=86400.0, nbins=10, dipole_component="dipole"
+    )
+    assert sorted(est) == ["a", "b", "c", "d"]
+    white = 2 * (50e-6 * np.sqrt(0.05)) ** 2 / 0.05  # 2 sigma^2 / fs
+    for e in est.values():
+        # a few uK of dipole left in the residual would be ~10^4 times this
+        assert np.all(e.psd < 3 * white)
+        high = e.freqs_hz > 2e-3
+        assert abs(np.mean(e.psd[high]) / white - 1) < 0.15
+    with pytest.raises(ValueError, match="dipole_component"):
+        sim.estimate_sanepic_noise(r, chunk_s=86400.0, nbins=10)
+    # the sub-pixel gradient alone also needs the angles
+    maps_only = dataclasses.replace(r, calibration=None, template_definitions=None)
+    est = sim.estimate_sanepic_noise(maps_only, chunk_s=86400.0, nbins=10)
+    assert sorted(est) == ["a", "b", "c", "d"]
+
+
 def _beam_sim(quats, hwp, lmax=16, n_days=4):
     """Noiseless, as _calibration_sim, with detector quaternions `quats` and
     optionally an ideal HWP; returns (sim, sky as SphericalHarmonics)."""
