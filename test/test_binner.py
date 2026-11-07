@@ -310,3 +310,16 @@ def test_build_mask_time_split_unknown_name():
     for split in ["yaer2", "year4", "survey7", ""]:
         with pytest.raises(ValueError, match="time split"):
             _build_mask_time_split(split, sim.observations)
+
+
+def test_make_binned_map_unknown_time_split():
+    sim = lbs.Simulation(start_time=0.0, duration_s=100.0, random_seed=1)
+    sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.7, 1e-4, 1e-2))
+    sim.set_instrument(lbs.InstrumentInfo(name="i", spin_boresight_angle_rad=0.8))
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="d", sampling_rate_hz=10.0)]
+    )
+    sim.prepare_pointings()
+
+    with pytest.raises(ValueError, match="time split"):
+        lbs.make_binned_map(nside=8, observations=sim.observations, time_split="yaer2")
