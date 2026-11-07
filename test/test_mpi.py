@@ -1002,19 +1002,9 @@ def test_reduction_for_observations():
         assert red.max(lbs.MPI_COMM_WORLD.rank) == size - 1
 
 
-def test_map_makers_sum_only_over_their_communicator():
-    # Two groups of processes run independent simulations: each map-maker must
-    # sum only the observations of its own group, not those of MPI_COMM_WORLD
-    world = lbs.MPI_COMM_WORLD
-    if world.size < 2:
-        return
-
-    color = world.rank % 2
-    sub_comm = world.Split(color, world.rank)
-    duration_s = 600.0 * (color + 1)  # The two groups differ
-
+def _group_simulation(comm, duration_s):
     sim = lbs.Simulation(
-        start_time=0.0, duration_s=duration_s, random_seed=1, mpi_comm=sub_comm
+        start_time=0.0, duration_s=duration_s, random_seed=1, mpi_comm=comm
     )
     sim.set_scanning_strategy(
         lbs.SpinningScanningStrategy(
@@ -1024,24 +1014,82 @@ def test_map_makers_sum_only_over_their_communicator():
         )
     )
     sim.set_instrument(lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50)))
+    # A T/B pair, so that pair-differencing can run too
+    dets = [
+        lbs.DetectorInfo(
+            name=f"a_{pol}",
+            sampling_rate_hz=1.0,
+            net_ukrts=50.0,
+            pol_angle_rad=angle,
+            wafer="w",
+            pixel=0,
+            pol=pol,
+        )
+        for pol, angle in (("T", 0.0), ("B", np.pi / 2))
+    ]
     sim.create_observations(
-        detectors=[lbs.DetectorInfo(name="a", sampling_rate_hz=1.0, net_ukrts=50.0)],
-        n_blocks_time=sub_comm.size,
-        split_list_over_processes=False,
+        detectors=dets, n_blocks_time=comm.size, split_list_over_processes=False
     )
     sim.prepare_pointings()
     for cur_obs in sim.observations:
         cur_obs.tod[:] = 1.0
+    return sim
 
-    destriped = sim.make_destriped_map(
-        nside=8,
-        params=lbs.DestriperParameters(samples_per_baseline=100, iter_max=5),
+
+def _map_maker_outputs(sim):
+    """The outputs of every map-maker that depend only on the pointings"""
+    nside = 8
+    result = {
+        "binner": sim.make_binned_map(nside=nside).invnpp,
+        "pair_differencing": lbs.make_pair_differenced_map(
+            nside=nside, observations=sim.observations
+        ).invnpp,
+        "destriper": sim.make_destriped_map(
+            nside=nside,
+            params=lbs.DestriperParameters(samples_per_baseline=100, iter_max=5),
+        ).hit_map,
+    }
+    try:
+        import pysanepic  # noqa: F401
+    except ImportError:
+        pass
+    else:
+        result["sanepic"] = np.asarray(sim.make_sanepic_gls_map(nside=nside).hit_map)
+    return result
+
+
+def test_map_makers_sum_only_over_their_communicator():
+    # Two groups of processes run independent simulations: each map-maker must
+    # sum only the observations of its own group, not those of MPI_COMM_WORLD.
+    # The reference is the same simulation of the group on one process
+    world = lbs.MPI_COMM_WORLD
+    if world.size < 2:
+        return
+    from litebird_sim.mpi import MPI
+
+    color = world.rank % 2
+    sub_comm = world.Split(color, world.rank)
+    duration_s = 600.0 * (color + 1)  # The two groups differ
+
+    outputs = _map_maker_outputs(_group_simulation(sub_comm, duration_s))
+    reference = _map_maker_outputs(_group_simulation(MPI.COMM_SELF, duration_s))
+
+    # Summing over MPI_COMM_WORLD would mix the groups and give them the same
+    # outputs, also in the reference, which is why both checks are needed
+    totals = world.allgather(
+        (color, {name: float(np.sum(x[x > -1e29])) for name, x in outputs.items()})
     )
+    group_totals = {c: t for c, t in totals}
+    for name in outputs:
+        assert not np.isclose(group_totals[0][name], group_totals[1][name]), name
 
-    # Group 1 observes twice as long as group 0, so its (weighted) hits must be
-    # twice as many; summing over MPI_COMM_WORLD would make them equal
-    hits = dict(world.allgather((color, float(destriped.hit_map.sum()))))
-    np.testing.assert_allclose(hits[1] / hits[0], 2.0)
+    assert set(outputs) == set(reference)
+    for name, ref in reference.items():
+        # Near-singular pixels amplify the rounding of a different summation
+        # order: compare with a tolerance relative to the largest value
+        seen = ref > -1e29  # Exclude UNSEEN pixels from the scale
+        atol = 1e-8 * np.max(np.abs(ref[seen]))
+        np.testing.assert_allclose(outputs[name], ref, atol=atol, err_msg=name)
 
     sub_comm.Free()
 
