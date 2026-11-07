@@ -14,7 +14,7 @@ from numba import njit, prange
 
 from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
 from litebird_sim.hwp import HWP
-from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
+from litebird_sim.mpi import MPI_COMM_WORLD
 from litebird_sim.observations import Observation
 from litebird_sim.observation_utilities import (
     _get_hwp_angle,
@@ -23,6 +23,7 @@ from litebird_sim.observation_utilities import (
 
 from ..utilities import cos_sin, resolve_nthreads
 
+from .reduction import Reduction, reduction_for_observations
 from .common import (
     _compute_pixel_indices,
     _is_well_conditioned,
@@ -42,9 +43,6 @@ from .common import (
 # It is important to have that paper at hand while reading this code, as many
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
-
-if MPI_ENABLED:
-    import mpi4py.MPI
 
 log = logging.getLogger(__name__)
 
@@ -485,6 +483,7 @@ def _build_nobs_matrix(
     obs_list: list[Observation],
     dm_list: list[npt.NDArray],
     tm_list: list[npt.NDArray],
+    reduction: Reduction | None = None,
 ) -> NobsMatrix:
     # Instead of a shape like (Npix, 3, 3), i.e., one 3×3 matrix per each
     # pixel, we only store the lower triangular part in a 6-element array.
@@ -503,8 +502,9 @@ def _build_nobs_matrix(
         )
 
     # Now we must accumulate the result of every MPI process
-    if MPI_ENABLED:
-        MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, nobs_matrix, op=mpi4py.MPI.SUM)
+    if reduction is None:
+        reduction = reduction_for_observations(obs_list)
+    reduction.sum_in_place(nobs_matrix)
 
     # `nobs_matrix_cholesky` will *not* contain the M_i maps shown in
     # Eq. 9 of KurkiSuonio2009, but its Cholesky decomposition, i.e.,
@@ -697,6 +697,7 @@ def _compute_binned_map(
     component: str | None,
     output_hit_map: npt.NDArray,
     output_sky_map: npt.NDArray,
+    reduction: Reduction | None = None,
 ) -> None:
     """
     Compute the global binned map
@@ -762,9 +763,9 @@ def _compute_binned_map(
                 baseline_lengths=cur_baseline_lengths,
             )
 
-    if MPI_ENABLED:
-        MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, output_sky_map, op=mpi4py.MPI.SUM)
-        MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, output_hit_map, op=mpi4py.MPI.SUM)
+    if reduction is None:
+        reduction = reduction_for_observations(obs_list)
+    reduction.sum_in_place(output_sky_map, output_hit_map)
 
     # Step 2: compute the “binned map” (Eq. 21)
     _sum_map_to_binned_map(
@@ -997,7 +998,7 @@ def _compute_baseline_sums(
             )
 
 
-def _mpi_dot(a: list[npt.NDArray], b: list[npt.NDArray]) -> float:
+def _mpi_dot(a: list[npt.NDArray], b: list[npt.NDArray], reduction: Reduction) -> float:
     """Compute a dot product between lists of vectors using MPI
 
     This function is a glorified version of ``numpy.dot``. It assumes
@@ -1013,13 +1014,10 @@ def _mpi_dot(a: list[npt.NDArray], b: list[npt.NDArray]) -> float:
     # we call “flatten” to make them 1D and produce *one* scalar out of
     # the dot product
     local_result = sum([np.dot(x1.flatten(), x2.flatten()) for (x1, x2) in zip(a, b)])
-    if MPI_ENABLED:
-        return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.SUM)
-    else:
-        return local_result
+    return reduction.sum(local_result)
 
 
-def _get_stopping_factor(residual: list[npt.NDArray]) -> float:
+def _get_stopping_factor(residual: list[npt.NDArray], reduction: Reduction) -> float:
     """Given a list of baseline residuals, estimate the stopping factor
 
     Our assumption here is that the stopping factor is the maximum absolute
@@ -1030,10 +1028,7 @@ def _get_stopping_factor(residual: list[npt.NDArray]) -> float:
     but a few of them are significantly off.
     """
     local_result = np.max(np.abs(residual))
-    if MPI_ENABLED:
-        return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.MAX)
-    else:
-        return local_result
+    return reduction.max(local_result)
 
 
 def _compute_b_or_Ax(
@@ -1047,6 +1042,7 @@ def _compute_b_or_Ax(
     baseline_lengths_list: list[npt.NDArray],
     component: str | None,
     result: list[npt.NDArray],
+    reduction: Reduction | None = None,
 ):
     """Either compute `Ax` or `b` in the map-making equation `Ax=b`
 
@@ -1065,6 +1061,7 @@ def _compute_b_or_Ax(
         component=component,
         output_sky_map=sky_map,
         output_hit_map=hit_map,
+        reduction=reduction,
     )
 
     _compute_baseline_sums(
@@ -1089,6 +1086,7 @@ def compute_b(
     dm_list: list[npt.NDArray],
     tm_list: list[npt.NDArray],
     result: list[npt.NDArray],
+    reduction: Reduction | None = None,
 ) -> None:
     """
     Compute `F^t·C_w⁻¹·Z·y
@@ -1108,6 +1106,7 @@ def compute_b(
         baseline_lengths_list=baseline_lengths_list,
         component=component,
         result=result,
+        reduction=reduction,
     )
 
 
@@ -1121,6 +1120,7 @@ def compute_Ax(
     baselines_list: list[npt.NDArray],
     baseline_lengths_list: list[npt.NDArray],
     result: list[npt.NDArray],
+    reduction: Reduction | None = None,
 ) -> None:
     """
     Compute `F^t·C_w⁻¹·Z·F·a
@@ -1141,6 +1141,7 @@ def compute_Ax(
         baseline_lengths_list=baseline_lengths_list,
         component=None,
         result=result,
+        reduction=reduction,
     )
 
 
@@ -1223,6 +1224,7 @@ def _run_destriper(
     callback_kwargs: dict[Any, Any],
     recycled_convergence: bool,
     recycle_baselines: bool | None = False,
+    reduction: Reduction | None = None,
 ) -> tuple[
     list[npt.NDArray],  # The solution, i.e., the list of baselines
     list[npt.NDArray],  # The error bars of the baselines
@@ -1232,6 +1234,9 @@ def _run_destriper(
     int,  # Number of bytes used by temporary buffers
 ]:
     """Apply the Conjugate Gradient (CG) algorithm to find the solution for Ax=b"""
+
+    if reduction is None:
+        reduction = reduction_for_observations(obs_list)
 
     # To understand how the PCG algorithm works, you should read the paper
     # “Painless conjugate gradient” by Shewchuk (1994), which tells you everything
@@ -1307,6 +1312,7 @@ def _run_destriper(
         baseline_lengths_list=baseline_lengths_list,
         component=component,
         result=b,
+        reduction=reduction,
     )
     compute_Ax(
         obs_list=obs_list,
@@ -1318,6 +1324,7 @@ def _run_destriper(
         baselines_list=x,
         baseline_lengths_list=baseline_lengths_list,
         result=Ax,
+        reduction=reduction,
     )
     for r_k, b_k, A_k in zip(r, b, Ax):
         r_k[:] = b_k - A_k
@@ -1340,9 +1347,9 @@ def _run_destriper(
     bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(p)
     k = 0
 
-    old_r_dot = _mpi_dot(z, r)
+    old_r_dot = _mpi_dot(z, r, reduction)
 
-    history_of_stopping_factors: list[float] = [_get_stopping_factor(r)]
+    history_of_stopping_factors: list[float] = [_get_stopping_factor(r, reduction)]
     # the threshold is relative to the initial residual, whose scale depends on
     # the data (units, noise level, baseline length)
     absolute_threshold = threshold * history_of_stopping_factors[0]
@@ -1376,8 +1383,9 @@ def _run_destriper(
             baselines_list=p,
             baseline_lengths_list=baseline_lengths_list,
             result=Ax,
+            reduction=reduction,
         )
-        α = old_r_dot / _mpi_dot(p, Ax)
+        α = old_r_dot / _mpi_dot(p, Ax, reduction)
 
         for x_k, p_k in zip(x, p):
             x_k += α * p_k
@@ -1385,7 +1393,7 @@ def _run_destriper(
         for new_r_k, r_k, Ax_k in zip(new_r, r, Ax):
             new_r_k[:] = r_k - α * Ax_k
 
-        cur_stopping_factor = _get_stopping_factor(new_r)
+        cur_stopping_factor = _get_stopping_factor(new_r, reduction)
         if (not best_stopping_factor) or cur_stopping_factor < best_stopping_factor:
             best_stopping_factor = cur_stopping_factor
             for cur_best_x_k, x_k in zip(best_x, x):
@@ -1410,7 +1418,7 @@ def _run_destriper(
         if use_preconditioner:
             _apply_preconditioner(precond, z)
 
-        new_r_dot = _mpi_dot(new_r, z)
+        new_r_dot = _mpi_dot(new_r, z, reduction)
         for p_k, z_k in zip(p, z):
             p_k[:] = z_k + (new_r_dot / old_r_dot) * p_k
 
@@ -1430,6 +1438,7 @@ def _run_destriper(
         tm_list=tm_list,
         baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
+        reduction=reduction,
     )
 
     # …then compute the map from the “unrolled” baselines F·a…
@@ -1443,6 +1452,7 @@ def _run_destriper(
         component=None,
         baselines_list=best_x,
         baseline_lengths_list=baseline_lengths_list,
+        reduction=reduction,
     )
 
     # …and finally get the destriped map from their difference
@@ -1454,11 +1464,7 @@ def _run_destriper(
     destriped_map[0, mask] -= np.mean(destriped_map[0, mask])
     bytes_in_temporary_buffers += mask.nbytes
 
-    if MPI_ENABLED:
-        bytes_in_temporary_buffers = MPI_COMM_WORLD.allreduce(
-            bytes_in_temporary_buffers,
-            op=mpi4py.MPI.SUM,
-        )
+    bytes_in_temporary_buffers = reduction.sum(bytes_in_temporary_buffers)
 
     return (
         best_x,
@@ -1665,11 +1671,15 @@ def make_destriped_map(
         _build_mask_time_split(time_split, obs_list), obs_list, flags, flag_mask
     )
 
+    # The MPI processes over which the contributions of `obs_list` are summed
+    reduction = reduction_for_observations(obs_list)
+
     nobs_matrix_cholesky = _build_nobs_matrix(
         hpx=hpx,
         obs_list=obs_list,
         dm_list=detector_mask_list,
         tm_list=time_mask_list,
+        reduction=reduction,
     )
 
     number_of_pixels = hpx.npix()
@@ -1730,13 +1740,8 @@ def make_destriped_map(
             use_preconditioner=params.use_preconditioner,
             callback=callback,
             callback_kwargs=callback_kwargs if callback_kwargs else {},
+            reduction=reduction,
         )
-
-        if MPI_ENABLED:
-            bytes_in_temporary_buffers = MPI_COMM_WORLD.allreduce(
-                bytes_in_temporary_buffers,
-                op=mpi4py.MPI.SUM,
-            )
     else:
         # No need to run the destriping, just compute the binned map with
         # one single baseline set to zero
@@ -1753,6 +1758,7 @@ def make_destriped_map(
                 np.array([getattr(cur_obs, components[0]).shape[1]], dtype=int)
                 for cur_obs in obs_list
             ],
+            reduction=reduction,
         )
         bytes_in_temporary_buffers = 0
         destriped_map = None

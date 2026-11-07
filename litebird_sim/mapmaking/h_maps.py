@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
-from astropy.time import TimeDelta
+from astropy.time import Time, TimeDelta
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
@@ -22,11 +22,11 @@ from litebird_sim.observation_utilities import (
 )
 from litebird_sim.utilities import cos_sin, resolve_nthreads
 
+from .reduction import reduction_for_observations
 from .common import (
     _build_mask_detector_split,
     _build_mask_time_split,
     _compute_pixel_indices_single_detector,
-    _get_reduction_comm,
 )
 
 log = logging.getLogger(__name__)
@@ -230,6 +230,35 @@ def _build_nobs_matrix(
     return nobs_matrix
 
 
+def _time_interval_s(obs: Observation) -> tuple[float, float]:
+    """Return the (start, end) time of the local samples of `obs`, in seconds"""
+    start = obs.start_time_process
+    if isinstance(start, Time):
+        # Same reference as `Observation.get_times`
+        start = start.cxcsec
+    span = obs.get_time_span()
+    if isinstance(span, TimeDelta):
+        span = span.to_value("sec")
+    return float(start), float(start) + float(span)
+
+
+def _union_length_s(intervals: list[tuple[float, float]]) -> float:
+    """Return the total length of the union of time intervals, in seconds"""
+    if not intervals:
+        return 0.0
+
+    sorted_intervals = sorted(intervals)
+    total = 0.0
+    cur_start, cur_end = sorted_intervals[0]
+    for start, end in sorted_intervals[1:]:
+        if start > cur_end:
+            total += cur_end - cur_start
+            cur_start, cur_end = start, end
+        else:
+            cur_end = max(cur_end, end)
+    return total + cur_end - cur_start
+
+
 def make_h_maps(
     observations: Observation | list[Observation],
     nside: int,
@@ -316,7 +345,7 @@ def make_h_maps(
     # may change between observations. Grouping also bounds the working matrices
     # to one detector, rather than keeping matrices for the whole focal plane.
     detector_observations = {}
-    duration_s = 0.0
+    time_intervals = []
     sampling_rate = 0.0
     for obs_idx, (cur_obs, cur_d_mask) in enumerate(zip(obs_list, detector_mask_list)):
         assert cur_d_mask.ravel().any(), (
@@ -325,10 +354,7 @@ def make_h_maps(
         assert cur_obs.n_blocks_time == 1, (
             "The current implementation of make_h_maps only supports one time block per observation, you can set several detector blocks though."
         )
-        duration_s = cur_obs.get_time_span()
-        if isinstance(duration_s, TimeDelta):
-            duration_s = duration_s.to_value("sec")
-        assert isinstance(duration_s, float)
+        time_intervals.append(_time_interval_s(cur_obs))
         sampling_rate = cur_obs.sampling_rate_hz
         for idet in range(cur_obs.n_detectors):
             if not cur_d_mask[idet]:
@@ -342,9 +368,9 @@ def make_h_maps(
     # observes it: its partial sums are reduced there, and only the owner
     # solves, keeps and saves the maps of that detector.
     if comm is None:
-        comm = _get_reduction_comm(obs_list)
+        comm = reduction_for_observations(obs_list).comm
     rank = comm.rank if comm is not None else 0
-    local_info = (list(detector_observations), duration_s, sampling_rate)
+    local_info = (list(detector_observations), time_intervals, sampling_rate)
     if comm is not None and comm.size > 1:
         info_per_rank = comm.allgather(local_info)
     else:
@@ -362,7 +388,13 @@ def make_h_maps(
     if not obs_list:
         # Idle processes still participate in the reductions. Their result has
         # no maps or files; copy metadata from the first process with data.
-        _, duration_s, sampling_rate = next(info for info in info_per_rank if info[0])
+        _, _, sampling_rate = next(info for info in info_per_rank if info[0])
+
+    # The duration covers the time intervals of all the processes, whatever
+    # the order of the observations
+    duration_s = _union_length_s(
+        [interval for _, intervals, _ in info_per_rank for interval in intervals]
+    )
 
     # Repeated spin pairs must not accumulate the same samples twice.
     spin_pairs = list(dict.fromkeys(map(tuple, n_m_couples)))

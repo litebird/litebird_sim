@@ -315,12 +315,6 @@ def fill_tod_with_hwp_harmonics(
                 raise ValueError("If you pass pointings, you must also pass hwp_angle.")
 
     for idx_obs, cur_obs in enumerate(obs_list):
-        if not hasattr(cur_obs, "pointing_matrix"):
-            cur_obs.pointing_matrix = np.empty(
-                (cur_obs.n_detectors, cur_obs.n_samples_process, 3),
-                dtype=pointings_dtype,
-            )
-
         # use getattr to avoid ty errors for dynamically
         # generated cur_obs class attributes
         g_one_over_k = getattr(cur_obs, "g_one_over_k")

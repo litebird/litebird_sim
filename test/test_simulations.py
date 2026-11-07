@@ -964,3 +964,33 @@ def test_center_pointings(tmp_path, dtype):
             pointing_matrix,
             aux_pointings,
         )
+
+
+def test_ducc_wrappers_do_not_use_numba_threads(monkeypatch):
+    # `fill_tods` and `convolve_sky` call ducc0: when `nthreads` is not given
+    # they must use the ducc0/OMP budget, not `Simulation.numba_threads`
+    import litebird_sim.simulations as simulations
+
+    received = {}
+
+    def fake(name):
+        def _f(**kwargs):
+            received[name] = kwargs["nthreads"]
+
+        return _f
+
+    monkeypatch.setattr(simulations, "scan_map_in_observations", fake("fill"))
+    monkeypatch.setattr(
+        simulations, "add_convolved_sky_to_observations", fake("convolve")
+    )
+
+    sim = lbs.Simulation(
+        start_time=0.0, duration_s=10.0, random_seed=1, numba_threads=3
+    )
+    sim.fill_tods(maps={}, append_to_report=False)
+    sim.convolve_sky(sky_alms={}, beam_alms={}, append_to_report=False)
+    assert received == {"fill": None, "convolve": None}
+
+    sim.fill_tods(maps={}, append_to_report=False, nthreads=5)
+    sim.convolve_sky(sky_alms={}, beam_alms={}, append_to_report=False, nthreads=5)
+    assert received == {"fill": 5, "convolve": 5}

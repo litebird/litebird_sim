@@ -1006,6 +1006,8 @@ def test_h_maps_observations_split_over_processes(mpi_tmp_path):
         output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
     )
     result = sim.make_h_maps(output_directory=str(mpi_tmp_path), **kwargs)
+    # The duration covers the observations of all the processes
+    np.testing.assert_allclose(result.duration_s, 600.0)
 
     # Reference: one serial observation with the samples of all processes
     local = [(obs.start_time, obs.get_pointings("all")[0]) for obs in sim.observations]
@@ -1088,6 +1090,76 @@ def test_h_maps_files_of_all_owners_readable_after_call(mpi_tmp_path):
                 np.testing.assert_array_equal(
                     loaded.h_maps[name][pair].imag, cur_map.imag
                 )
+
+
+def test_reduction_for_observations():
+    # Whatever the distribution of the observations, the reduction of the
+    # map-makers must sum over all the processes holding them
+    from litebird_sim.mapmaking.reduction import reduction_for_observations
+
+    size = lbs.MPI_COMM_WORLD.size
+    for split in (True, False):
+        sim = lbs.Simulation(
+            start_time=0.0, duration_s=600.0, random_seed=1, mpi_comm=lbs.MPI_COMM_WORLD
+        )
+        sim.create_observations(
+            detectors=[lbs.DetectorInfo(name="a", sampling_rate_hz=1.0)],
+            num_of_obs_per_detector=2 * size,
+            split_list_over_processes=split,
+            n_blocks_time=1 if split else size,
+        )
+        red = reduction_for_observations(sim.observations)
+        assert red.size == size
+
+        values = np.full(3, lbs.MPI_COMM_WORLD.rank + 1.0)
+        red.sum_in_place(values)
+        np.testing.assert_array_equal(values, size * (size + 1) / 2)
+        assert red.sum(1) == size
+        assert red.max(lbs.MPI_COMM_WORLD.rank) == size - 1
+
+
+def test_map_makers_sum_only_over_their_communicator():
+    # Two groups of processes run independent simulations: each map-maker must
+    # sum only the observations of its own group, not those of MPI_COMM_WORLD
+    world = lbs.MPI_COMM_WORLD
+    if world.size < 2:
+        return
+
+    color = world.rank % 2
+    sub_comm = world.Split(color, world.rank)
+    duration_s = 600.0 * (color + 1)  # The two groups differ
+
+    sim = lbs.Simulation(
+        start_time=0.0, duration_s=duration_s, random_seed=1, mpi_comm=sub_comm
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45),
+            precession_rate_hz=1 / 3600 / 3.2,
+            spin_rate_hz=0.05 / 60,
+        )
+    )
+    sim.set_instrument(lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50)))
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="a", sampling_rate_hz=1.0, net_ukrts=50.0)],
+        n_blocks_time=sub_comm.size,
+        split_list_over_processes=False,
+    )
+    sim.prepare_pointings()
+    for cur_obs in sim.observations:
+        cur_obs.tod[:] = 1.0
+
+    destriped = sim.make_destriped_map(
+        nside=8,
+        params=lbs.DestriperParameters(samples_per_baseline=100, iter_max=5),
+    )
+
+    # Group 1 observes twice as long as group 0, so its (weighted) hits must be
+    # twice as many; summing over MPI_COMM_WORLD would make them equal
+    hits = dict(world.allgather((color, float(destriped.hit_map.sum()))))
+    np.testing.assert_allclose(hits[1] / hits[0], 2.0)
+
+    sub_comm.Free()
 
 
 def test_describe_mpi_layout():

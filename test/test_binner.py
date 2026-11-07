@@ -1,6 +1,7 @@
 """Test mapping routines"""
 
 import numpy as np
+import pytest
 import healpy as hp
 import astropy.units as u
 import litebird_sim as lbs
@@ -296,3 +297,29 @@ def test_build_mask_time_split():
     for split, ref in expected.items():
         for mask in _build_mask_time_split(split, sim.observations):
             np.testing.assert_array_equal(mask, ref)
+
+
+def test_build_mask_time_split_unknown_name():
+    # An unknown split used to produce no mask at all, hence an empty map
+    from litebird_sim.mapmaking.common import _build_mask_time_split
+
+    sim = lbs.Simulation(start_time=0.0, duration_s=100.0, random_seed=1)
+    det = lbs.DetectorInfo(name="d", sampling_rate_hz=10.0)
+    sim.create_observations(detectors=[det])
+
+    for split in ["yaer2", "year4", "survey7", ""]:
+        with pytest.raises(ValueError, match="time split"):
+            _build_mask_time_split(split, sim.observations)
+
+
+def test_make_binned_map_unknown_time_split():
+    sim = lbs.Simulation(start_time=0.0, duration_s=100.0, random_seed=1)
+    sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.7, 1e-4, 1e-2))
+    sim.set_instrument(lbs.InstrumentInfo(name="i", spin_boresight_angle_rad=0.8))
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="d", sampling_rate_hz=10.0)]
+    )
+    sim.prepare_pointings()
+
+    with pytest.raises(ValueError, match="time split"):
+        lbs.make_binned_map(nside=8, observations=sim.observations, time_split="yaer2")
