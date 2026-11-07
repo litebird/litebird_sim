@@ -23,9 +23,8 @@ from litebird_sim.observation_utilities import (
 from litebird_sim.utilities import cos_sin, resolve_nthreads
 
 from .reduction import reduction_for_observations
+from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
-    _build_mask_detector_split,
-    _build_mask_time_split,
     _compute_pixel_indices_single_detector,
 )
 

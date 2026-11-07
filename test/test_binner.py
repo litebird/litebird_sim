@@ -272,7 +272,7 @@ def test_hwp_offset_angle():
 def test_build_mask_time_split():
     # With time_split="full", the masks must not allocate one byte per sample for
     # all the observations at once (~7 GB per process for 3 years at 75 Hz)
-    from litebird_sim.mapmaking.common import _build_mask_time_split
+    from litebird_sim.mapmaking.splits import _build_mask_time_split
 
     sim = lbs.Simulation(start_time=0.0, duration_s=100.0, random_seed=1)
     det = lbs.DetectorInfo(name="d", sampling_rate_hz=10.0)
@@ -301,7 +301,7 @@ def test_build_mask_time_split():
 
 def test_build_mask_time_split_unknown_name():
     # An unknown split used to produce no mask at all, hence an empty map
-    from litebird_sim.mapmaking.common import _build_mask_time_split
+    from litebird_sim.mapmaking.splits import _build_mask_time_split
 
     sim = lbs.Simulation(start_time=0.0, duration_s=100.0, random_seed=1)
     det = lbs.DetectorInfo(name="d", sampling_rate_hz=10.0)
