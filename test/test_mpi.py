@@ -1002,6 +1002,50 @@ def test_reduction_for_observations():
         assert red.max(lbs.MPI_COMM_WORLD.rank) == size - 1
 
 
+def test_map_makers_sum_only_over_their_communicator():
+    # Two groups of processes run independent simulations: each map-maker must
+    # sum only the observations of its own group, not those of MPI_COMM_WORLD
+    world = lbs.MPI_COMM_WORLD
+    if world.size < 2:
+        return
+
+    color = world.rank % 2
+    sub_comm = world.Split(color, world.rank)
+    duration_s = 600.0 * (color + 1)  # The two groups differ
+
+    sim = lbs.Simulation(
+        start_time=0.0, duration_s=duration_s, random_seed=1, mpi_comm=sub_comm
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45),
+            precession_rate_hz=1 / 3600 / 3.2,
+            spin_rate_hz=0.05 / 60,
+        )
+    )
+    sim.set_instrument(lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50)))
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="a", sampling_rate_hz=1.0, net_ukrts=50.0)],
+        n_blocks_time=sub_comm.size,
+        split_list_over_processes=False,
+    )
+    sim.prepare_pointings()
+    for cur_obs in sim.observations:
+        cur_obs.tod[:] = 1.0
+
+    destriped = sim.make_destriped_map(
+        nside=8,
+        params=lbs.DestriperParameters(samples_per_baseline=100, iter_max=5),
+    )
+
+    # Group 1 observes twice as long as group 0, so its (weighted) hits must be
+    # twice as many; summing over MPI_COMM_WORLD would make them equal
+    hits = dict(world.allgather((color, float(destriped.hit_map.sum()))))
+    np.testing.assert_allclose(hits[1] / hits[0], 2.0)
+
+    sub_comm.Free()
+
+
 def test_describe_mpi_layout():
     # A compact summary of the distribution, consistent on every process
     size = lbs.MPI_COMM_WORLD.size
