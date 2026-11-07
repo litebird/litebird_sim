@@ -1,5 +1,7 @@
 # HEAD
 
+-   `make_sanepic_gls_map`, `estimate_sanepic_noise` and `compute_sanepic_beam_templates` pass pysanepic the MPI communicator of the observations instead of `MPI_COMM_WORLD`, or the new keyword-only argument `comm`; the `Simulation` methods pass their own communicator. A new MPI test checks that every map-maker sums only over the communicator of its observations. Reference PR: [#655](https://github.com/litebird/litebird_sim/pull/655).
+
 -   `make_destriped_map` sums its observations over their MPI communicator (via `reduction_for_observations`) instead of `MPI_COMM_WORLD`, so it gives correct maps when the observations live on a sub-communicator. `bytes_in_temporary_buffers` is no longer summed over the processes twice. Reference PR: [#653](https://github.com/litebird/litebird_sim/pull/653).
 
 -   New module `mapmaking/reduction.py`: `reduction_for_observations` decides the MPI communicator over which a map-maker sums its observations and returns an `MpiReduction` or a `SerialReduction`. The binner and pair-differencing use it; it replaces `_get_reduction_comm`. Reference PR: [#652](https://github.com/litebird/litebird_sim/pull/652).
