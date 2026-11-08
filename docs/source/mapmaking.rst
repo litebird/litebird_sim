@@ -363,6 +363,8 @@ splits, also when they are called directly instead of through
 observation to last at least X years or X half-years.
 
 
+.. _mapmaking-flags:
+
 Flags
 ^^^^^
 
@@ -414,6 +416,10 @@ the sum of the detector variances:
    w_{\mathrm{pair}} = \sigma_T^2 + \sigma_B^2 = w_T + w_B.
 
 The normal matrix and right-hand side use :math:`1/w_{\mathrm{pair}}`.
+
+The parameters `flags` and `flag_mask` work as in :func:`.make_binned_map`
+(see :ref:`mapmaking-flags`): a sample enters the difference of a pair only
+if it is flagged in neither detector.
 
 This is the low-level usage::
 
