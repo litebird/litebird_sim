@@ -1,29 +1,27 @@
 from dataclasses import dataclass
-from collections.abc import Callable
 
-import astropy.time
 import numpy as np
 import numpy.typing as npt
-from ducc0.healpix import Healpix_Base
 from numba import njit
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.observations import Observation
-from litebird_sim.observation_utilities import _get_pointings_array, _get_pol_angle
-from litebird_sim.utilities import resolve_nthreads
+from litebird_sim.utilities import cos_sin
 
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not
 COND_THRESHOLD = 1e10
 
-# Definition of time splits
-t_year_sec = 365 * 24 * 3600
-t_survey_sec = 365 * 24 * 3600 / 2
 
-# Definition of detector splits
-lft_wafers = ["L00", "L01", "L02", "L03", "L04", "L05", "L06", "L07"]
-mft_wafers = ["M00", "M01", "M02", "M03", "M04", "M05", "M06"]
-hft_wafers = ["H00", "H01", "H02"]
+@njit
+def pointing_row(psi: float, pol_eff: float) -> tuple[float, float, float]:
+    """The row of the pointing matrix of one sample: (1, γ cos 2ψ, γ sin 2ψ)
+
+    A sample of a detector with polarization angle ψ and polarization
+    efficiency γ measures I + γ Q cos 2ψ + γ U sin 2ψ. All the map-makers
+    take the model of a sample from here."""
+    cos_2psi, sin_2psi = cos_sin(2 * psi)
+    return 1.0, pol_eff * cos_2psi, pol_eff * sin_2psi
 
 
 @dataclass
@@ -98,14 +96,18 @@ def get_map_making_weights(
     The number of elements in the result is equal to `observations.n_detectors`. If
     `check` is true, verify that the weights are ok for the map-maker to
     proceed; if not, an `assert` is raised.
+
+    The weight is the variance of one sample, ``f_samp · NET²``: the map-makers
+    divide by it. It is 1 if `observations` has no ``net_ukrts`` attribute.
+    `observations` is not modified.
     """
 
     try:
-        if isinstance(observations.net_ukrts, (float, int)):
-            observations.net_ukrts = observations.net_ukrts * np.ones(
-                observations.n_detectors
-            )
-        weights = observations.sampling_rate_hz * observations.net_ukrts**2
+        net_ukrts = np.broadcast_to(
+            np.asarray(observations.net_ukrts, dtype=np.float64),
+            (observations.n_detectors,),
+        )
+        weights = observations.sampling_rate_hz * net_ukrts**2
     except AttributeError:
         weights = np.ones(observations.n_detectors)
 
@@ -135,118 +137,6 @@ def get_pol_efficiency(observations: Observation) -> npt.NDArray:
         )
     except AttributeError:
         return np.ones(observations.n_detectors)
-
-
-def _compute_pixel_indices(
-    hpx: Healpix_Base,
-    pointings: npt.NDArray | Callable,
-    pol_angle_detectors: npt.NDArray,
-    num_of_detectors: int,
-    num_of_samples: int,
-    hwp_angle: npt.NDArray | None,
-    output_coordinate_system: CoordinateSystem,
-    nthreads: int,
-    pointings_dtype=np.float64,
-    hmap_generation: bool = False,
-) -> tuple[npt.NDArray, npt.NDArray]:
-    """Compute the index of each pixel and its attack angle
-
-    The routine returns a pair of arrays whose size is ``(N_d, N_t)`` each: rows in
-    the first array contain the index of the pixels in the Healpix map represented by `hpx`
-    for a given detector, while rows in the second array the value of the ψ angle (in
-    radians) for each detector. The coordinates used are the ones specified by
-    `output_coordinate_system`.
-
-    The code assumes that `pointings` is a tensor of rank ``(N_d, N_t, 2)``, with
-    ``N_d`` the number of detectors and ``N_t`` the number of samples in the TOD,
-    and the last rank represents the θ and φ angles (in radians) expressed in the
-    Ecliptic reference frame.
-
-    The option `hmap_generation` returns only the telescope orientation instead of
-    the polarization angle.
-    """
-
-    assert len(pol_angle_detectors) == num_of_detectors
-
-    pixidx_all = np.empty((num_of_detectors, num_of_samples), dtype=np.int32)
-    polang_all = np.empty((num_of_detectors, num_of_samples), dtype=pointings_dtype)
-
-    for idet in range(num_of_detectors):
-        curr_pointings_det, hwp_angle = _get_pointings_array(
-            detector_idx=idet,
-            pointings=pointings,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
-            pointings_dtype=pointings_dtype,
-            nthreads=nthreads,
-        )
-        if hmap_generation:
-            polang_all[idet] = curr_pointings_det[:, 2]
-        else:
-            polang_all[idet] = _get_pol_angle(
-                curr_pointings_det=curr_pointings_det,
-                hwp_angle=hwp_angle,
-                pol_angle_detectors=pol_angle_detectors[idet],
-            )
-
-        pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2], nthreads=nthreads)
-
-    if output_coordinate_system == CoordinateSystem.Galactic:
-        # Free curr_pointings_det if the output map is already in Galactic coordinates
-        try:
-            del curr_pointings_det
-        except UnboundLocalError:
-            pass
-
-    return pixidx_all, polang_all
-
-
-def _compute_pixel_indices_single_detector(
-    hpx: Healpix_Base,
-    pointings: npt.NDArray | Callable,
-    pol_angle_detector: float,
-    num_of_samples: int,
-    detector_index: int,
-    hwp_angle: npt.NDArray | None,
-    output_coordinate_system: CoordinateSystem,
-    pointings_dtype=np.float64,
-    hmap_generation: bool = False,
-    nthreads: int | None = None,
-) -> tuple[npt.NDArray, npt.NDArray]:
-    """
-    Same as _compute_pixel_indices but for a single detector, thus returning only the pixel indices and polarization angles for that detector.
-    """
-    nthreads = resolve_nthreads(nthreads)
-
-    pixidx = np.empty((num_of_samples), dtype=np.int32)
-    polang = np.empty((num_of_samples), dtype=pointings_dtype)
-    curr_pointings_det, hwp_angle = _get_pointings_array(
-        detector_idx=detector_index,
-        pointings=pointings,
-        hwp_angle=hwp_angle,
-        output_coordinate_system=output_coordinate_system,
-        pointings_dtype=pointings_dtype,
-        nthreads=nthreads,
-    )
-
-    if hmap_generation:
-        polang = curr_pointings_det[:, 2]
-    else:
-        polang = _get_pol_angle(
-            curr_pointings_det=curr_pointings_det,
-            hwp_angle=hwp_angle,
-            pol_angle_detectors=pol_angle_detector,
-        )
-    pixidx = hpx.ang2pix(curr_pointings_det[:, :2], nthreads=nthreads)
-
-    if output_coordinate_system == CoordinateSystem.Galactic:
-        # Free curr_pointings_det if the output map is already in Galactic coordinates
-        try:
-            del curr_pointings_det
-        except UnboundLocalError:
-            pass
-
-    return pixidx, polang
 
 
 def _cholesky_plain(A: npt.NDArray, dest_L: npt.NDArray) -> None:
@@ -381,160 +271,17 @@ def solve_cholesky(
 
 @njit
 def _is_well_conditioned(matrix: npt.NDArray) -> bool:
-    """Tell if a symmetric positive semi-definite 3×3 matrix can be inverted
+    """Tell if a symmetric positive semi-definite matrix can be inverted
 
     The condition number is the ratio between the largest and the smallest
     eigenvalue, which are computed with ``np.linalg.eigvalsh``. Closed
-    formulas like the one in :func:`.estimate_cond_number` lose too much
-    precision on the smallest eigenvalue when the matrix is singular (e.g.,
-    1–2 hits per pixel), and the test does not depend on the scale of the
-    matrix (i.e., on the units of the detector weights).
+    formulas lose too much precision on the smallest eigenvalue when the
+    matrix is singular (e.g., 1–2 hits per pixel), and the test does not
+    depend on the scale of the matrix (i.e., on the units of the detector
+    weights).
     """
     eigvals = np.linalg.eigvalsh(matrix)
-    return bool(eigvals[2] < COND_THRESHOLD * eigvals[0])
-
-
-@njit
-def estimate_cond_number(
-    a00: float,
-    a10: float,
-    a11: float,
-    a20: float,
-    a21: float,
-    a22: float,
-) -> tuple[float, bool]:
-    """Estimate the condition number for a symmetric 3×3 matrix A
-
-    The result is a tuple containing the condition number and a Boolean flag
-    telling if the matrix is non-singular (``True``) or singular (``False``).
-
-    The code is a conversion of a C++ template class by David Eberly, see
-    <https://www.geometrictools.com/Documentation/RobustEigenSymmetric3×3.pdf>
-    """
-
-    # Precondition the matrix by dividing each member by the largest
-    max_abs_element = max(
-        np.abs(a00),
-        np.abs(a10),
-        np.abs(a20),
-        np.abs(a11),
-        np.abs(a21),
-        np.abs(a22),
-    )
-
-    if max_abs_element == 0.0:
-        # All the elements are 0.0, quit immediately
-        return (0.0, False)
-
-    inv_max_abs_element = 1.0 / max_abs_element
-    a00 *= inv_max_abs_element
-    a10 *= inv_max_abs_element
-    a20 *= inv_max_abs_element
-    a11 *= inv_max_abs_element
-    a21 *= inv_max_abs_element
-    a22 *= inv_max_abs_element
-
-    norm = a10 * a10 + a20 * a20 + a21 * a21
-
-    if norm > 0:
-        q = (a00 + a11 + a22) / 3
-        b00 = a00 - q
-        b11 = a11 - q
-        b22 = a22 - q
-
-        p = np.sqrt((b00 * b00 + b11 * b11 + b22 * b22 + norm * 2) / 6)
-        c00 = b11 * b22 - a21 * a21
-        c01 = a10 * b22 - a21 * a20
-        c02 = a10 * a21 - b11 * a20
-        det = (b00 * c00 - a10 * c01 + a20 * c02) / (p * p * p)
-
-        halfDet = det * 0.5
-        halfDet = min(max(halfDet, -1), 1)
-
-        angle = np.arccos(halfDet) / 3
-        twoThirdsPi = 2 * np.pi / 3
-        beta2 = np.cos(angle) * 2
-        beta0 = np.cos(angle + twoThirdsPi) * 2
-        beta1 = -(beta0 + beta2)
-
-        eval0 = q + p * beta0
-        eval1 = q + p * beta1
-        eval2 = q + p * beta2
-
-    else:
-        eval0 = a00
-        eval1 = a11
-        eval2 = a22
-
-    # Rescale the eigenvalues, as we preconditioned the matrix,
-    # and throw away the signs, as we are not interested in them
-    eval0 = np.abs(eval0 * max_abs_element)
-    eval1 = np.abs(eval1 * max_abs_element)
-    eval2 = np.abs(eval2 * max_abs_element)
-
-    min_abs_eval = min(eval0, eval1, eval2)
-    if min_abs_eval < 1e-10:
-        # The matrix is singular (detA = 0)
-        return (0.0, False)
-
-    max_abs_eval = max(max(eval0, eval1), eval2)
-
-    return (max_abs_eval / min_abs_eval, True)
-
-
-def _build_mask_time_split(
-    time_split: str,
-    obs_list: list[Observation],
-):
-    max_years = 3
-    max_surveys = 6
-    valid_splits = (
-        ["full", "odd", "even", "first_half", "second_half"]
-        + [f"year{i}" for i in range(1, max_years + 1)]
-        + [f"survey{i}" for i in range(1, max_surveys + 1)]
-    )
-    if time_split not in valid_splits:
-        raise ValueError(
-            f"Unknown time split '{time_split}', valid ones are {valid_splits}"
-        )
-
-    time_mask = []
-
-    for cur_obs in obs_list:
-        mask = np.zeros(cur_obs.n_samples_process, dtype=bool)
-
-        if time_split == "full":
-            # A read-only view needs no memory: a real array would take one
-            # byte per sample for *all* the observations at once (~7 GB per
-            # process for 3 years of one 75 Hz detector)
-            time_mask.append(np.broadcast_to(np.True_, cur_obs.n_samples_process))
-        elif time_split == "odd":
-            mask[0::2] = True
-            time_mask.append(mask)
-        elif time_split == "even":
-            mask[1::2] = True
-            time_mask.append(mask)
-        elif time_split == "first_half":
-            mask[0 : cur_obs.n_samples_process // 2] = True
-            time_mask.append(mask)
-        elif time_split == "second_half":
-            mask[cur_obs.n_samples_process // 2 :] = True
-            time_mask.append(mask)
-        for i in range(1, max_years + 1):
-            if time_split == f"year{i}":
-                t_i = _get_initial_time(cur_obs)
-                time_mask.append(
-                    ((cur_obs.get_times() - t_i) >= (i - 1) * t_year_sec)
-                    * ((cur_obs.get_times() - t_i) < i * t_year_sec)
-                )
-        for i in range(1, max_surveys + 1):
-            if time_split == f"survey{i}":
-                t_i = _get_initial_time(cur_obs)
-                time_mask.append(
-                    ((cur_obs.get_times() - t_i) >= (i - 1) * t_survey_sec)
-                    * ((cur_obs.get_times() - t_i) < i * t_survey_sec)
-                )
-    return time_mask
+    return bool(eigvals[-1] < COND_THRESHOLD * eigvals[0])
 
 
 def _apply_flags_to_time_masks(
@@ -574,100 +321,3 @@ def _apply_flags_to_time_masks(
         result.append(mask)
 
     return result
-
-
-def _get_initial_time(
-    observations: Observation,
-):
-    if isinstance(observations.start_time_observation, astropy.time.Time):
-        t_i = observations.start_time_observation.cxcsec
-    else:
-        t_i = observations.start_time_observation
-    return t_i
-
-
-def _get_end_time(
-    observations: Observation,
-):
-    if isinstance(observations.end_time_observation, astropy.time.Time):
-        t_f = observations.end_time_observation.cxcsec
-    else:
-        t_f = observations.end_time_observation
-    return t_f
-
-
-def _build_mask_detector_split(
-    detector_split: str,
-    obs_list: list[Observation],
-):
-    detector_mask = []
-
-    if detector_split == "full":
-        for cur_obs in obs_list:
-            detector_mask.append(np.ones(cur_obs.n_detectors, dtype=bool))
-    elif "wafer" in detector_split:
-        for cur_obs in obs_list:
-            detector_mask.append(cur_obs.wafer == detector_split.replace("wafer", ""))
-
-    return detector_mask
-
-
-def _check_valid_splits(
-    observations: Observation | list[Observation],
-    detector_splits: str | list[str] = "full",
-    time_splits: str | list[str] = "full",
-):
-    valid_detector_splits = ["full"]
-    valid_detector_splits.extend(
-        [f"wafer{wafer}" for wafer in lft_wafers + mft_wafers + hft_wafers]
-    )
-    valid_time_splits = [
-        "full",
-        "first_half",
-        "second_half",
-        "odd",
-        "even",
-    ]
-    max_years = 3
-    max_surveys = 6
-    valid_time_splits.extend([f"year{i}" for i in range(1, max_years + 1)])
-    valid_time_splits.extend([f"survey{i}" for i in range(1, max_surveys + 1)])
-
-    if isinstance(observations, Observation):
-        observations = [observations]
-    if isinstance(detector_splits, str):
-        detector_splits = [detector_splits]
-    if isinstance(time_splits, str):
-        time_splits = [time_splits]
-
-    _validate_detector_splits(observations, detector_splits, valid_detector_splits)
-    _validate_time_splits(observations, time_splits, valid_time_splits)
-    print("Splits are valid!")
-
-
-def _validate_detector_splits(observations, detector_splits, valid_detector_splits):
-    for ds in detector_splits:
-        if ds not in valid_detector_splits:
-            msg = f"Detector split '{ds}' not recognized!\nValid detector splits are {valid_detector_splits}"
-            raise ValueError(msg)
-        for cur_obs in observations:
-            if "wafer" in ds:
-                requested_wafer = ds.replace("wafer", "")
-                if requested_wafer not in cur_obs.wafer:
-                    msg = f"The requested wafer '{ds}' is not part of the requested observation with wafers {cur_obs.wafer}!"
-                    raise AssertionError(msg)
-
-
-def _validate_time_splits(observations, time_splits, valid_time_splits):
-    for ts in time_splits:
-        if ts not in valid_time_splits:
-            msg = f"Time split '{ts}' not recognized!\nValid time splits are {valid_time_splits}"
-            raise ValueError(msg)
-        if "year" in ts:
-            for cur_obs in observations:
-                duration = round(_get_end_time(cur_obs) - _get_initial_time(cur_obs), 0)
-                max_years = duration // t_year_sec
-                requested_years = int(ts.replace("year", ""))
-                if requested_years > max_years:
-                    msg = f"Time split '{ts}' not possible for observation with a duration of {round(duration / t_year_sec, 1)} years!"
-                    raise AssertionError(msg)

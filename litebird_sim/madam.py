@@ -15,7 +15,11 @@ from .coordinates import CoordinateSystem
 from .hwp import HWP
 from .mapmaking import ExternalDestriperParameters
 from .observations import Observation
-from .observation_utilities import _get_pointings_and_pol_angles_det
+from .observation_utilities import (
+    ObservationPointings,
+    _get_pol_angle,
+    observation_pointings,
+)
 from .simulations import MpiDistributionDescr, Simulation
 
 
@@ -42,21 +46,18 @@ def _format_time_for_fits(time: float | AstroTime) -> float | str:
 def _save_pointings_to_fits(
     observation: Observation,
     det_idx: int,
-    hwp: HWP | None,
-    pointings: np.ndarray | list[np.ndarray] | None,
+    pointings: ObservationPointings,
     output_coordinate_system,
     file_name: str | Path,
-    pointing_dtype=np.float64,
 ):
     ensure_parent_dir_exists(file_name)
 
-    pointings_det, pol_angle = _get_pointings_and_pol_angles_det(
-        obs=observation,
-        det_idx=det_idx,
-        hwp=hwp,
-        pointings=pointings,
-        output_coordinate_system=output_coordinate_system,
-        pointing_dtype=pointing_dtype,
+    # The pointings are computed once for the angles and the polarization angle
+    pointings_det = pointings.detector(det_idx)
+    pol_angle = _get_pol_angle(
+        curr_pointings_det=pointings_det,
+        hwp_angle=pointings.hwp_angle,
+        pol_angle_detectors=observation.pol_angle_rad[det_idx],
     )
 
     theta_col = fits.Column(name="THETA", array=pointings_det[:, 0], format="E")
@@ -367,10 +368,20 @@ def save_simulation_for_madam(
     )
     this_process_idx = this_process_idx[0]
 
+    if isinstance(pointings, np.ndarray) and len(sim.observations) == 1:
+        pointings = [pointings]
+    obs_pointings = observation_pointings(
+        sim.observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointing_dtype,
+    )
+
     pointing_files = []
     tod_files = []
 
-    for cur_obs_idx, cur_obs in enumerate(sim.observations):
+    for cur_obs_idx, (cur_obs, cur_ptg) in enumerate(obs_pointings):
         # Note that "detectors" is the *global* list of detectors shared among all the
         # MPI processes
         for cur_global_det_idx, cur_detector in enumerate(detectors):
@@ -405,11 +416,9 @@ def save_simulation_for_madam(
                 _save_pointings_to_fits(
                     observation=cur_obs,
                     det_idx=cur_local_det_idx,
-                    hwp=hwp,
-                    pointings=pointings,
+                    pointings=cur_ptg,
                     output_coordinate_system=output_coordinate_system,
                     file_name=pointing_file_name,
-                    pointing_dtype=pointing_dtype,
                 )
 
             pointing_files.append(

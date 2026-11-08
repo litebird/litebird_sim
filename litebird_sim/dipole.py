@@ -8,7 +8,13 @@ import numpy as np
 from .maps_and_harmonics import SphericalHarmonics
 from .observations import Observation
 from .spacecraft import SpacecraftPositionAndVelocity
-from .observation_utilities import for_each_observation_with_pointings
+from .observation_utilities import (
+    ObservationPointings,
+    _check_detector_fields,
+    _detector_keys,
+    _get_tod_component,
+    observation_pointings,
+)
 
 # Updated imports to match the new constants.py structure
 from .constants import C_LIGHT_KM_OVER_S, H_OVER_K_B, T_CMB_K
@@ -691,6 +697,15 @@ def add_dipole_for_one_detector_convolved(
         )
 
 
+def _detector_pointings(pointings, detector_idx: int, pointings_dtype):
+    """The pointings of one detector, in Ecliptic coordinates"""
+    if isinstance(pointings, ObservationPointings):
+        return pointings.detector(detector_idx)
+    if isinstance(pointings, np.ndarray):
+        return pointings[detector_idx]
+    return pointings(detector_idx, pointings_dtype=pointings_dtype)[0]
+
+
 def add_dipole(
     tod,
     pointings,
@@ -716,7 +731,8 @@ def add_dipole(
     tod:
         2-D time-ordered data array for all detectors (shape ``(n_det, n_samples)``).
     pointings:
-        Pointing matrices. If ``s_params`` is given, the matrix must
+        Pointings in Ecliptic coordinates: an :class:`.ObservationPointings`,
+        a callable, or a matrix. If ``s_params`` is given, the matrix must
         include the ``psi`` column (shape ``(n_det, n_samples, 3)``).
         Otherwise, only ``theta`` and ``phi`` are used (shape
         ``(n_det, n_samples, 2)`` or more).
@@ -791,12 +807,9 @@ def add_dipole(
                 assert isinstance(s_params, BeamSParams)
                 sp = s_params
 
-            if type(pointings) is np.ndarray:
-                theta_phi_psi_det = pointings[detector_idx, :, :]
-            else:
-                theta_phi_psi_det = pointings(
-                    detector_idx, pointings_dtype=pointings_dtype
-                )[0][:, 0:3]
+            theta_phi_psi_det = _detector_pointings(
+                pointings, detector_idx, pointings_dtype
+            )[:, 0:3]
 
             add_dipole_for_one_detector_convolved(
                 tod_det=tod[detector_idx],
@@ -811,12 +824,9 @@ def add_dipole(
             )
         else:
             # Standard (non-convolved) dipole calculation
-            if type(pointings) is np.ndarray:
-                theta_phi_det = pointings[detector_idx, :, 0:2]
-            else:
-                theta_phi_det = pointings(
-                    detector_idx, pointings_dtype=pointings_dtype
-                )[0][:, 0:2]
+            theta_phi_det = _detector_pointings(
+                pointings, detector_idx, pointings_dtype
+            )[:, 0:2]
 
             add_dipole_for_one_detector(
                 tod_det=tod[detector_idx],
@@ -826,6 +836,33 @@ def add_dipole(
                 nu_hz=nu_hz,
                 dipole_type=dipole_type,
             )
+
+
+def _beam_s_params(observation: Observation, beam_alms):
+    """The names of the beams of the detectors of `observation` (None if
+    there is one beam) and their :class:`.BeamSParams`.
+
+    The beams are `beam_alms` if given, otherwise ``observation.blms``."""
+    if beam_alms is None:
+        try:
+            beam_alms = observation.blms
+        except AttributeError:
+            msg = (
+                "apply_convolution=True but beam_alms is None and observation "
+                "has no 'blms' attribute. Provide beam_alms explicitly or store "
+                "them in the observation (e.g., using get_gauss_beam_alms)."
+            )
+            raise AttributeError(msg)
+
+    names = _detector_keys(observation, beam_alms, "beam")
+    if names is None:
+        assert isinstance(beam_alms, SphericalHarmonics), "Invalid blms format."
+        return None, BeamSParams.from_beam_alm(beam_alms)
+
+    beam_alms_dict = cast(dict[str, SphericalHarmonics], beam_alms)
+    return names, {
+        key: BeamSParams.from_beam_alm(beam_alms_dict[key]) for key in set(names)
+    }
 
 
 def add_dipole_to_observations(
@@ -861,9 +898,8 @@ def add_dipole_to_observations(
     pos_and_vel : SpacecraftPositionAndVelocity
         Spacecraft position and velocity data.
     pointings : np.ndarray | list[np.ndarray] | None, default=None
-        Pointing matrices. If None, extracted from observations. Convolved
-        calculations require the ``psi`` column, i.e. shape
-        ``(n_det, n_samples, 3)``.
+        Pointing matrices in Ecliptic coordinates, with shape
+        ``(n_det, n_samples, 3)``. If None, extracted from observations.
     t_cmb_k : float, default=T_CMB_K
         CMB monopole temperature in Kelvin.
     dipole_type : DipoleType, default=TOTAL_FROM_LIN_T
@@ -886,61 +922,25 @@ def add_dipole_to_observations(
         keys should correspond to detector or channel names (consistent
         with :func:`.add_convolved_sky`).
     """
-    # For convolved types we keep the full (θ, φ, ψ) columns; otherwise strip to (θ, φ).
-    ptg_cols = slice(None) if apply_convolution else slice(0, 2)
+    # The velocity is in Ecliptic coordinates, like the default pointings
+    obs_pointings = observation_pointings(
+        observations, pointings=pointings, pointings_dtype=pointings_dtype
+    )
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
+    _check_detector_fields(
+        obs_list, [] if frequency_ghz is not None else ["bandcenter_ghz"]
+    )
 
-    for cur_obs, tod, cur_ptg in for_each_observation_with_pointings(
-        observations, pointings, component
+    # The beams of all the observations, before modifying any TOD
+    beams = [
+        _beam_s_params(cur_obs, beam_alms) if apply_convolution else (None, None)
+        for cur_obs in obs_list
+    ]
+
+    for (cur_obs, cur_ptg), (input_detector_names, cur_s_params) in zip(
+        obs_pointings, beams
     ):
-        # Callables (lazy pointings) are forwarded untouched, matching the
-        # behaviour of the underlying normalizer. Convolved calculations need
-        # the psi column too, hence ptg_cols rather than a hardcoded 0:2.
-        if isinstance(cur_ptg, np.ndarray):
-            cur_ptg = cur_ptg[:, :, ptg_cols]
-
-        # Resolve the beam S-parameters when convolution is requested.
-        # 1. Use the explicitly provided beam_alms if given.
-        # 2. Otherwise fall back to the observation's stored blms.
-        # When apply_convolution is False, any stored/passed beam is ignored
-        # and the pencil-beam dipole is computed.
-        cur_s_params = None
-        input_detector_names = None
-        if apply_convolution:
-            cur_beam_alms = beam_alms
-            if cur_beam_alms is None:
-                try:
-                    cur_beam_alms = cur_obs.blms
-                except AttributeError:
-                    msg = (
-                        "apply_convolution=True but beam_alms is None and observation "
-                        "has no 'blms' attribute. Provide beam_alms explicitly or store "
-                        "them in the observation (e.g., using get_gauss_beam_alms)."
-                    )
-                    raise AttributeError(msg)
-
-            if isinstance(cur_beam_alms, dict):
-                input_detector_names = (
-                    list(cur_obs.name)
-                    if all(k in cur_beam_alms for k in cur_obs.name)
-                    else list(cur_obs.channel)
-                    if all(k in cur_beam_alms for k in cur_obs.channel)
-                    else None
-                )
-                if input_detector_names is None:
-                    raise ValueError(
-                        "Beam blms dictionary keys do not match detector/channel names."
-                    )
-                beam_alms_dict = cast(dict[str, SphericalHarmonics], cur_beam_alms)
-                cur_s_params = {
-                    key: BeamSParams.from_beam_alm(beam_alms_dict[key])
-                    for key in set(input_detector_names)
-                }
-            else:
-                assert isinstance(cur_beam_alms, SphericalHarmonics), (
-                    "Invalid blms format."
-                )
-                input_detector_names = None
-                cur_s_params = BeamSParams.from_beam_alm(cur_beam_alms)
+        tod = _get_tod_component(cur_obs, component)
 
         # Alas, this allocates memory for the velocity vector! At the moment it is the
         # simplest implementation, but in the future we might want to inline the
