@@ -547,8 +547,7 @@ def scan_map_in_observations(
                 hwp=cur_hwp,
                 observation=cur_obs,
                 tod=getattr(cur_obs, component),
-                # This path still needs all the pointings in Ecliptic coordinates
-                pointings=cur_ptg.detector("all"),
+                pointings=cur_ptg,
                 maps=maps,
                 hwp_angle=hwp_angle,
                 pointings_dtype=pointings_dtype,

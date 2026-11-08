@@ -1,5 +1,7 @@
 # HEAD
 
+-   `add_convolved_sky_to_observations`, `add_dipole_to_observations`, `add_2f_to_observations`, `fill_tod_with_hwp_harmonics` and `save_simulation_for_madam` get the pointings and the HWP angle from `ObservationPointings`; `add_convolved_sky`, `add_dipole` and `fill_tod_with_hwp_harmonics` accept it as `pointings`. Fixed `fill_tod_with_hwp_harmonics` without pointings (it failed) and `save_simulation_for_madam` with a list of pointings. Pointings passed to `add_dipole_to_observations` must have three columns. Reference PR: [#659](https://github.com/litebird/litebird_sim/pull/659).
+
 -   New class `ObservationPointings` in `observation_utilities.py`: it gives the pointings of the detectors of one observation (precomputed, computed on the fly, or passed by the caller) and its HWP angle, without writing into the observation; `observation_pointings` builds one per observation. `scan_map_in_observations` uses it, and `scan_map` accepts it as `pointings`. Reference PR: [#658](https://github.com/litebird/litebird_sim/pull/658).
 
 -   `make_destriped_map` keeps the pixel indices, polarization angles and weights for itself instead of storing them in the observations (`keep_weights`, `keep_pixel_idx` and `keep_pol_angle_rad` still store them at the end), and restores the TOD components it sums also when an exception is raised. Reference PR: [#657](https://github.com/litebird/litebird_sim/pull/657).

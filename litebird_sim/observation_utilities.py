@@ -370,67 +370,6 @@ def _normalize_observations_and_pointings(
     return obs_list, ptg_list
 
 
-def _get_pointings_and_pol_angles_det(
-    obs: Observation,
-    det_idx: int,
-    hwp: HWP | None = None,
-    pointings: np.ndarray | list[np.ndarray] | None = None,
-    output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    pointing_dtype=np.float64,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Computes the pointings (θ and φ) and polarization angle of a detector
-
-    Parameters
-    ----------
-    obs : Observation
-        An instance of :class:`.Observation` class
-    det_idx : int
-        Detector index, local to an :class:`.Observation`
-    hwp : HWP | None, optional
-        An instance of the :class:`.HWP` class (optional)
-    pointings : np.ndarray | list[np.ndarray] | None, optional
-        An array of pointings or a list containing the array of pointings,
-        by default `None`
-    output_coordinate_system : CoordinateSystem, optional
-        Coordinate system of the output pointings, by default
-        `CoordinateSystem.Galactic`
-    pointing_dtype : dtype, optional
-        The dtype for the computed hwp angle, by default `np.float64`
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        A tuple containing the pointings and polarization angle of the detector
-    """
-
-    hwp_angle = _get_hwp_angle(
-        obs=obs,
-        hwp=hwp,
-        pointing_dtype=pointing_dtype,
-    )
-
-    __, pointings = _normalize_observations_and_pointings(  # type: ignore[assignment]
-        observations=obs, pointings=pointings
-    )
-
-    assert pointings is not None, "Pointings should not be None after normalization."
-    pointings_det, hwp_angle = _get_pointings_array(
-        detector_idx=det_idx,
-        pointings=pointings[0],
-        hwp_angle=hwp_angle,
-        output_coordinate_system=output_coordinate_system,
-        pointings_dtype=pointing_dtype,
-    )
-
-    pol_angle = _get_pol_angle(
-        curr_pointings_det=pointings_det,
-        hwp_angle=hwp_angle,
-        pol_angle_detectors=obs.pol_angle_rad[det_idx],
-    )
-
-    return pointings_det, pol_angle
-
-
 # ---------------------------------------------------------------------------
 # Shared driver for the systematic-effect modules
 #
