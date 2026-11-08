@@ -270,3 +270,11 @@ def test_simulation_make_pair_differenced_map_splits(tmp_path):
     assert np.allclose(
         results["full_full"].binned_map[:, pix_idx], np.array([q_true, u_true])
     )
+
+    (file_name,) = sim.make_pair_differenced_map_splits(
+        nside=1,
+        output_coordinate_system=CoordinateSystem.Ecliptic,
+        append_to_report=False,
+    )
+    _, header = hp.read_map(file_name, field=[0, 1], h=True)
+    assert dict(header)["COORDSYS"] == "ECLIPTIC"

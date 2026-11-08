@@ -37,7 +37,7 @@ from .beam_convolution import (
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .constants import NUMBA_NUM_THREADS_ENVVAR  # noqa: F401  (re-exported)
-from .coordinates import CoordinateSystem
+from .coordinates import CoordinateSystem, coord_sys_to_healpix_string
 from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .flags import FLAG_PLANET, flag_planets_in_observations
@@ -2618,6 +2618,8 @@ class Simulation:
         time_split: str = "full",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        flags: str | list[str] | None = None,
+        flag_mask: int | None = None,
     ) -> PairDifferencingResult:
         """QU pair-differencing map-maker.
 
@@ -2663,6 +2665,8 @@ class Simulation:
             detector_split=detector_split,
             time_split=time_split,
             pointings_dtype=pointings_dtype,
+            flags=flags,
+            flag_mask=flag_mask,
         )
 
     @_profile
@@ -2677,6 +2681,8 @@ class Simulation:
         include_inv_covariance: bool = False,
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        flags: str | list[str] | None = None,
+        flag_mask: int | None = None,
     ) -> list[str] | dict[str, PairDifferencingResult]:
         """Compute pair-differenced maps for multiple split combinations.
 
@@ -2718,6 +2724,8 @@ class Simulation:
                         detector_split=ds,
                         time_split=ts,
                         pointings_dtype=pointings_dtype,
+                        flags=flags,
+                        flag_mask=flag_mask,
                     )
 
                     file = f"pair_differenced_map_DET{ds}_TIME{ts}.fits"
@@ -2735,7 +2743,7 @@ class Simulation:
                             Path(file),
                             mapp,
                             column_names=names,
-                            coord=result.coordinate_system.name,
+                            coord=coord_sys_to_healpix_string(result.coordinate_system),
                         )
                     )
 
@@ -2752,6 +2760,8 @@ class Simulation:
                     detector_split=ds,
                     time_split=ts,
                     pointings_dtype=pointings_dtype,
+                    flags=flags,
+                    flag_mask=flag_mask,
                 )
 
         return pair_maps
@@ -2818,21 +2828,20 @@ class Simulation:
                     )
                     file = f"binned_map_DET{ds}_TIME{ts}.fits"
                     names = ["I", "Q", "U"]
-                    result = list(result.__dict__.items())
-                    mapp = result.pop(0)[1]
-                    inv_cov = result.pop(0)[1]
-                    coords = result.pop(0)[1].name
-                    del result
-                    inv_cov = inv_cov.T[np.tril_indices(3)]
-                    inv_cov[[2, 3]] = inv_cov[[3, 2]]
-                    inv_cov = list(inv_cov)
+                    mapp = result.binned_map
                     if include_inv_covariance:
+                        # The upper triangle of the symmetric 3×3 matrices
+                        rows, cols = np.triu_indices(3)
                         names.extend(["II", "IQ", "IU", "QQ", "QU", "UU"])
-                        for _ in range(6):
-                            mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
+                        mapp = np.concatenate(
+                            [mapp, result.invnpp[:, rows, cols].T], axis=0
+                        )
                     filenames.append(
                         self.write_healpix_map(
-                            Path(file), mapp, column_names=names, coord=coords
+                            Path(file),
+                            mapp,
+                            column_names=names,
+                            coord=coord_sys_to_healpix_string(result.coordinate_system),
                         )
                     )
             return filenames

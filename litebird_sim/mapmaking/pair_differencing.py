@@ -31,6 +31,7 @@ from .reduction import reduction_for_observations
 from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
     COND_THRESHOLD,
+    _apply_flags_to_time_masks,
     get_map_making_weights,
     get_pol_efficiency,
 )
@@ -182,9 +183,16 @@ def _build_nobs_matrix(
             cur_obs, detector_mask=cur_d_mask, obs_idx=obs_idx
         )
 
+        # A pair difference uses the samples good for both detectors
+        pair_masks = {
+            (t_idx, b_idx): np.ascontiguousarray(cur_t_mask[t_idx] & cur_t_mask[b_idx])
+            for t_idx, b_idx in detector_pairs
+        }
+
         for t_idx, b_idx in detector_pairs:
+            pair_mask = pair_masks[t_idx, b_idx]
             if not np.array_equal(
-                pixidx_all[t_idx, cur_t_mask], pixidx_all[b_idx, cur_t_mask]
+                pixidx_all[t_idx, pair_mask], pixidx_all[b_idx, pair_mask]
             ):
                 raise ValueError(
                     f"Observation {obs_idx}: detectors {t_idx} and {b_idx} do not "
@@ -210,7 +218,7 @@ def _build_nobs_matrix(
                     cur_weights[b_idx],
                     cur_pol_eff[t_idx],
                     cur_pol_eff[b_idx],
-                    cur_t_mask,
+                    pair_masks[t_idx, b_idx],
                     nobs_matrix,
                     rhs,
                     additional_component=idx > 0,
@@ -335,6 +343,8 @@ def make_pair_differenced_map(
     time_split: str = "full",
     pointings_dtype=np.float64,
     nthreads: int | None = None,
+    flags: str | list[str] | None = None,
+    flag_mask: int | None = None,
 ) -> PairDifferencingResult:
     """QU pair-differencing map-maker
 
@@ -377,6 +387,13 @@ def make_pair_differenced_map(
         nthreads : int, default=None
             Number of threads to use in ducc's Healpix methods. If None,
             the function reads from the `OMP_NUM_THREADS` environment variable.
+        flags (str or list[str]): names of the :class:`.Observation`
+            attributes holding the flags, either per detector (e.g.
+            ``"local_flags"``) or common to all the detectors (e.g.
+            ``"global_flags"``). A sample enters the difference of a pair only
+            if it is not flagged in either detector.
+        flag_mask (int): bits of the flags that exclude a sample (e.g.
+            ``0b101``). If None, any nonzero flag excludes the sample.
 
     Returns:
         An instance of the class :class:`.PairDifferencingResult`. If the observations are
@@ -404,7 +421,9 @@ def make_pair_differenced_map(
 
     _check_tb_detector_pairs(obs_list, detector_mask_list)
 
-    time_mask_list = _build_mask_time_split(time_split, obs_list)
+    time_mask_list = _apply_flags_to_time_masks(
+        _build_mask_time_split(time_split, obs_list), obs_list, flags, flag_mask
+    )
 
     nobs_matrix, rhs = _build_nobs_matrix(
         nside=nside,

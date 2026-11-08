@@ -334,3 +334,77 @@ def test_map_making_weights_do_not_modify_the_observation():
     obs.net_ukrts = 2.0
     np.testing.assert_array_equal(get_map_making_weights(obs), [20.0, 20.0])
     assert obs.net_ukrts == 2.0
+
+
+def _splits_simulation(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path, start_time=0.0, duration_s=3600.0, random_seed=1
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.radians(30),
+            spin_rate_hz=0.5 / 60,
+            precession_rate_hz=1 / 3600,
+        )
+    )
+    sim.set_instrument(
+        lbs.InstrumentInfo(name="i", spin_boresight_angle_rad=np.deg2rad(65))
+    )
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name=f"d{i}", sampling_rate_hz=10, net_ukrts=1.0, pol_angle_rad=0.5 * i
+            )
+            for i in range(2)
+        ]
+    )
+    sim.prepare_pointings()
+    rng = np.random.default_rng(1)
+    for obs in sim.observations:
+        obs.tod[:] = rng.normal(size=obs.tod.shape)
+    return sim
+
+
+@pytest.mark.parametrize("include_inv_covariance", [False, True])
+def test_make_binned_map_splits_writes_the_fields_by_name(
+    tmp_path, monkeypatch, include_inv_covariance
+):
+    # The file is written from the named fields of the result, whatever the
+    # order of the fields
+    import dataclasses
+
+    from litebird_sim import simulations
+
+    sim = _splits_simulation(tmp_path)
+    nside = 4
+    expected = sim.make_binned_map(nside=nside, append_to_report=False)
+
+    @dataclasses.dataclass
+    class Reordered:
+        time_split: str
+        coordinate_system: lbs.CoordinateSystem
+        invnpp: np.ndarray
+        binned_map: np.ndarray
+
+    def reordered_binned_map(**kwargs):
+        r = mapping.make_binned_map(**kwargs)
+        return Reordered(r.time_split, r.coordinate_system, r.invnpp, r.binned_map)
+
+    monkeypatch.setattr(simulations, "make_binned_map", reordered_binned_map)
+    (file_name,) = sim.make_binned_map_splits(
+        nside=nside,
+        include_inv_covariance=include_inv_covariance,
+        append_to_report=False,
+    )
+
+    n_maps = 9 if include_inv_covariance else 3
+    maps = hp.read_map(file_name, field=list(range(n_maps)))
+    np.testing.assert_allclose(maps[0:3], expected.binned_map, rtol=1e-6)
+    if include_inv_covariance:
+        invnpp = expected.invnpp
+        for row, (i, j) in zip(
+            maps[3:], [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)]
+        ):
+            np.testing.assert_allclose(row, invnpp[:, i, j], rtol=1e-6)
+    header = dict(hp.read_map(file_name, h=True)[1])
+    assert header["COORDSYS"] == "GALACTIC"
