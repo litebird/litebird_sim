@@ -200,3 +200,28 @@ def test_get_pointings_all_forwards_nthreads(monkeypatch):
 
     sim.observations[0].get_pointings("all", nside_centering=8, nthreads=7)
     assert calls and all(n == 7 for n in calls)
+
+
+def test_helpers_used_by_brahmap_are_kept():
+    # brahmap.lbsim imports these private helpers: keep them until it uses
+    # ObservationPointings
+    sim, _ = _make_two_observations()
+    obs = sim.observations[0]
+    pointings = np.zeros((obs.n_detectors, obs.n_samples_process, 3))
+    with pytest.deprecated_call():
+        obs_list, ptg_list = (
+            lbs.observation_utilities._normalize_observations_and_pointings(
+                obs, pointings
+            )
+        )
+    assert obs_list == [obs] and ptg_list[0] is pointings
+    with pytest.deprecated_call():
+        assert lbs.observation_utilities._get_hwp_angle(obs) is None
+    with pytest.deprecated_call():
+        det, angle = lbs.observation_utilities._get_pointings_array(
+            0, pointings, None, lbs.CoordinateSystem.Ecliptic
+        )
+    assert det.shape == (obs.n_samples_process, 3) and angle is None
+    assert lbs.observation_utilities._get_pol_angle(det, None, 0.5).shape == (
+        obs.n_samples_process,
+    )
