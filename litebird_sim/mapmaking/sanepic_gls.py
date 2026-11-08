@@ -408,7 +408,10 @@ def make_sanepic_gls_map(
         computed here as in the other map-makers), ``"angles"`` (θ, φ, ψ,
         pixelized by pysanepic) or ``"auto"`` (default): angles if
         `sky_model` or some template is given as alm, which are
-        interpolated at the pointing and need the angles, pixels otherwise.
+        interpolated at the pointing and need the angles, or with
+        ``params.subpixel_order`` > 0 (pysanepic 0.6.4 or later), which
+        needs the position of the samples within the pixels; pixels
+        otherwise.
         The maps are the same; pixels keep less memory per detector.
     verbose : bool, optional
         Print the progress of pysanepic on the first MPI process: the PCG
@@ -469,7 +472,10 @@ def make_sanepic_gls_map(
             "they are interpolated at the pointing and need the angles "
             "(use 'angles' or 'auto', or pass them as maps)"
         )
-    angles = pointing_form == "angles" or (pointing_form == "auto" and alm)
+    subpixel = getattr(params, "subpixel_order", 0) > 0
+    angles = pointing_form == "angles" or (
+        pointing_form == "auto" and (alm or subpixel)
+    )
     if noise_model not in ("toast", "keshner"):
         raise ValueError(
             f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
