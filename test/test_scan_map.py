@@ -8,6 +8,7 @@ import pytest
 from ducc0.healpix import Healpix_Base
 
 import litebird_sim as lbs
+from litebird_sim.observation_utilities import ObservationPointings
 from litebird_sim.maps_and_harmonics import HealpixMap
 from utils import astropy_ecl_to_gal_matrix
 
@@ -509,8 +510,7 @@ def test_scan_map_algebras():
     for idet in range(obs.n_detectors):
         pointings, _ = obs.get_pointings(idet)
         pixind = hpx.ang2pix(pointings[:, 0:2])
-        # Note: calling internal method _get_hwp_angle
-        hwp_angle = lbs.observation_utilities._get_hwp_angle(obs, hwp_new)
+        hwp_angle = ObservationPointings(obs, hwp=hwp_new).hwp_angle
         angle = 2 * pointings[:, 2] - 2 * obs.pol_angle_rad[idet] + 4 * hwp_angle
         tod[idet, :] = (
             maps[0, pixind]
@@ -539,7 +539,7 @@ def test_scan_map_algebras():
     for idet in range(obs.n_detectors):
         pointings = obs.pointing_matrix[idet]
         pixind = hpx.ang2pix(pointings[:, 0:2])
-        hwp_angle = lbs.observation_utilities._get_hwp_angle(obs, hwp_new)
+        hwp_angle = ObservationPointings(obs, hwp=hwp_new).hwp_angle
         angle = 2 * pointings[:, 2] - 2 * obs.pol_angle_rad[idet] + 4 * hwp_angle
         tod[idet, :] = (
             maps[0, pixind]

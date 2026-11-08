@@ -9,7 +9,7 @@ from astropy.time import Time
 
 import litebird_sim as lbs
 from litebird_sim.io import read_one_observation
-from litebird_sim.observation_utilities import _get_hwp_angle, apply_hwp_to_obs
+from litebird_sim.observation_utilities import ObservationPointings, apply_hwp_to_obs
 
 
 def _elapsed_s(time, epoch):
@@ -86,7 +86,7 @@ def test_hwp_phase_across_observations(tmp_path, count, nonideal, scale):
         expected = 0.37 + 0.73 * (elapsed + np.arange(obs.n_samples_process) / 4.0)
         _assert_phase(obs.get_hwp_angle(), expected)
         _assert_phase(obs.get_pointings(0)[1], expected)
-        _assert_phase(_get_hwp_angle(obs, hwp=sim.hwp), expected)
+        _assert_phase(ObservationPointings(obs, hwp=sim.hwp).hwp_angle, expected)
         # The deprecated API adds twice the mechanical angle to orientation.
         pointings = np.zeros((1, obs.n_samples_process, 3))
         with pytest.warns(DeprecationWarning):

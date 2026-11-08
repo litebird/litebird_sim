@@ -11,8 +11,8 @@ from .mueller_convolver import MuellerConvolver
 from .observations import Observation
 from .observation_utilities import (
     ObservationPointings,
+    _ArrayPointings,
     observation_pointings,
-    _get_pointings_array,
 )
 from .maps_and_harmonics import SphericalHarmonics
 from .utilities import resolve_nthreads, wrap_phi
@@ -295,6 +295,14 @@ def add_convolved_sky(
 
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
+    if not isinstance(pointings, ObservationPointings):
+        pointings = _ArrayPointings(
+            pointings,
+            hwp_angle=hwp_angle,
+            nside_centering=nside_centering,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
 
     for detector_idx in range(n_detectors):
         if input_sky_names is None:
@@ -330,22 +338,11 @@ def add_convolved_sky(
         # ----------------------------------------------------------
         # Get pointings in the correct coordinate system
         # ----------------------------------------------------------
-        if isinstance(pointings, ObservationPointings):
-            curr_pointings_det = pointings.detector(
-                detector_idx, output_coordinate_system=coordinates
-            )
-            if hwp_angle is None:
-                hwp_angle = pointings.hwp_angle
-        else:
-            curr_pointings_det, hwp_angle = _get_pointings_array(
-                detector_idx=detector_idx,
-                pointings=pointings,
-                hwp_angle=hwp_angle,
-                output_coordinate_system=coordinates,
-                nside_centering=nside_centering,
-                pointings_dtype=pointings_dtype,
-                nthreads=nthreads,
-            )
+        curr_pointings_det = pointings.detector(
+            detector_idx, output_coordinate_system=coordinates
+        )
+        if hwp_angle is None:
+            hwp_angle = pointings.hwp_angle
 
         # ducc wants phi in [0, 2π): wrap a copy, as `curr_pointings_det` can
         # be a view of the caller's pointings

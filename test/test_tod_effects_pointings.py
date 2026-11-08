@@ -217,3 +217,66 @@ def test_madam(tmp_path, coordinates):
     for cur in columns[1:]:
         diff = np.angle(np.exp(1j * (cur - columns[0])))
         np.testing.assert_allclose(diff, 0.0, rtol=0, atol=1e-6)
+
+
+def _low_level_forms(nside_centering=None, hwp=True):
+    """The same pointings for the low-level functions: an ObservationPointings,
+    an array with the HWP angle, and the get_pointings callable"""
+    from litebird_sim.observation_utilities import ObservationPointings
+
+    sim, _ = _simulation(
+        "on_the_fly", hwp=lbs.IdealHWP(ang_speed_radpsec=2.0) if hwp else None
+    )
+    (obs,) = sim.observations
+    array, hwp_angle = obs.get_pointings("all")
+    return obs, [
+        (ObservationPointings(obs, nside_centering=nside_centering), None),
+        (array, hwp_angle),
+        (obs.get_pointings, None),
+    ]
+
+
+@pytest.mark.parametrize(
+    "coordinates", [lbs.CoordinateSystem.Ecliptic, lbs.CoordinateSystem.Galactic]
+)
+def test_scan_map_pointing_forms(coordinates):
+    sky = _alms(coordinates=coordinates)
+    obs, forms = _low_level_forms()
+    tods = []
+    for pointings, hwp_angle in forms:
+        tod = np.zeros_like(obs.tod)
+        lbs.scan_map(
+            tod,
+            pointings,
+            maps=sky,
+            pol_angle_detectors=obs.pol_angle_rad,
+            hwp=obs.hwp,
+            hwp_angle=hwp_angle,
+        )
+        tods.append(tod)
+    _assert_all_equal(tods, atol=1e-9)
+
+
+@pytest.mark.parametrize("nside_centering", [None, 8])
+def test_add_convolved_sky_pointing_forms(nside_centering):
+    lmax = 16
+    sky = _alms(lmax=lmax)
+    beam = lbs.gauss_beam_to_alm(lmax=lmax, mmax=4, fwhm_rad=np.deg2rad(5.0))
+    params = lbs.BeamConvolutionParameters(
+        lmax=lmax, mmax=4, single_precision=False, strict_typing=False
+    )
+    obs, forms = _low_level_forms(nside_centering, hwp=False)
+    tods = []
+    for pointings, hwp_angle in forms:
+        tod = np.zeros_like(obs.tod)
+        lbs.add_convolved_sky(
+            tod,
+            pointings,
+            sky_alms=sky,
+            beam_alms=beam,
+            hwp_angle=hwp_angle,
+            convolution_params=params,
+            nside_centering=nside_centering,
+        )
+        tods.append(tod)
+    _assert_all_equal(tods, atol=1e-9)

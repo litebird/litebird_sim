@@ -52,6 +52,7 @@ def _save_pointings_to_fits(
 ):
     ensure_parent_dir_exists(file_name)
 
+    # The pointings are computed once for the angles and the polarization angle
     pointings_det = pointings.detector(det_idx)
     pol_angle = _get_pol_angle(
         curr_pointings_det=pointings_det,
