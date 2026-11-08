@@ -22,11 +22,7 @@ from litebird_sim.noise import (
     _normalize_rho,
     _validate_grouping,
 )
-from litebird_sim.observation_utilities import (
-    _get_hwp_angle,
-    _get_pointings_array,
-    _normalize_observations_and_pointings,
-)
+from litebird_sim.observation_utilities import observation_pointings
 
 from litebird_sim.utilities import resolve_nthreads
 
@@ -107,13 +103,10 @@ def _import_pysanepic(feature: str = "OneOverFNoise", version: str = "0.3.0"):
 
 def _detector_data(
     pysanepic,
-    obs_list,
-    ptg_list,
-    hwp,
+    obs_pointings,
     nside,
     components,
     output_coordinate_system,
-    pointings_dtype,
     nthreads,
     noise_model,
     flag_names,
@@ -140,8 +133,9 @@ def _detector_data(
     hpx = Healpix_Base(nside, "RING")
     # DetectorData.name, used to average noise spectra, is in pysanepic >= 0.4.0
     named = "name" in {f.name for f in dataclasses.fields(pysanepic.DetectorData)}
-    for obs, cur_ptg in zip(obs_list, ptg_list):
-        hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
+    for obs, cur_ptg in obs_pointings:
+        # The pointings of cur_ptg are in output_coordinate_system
+        hwp_angle = cur_ptg.hwp_angle
         gamma = get_pol_efficiency(obs)
         net = np.broadcast_to(obs.net_ukrts, (obs.n_detectors,))
         if correlation is not None:
@@ -154,13 +148,10 @@ def _detector_data(
                 noise,
                 _detector_data(
                     pysanepic,
-                    [obs],
-                    [cur_ptg],
-                    hwp,
+                    [(obs, cur_ptg)],
                     nside,
                     components,
                     output_coordinate_system,
-                    pointings_dtype,
                     nthreads,
                     noise_model,
                     flag_names,
@@ -174,14 +165,7 @@ def _detector_data(
             continue
         for det_idx in range(obs.n_detectors):
             name = str(obs.name[det_idx])
-            ptg_det, hwp_angle = _get_pointings_array(
-                detector_idx=det_idx,
-                pointings=cur_ptg,
-                hwp_angle=hwp_angle,
-                output_coordinate_system=output_coordinate_system,
-                pointings_dtype=pointings_dtype,
-                nthreads=nthreads,
-            )
+            ptg_det = cur_ptg.detector(det_idx)
             if angles:
                 pointing = pysanepic.Pointing(
                     theta=ptg_det[:, 0].copy(),
@@ -493,10 +477,16 @@ def make_sanepic_gls_map(
     flag_names = [flags] if isinstance(flags, str) else list(flags or [])
     if isinstance(components, str):
         components = [components]
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
-    )
     nthreads = resolve_nthreads(nthreads)
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
+    )
+    obs_list = [obs for obs, _ in obs_pointings]
     for k in tod_templates:
         if any(not hasattr(obs, k) for obs in obs_list):
             raise ValueError(
@@ -506,13 +496,10 @@ def make_sanepic_gls_map(
             )
     data = _detector_data(
         pysanepic,
-        obs_list,
-        ptg_list,
-        hwp,
+        obs_pointings,
         nside,
         components,
         output_coordinate_system,
-        pointings_dtype,
         nthreads,
         noise_model,
         flag_names,
@@ -625,25 +612,24 @@ def compute_sanepic_beam_templates(
         raise ValueError("compute_sanepic_beam_templates: sky_model must be alm")
     coordinates = _COORDINATES[output_coordinate_system]
     nthreads = resolve_nthreads(nthreads)
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
     )
+    obs_list = [obs for obs, _ in obs_pointings]
     noise = pysanepic.OneOverFNoise(net_ukrts=1.0)  # not used
     has_hwp = set()
-    for obs, cur_ptg in zip(obs_list, ptg_list):
-        hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
+    for obs, cur_ptg in obs_pointings:
+        hwp_angle = cur_ptg.hwp_angle
         has_hwp.add(hwp_angle is not None)
         gamma = get_pol_efficiency(obs)
         out = {}
         for det_idx in range(obs.n_detectors):
-            ptg_det, hwp_det = _get_pointings_array(
-                detector_idx=det_idx,
-                pointings=cur_ptg,
-                hwp_angle=hwp_angle,
-                output_coordinate_system=output_coordinate_system,
-                pointings_dtype=pointings_dtype,
-                nthreads=nthreads,
-            )
+            ptg_det = cur_ptg.detector(det_idx)
             d = pysanepic.DetectorData(
                 tod=np.broadcast_to(0.0, (obs.n_samples_process,)),
                 pointing=pysanepic.Pointing(
@@ -652,7 +638,7 @@ def compute_sanepic_beam_templates(
                     psi=ptg_det[:, 2],
                     coordinates=coordinates,
                 ),
-                hwp_angle=hwp_det,
+                hwp_angle=hwp_angle,
                 sampling_rate_hz=obs.sampling_rate_hz,
                 noise=noise,
                 pol_angle_rad=obs.pol_angle_rad[det_idx],
@@ -763,11 +749,17 @@ def estimate_sanepic_noise(
         extra["n_modes"] = n_modes
     if isinstance(components, str):
         components = [components]
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
-    )
     nthreads = resolve_nthreads(nthreads)
     coordinate_system = {v: k for k, v in _COORDINATES.items()}[result.coordinates]
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=coordinate_system,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
+    )
+    obs_list = [obs for obs, _ in obs_pointings]
     # the TOD model of make_maps, in the MapResult of pysanepic > 0.6.4
     calibrated = getattr(result, "calibration", None) is not None
     if calibrated and dipole_component is None:
@@ -790,13 +782,10 @@ def estimate_sanepic_noise(
     )
     data = _detector_data(
         pysanepic,
-        obs_list,
-        ptg_list,
-        hwp,
+        obs_pointings,
         result.nside,
         components,
         coordinate_system,
-        pointings_dtype,
         nthreads,
         "toast",  # not used: only the residual matters here
         [flags] if isinstance(flags, str) else list(flags or []),

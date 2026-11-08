@@ -121,6 +121,51 @@ def test_sanepic_noise_model(monkeypatch):
         )
 
 
+@pytest.mark.parametrize("way", ["on_the_fly", "precomputed", "external"])
+def test_sanepic_pixels_from_observation_pointings(monkeypatch, way):
+    # The pixels, ψ and HWP angle passed to pysanepic are those of
+    # ObservationPointings, and an external HWP does not modify the observation
+    from litebird_sim.observation_utilities import ObservationPointings
+
+    seen = []
+    monkeypatch.setattr(pysanepic, "make_maps", lambda data, *a, **k: seen.extend(data))
+    sim = lbs.Simulation(start_time=0, duration_s=100.0, random_seed=1)
+    sim.set_instrument(lbs.InstrumentInfo(name="instr"))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(name=f"d{i}", sampling_rate_hz=1.0, net_ukrts=50.0)
+            for i in range(2)
+        ]
+    )
+    sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.785, 0.0, 0.01))
+    sim.prepare_pointings()
+    if way == "precomputed":
+        sim.precompute_pointings()
+    (obs,) = sim.observations
+    pointings = obs.get_pointings("all")[0] if way == "external" else None
+    hwp = lbs.IdealHWP(ang_speed_radpsec=1.0)
+
+    lbs.make_sanepic_gls_map(
+        nside=8,
+        observations=obs,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=lbs.CoordinateSystem.Galactic,
+    )
+
+    assert obs.has_hwp is False
+    expected = ObservationPointings(
+        obs, hwp=hwp, output_coordinate_system=lbs.CoordinateSystem.Galactic
+    )
+    assert len(seen) == 2
+    for idet, d in enumerate(seen):
+        np.testing.assert_array_equal(d.pointing.pix, expected.pixel_index(idet, 8))
+        # ψ can differ by 2π
+        diff = np.angle(np.exp(1j * (d.pointing.psi - expected.detector(idet)[:, 2])))
+        np.testing.assert_allclose(diff, 0.0, rtol=0, atol=1e-9)
+        np.testing.assert_array_equal(d.hwp_angle, expected.hwp_angle)
+
+
 def test_sanepic_flags(monkeypatch):
     # Per-detector and common flags are combined and passed to pysanepic
     seen = []
