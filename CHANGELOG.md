@@ -1,5 +1,7 @@
 # HEAD
 
+-   The TOD effects check the fields of the detectors they read and the keys of the dictionaries of skies and beams for all the observations before modifying any TOD, raising a `ValueError` that names what is missing; `for_each_observation` takes `required_fields`. Reference PR: [#664](https://github.com/litebird/litebird_sim/pull/664).
+
 -   `make_pair_differenced_map` and its `Simulation` wrappers take `flags` and `flag_mask` like the binner and the destriper; a sample enters the difference of a pair only if it is flagged in neither detector. `Simulation.make_binned_map_splits` writes the files from the named fields of the result. The files of `make_binned_map_splits` and `make_pair_differenced_map_splits` have `COORDSYS` = `GALACTIC`/`ECLIPTIC`, as those of the destriper, instead of `Galactic`/`Ecliptic`. Reference PR: [#663](https://github.com/litebird/litebird_sim/pull/663).
 
 -   litebird_sim no longer uses the private helpers `_get_hwp_angle` (which set `obs.has_hwp`), `_get_pointings_array` and `_normalize_observations_and_pointings`; they are deprecated and kept only for BrahMap. `scan_map` and `add_convolved_sky` still accept an array or a function of pointings. `for_each_observation_with_pointings` is deprecated in favour of `observation_pointings`. Reference PR: [#662](https://github.com/litebird/litebird_sim/pull/662).

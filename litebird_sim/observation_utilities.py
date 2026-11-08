@@ -222,6 +222,48 @@ def _get_tod_component(obs: Observation, component: str) -> np.ndarray:
     return getattr(obs, component)
 
 
+def _check_detector_fields(
+    observations: Observation | list[Observation],
+    fields: list[str],
+    component: str | None = None,
+) -> None:
+    """Raise a ValueError if an observation lacks some of `fields`, or the
+    TOD `component` if given.
+
+    The effects call it before modifying any TOD, so that a missing field
+    does not leave some observations (or some detectors) modified."""
+    for obs_idx, cur_obs in enumerate(normalize_observations(observations)):
+        if component is not None:
+            _get_tod_component(cur_obs, component)
+        missing = [name for name in fields if not hasattr(cur_obs, name)]
+        if missing:
+            raise ValueError(
+                f"The detectors of observation {obs_idx} have no "
+                f"{', '.join(repr(x) for x in missing)}: set "
+                f"{'it' if len(missing) == 1 else 'them'} in the DetectorInfo "
+                "objects or in the observation"
+            )
+
+
+def _detector_keys(observation: Observation, inputs, what: str) -> list | None:
+    """The keys of the dictionary `inputs` for the detectors of `observation`.
+
+    They are the names of the detectors if all of them are keys, otherwise
+    their channels. `what` names the input in the error raised when neither
+    are keys (e.g. ``"sky"``). If `inputs` is not a dictionary, the result is
+    None: the same input is used for all the detectors."""
+    if not isinstance(inputs, dict):
+        return None
+    for field in ("name", "channel"):
+        keys = getattr(observation, field, None)
+        if keys is not None and all(k in inputs for k in keys):
+            return list(keys)
+    raise ValueError(
+        f"The {what} dictionary has neither the names nor the channels of all "
+        "the detectors as keys"
+    )
+
+
 def for_each_observation(
     observations: Observation | list[Observation],
     component: str = "tod",
@@ -230,6 +272,7 @@ def for_each_observation(
     dets_random: list[np.random.Generator] | None = None,
     requires_rng: bool = False,
     comm=None,
+    required_fields: list[str] | None = None,
 ) -> Iterator[tuple[Observation, np.ndarray, list[np.random.Generator] | None]]:
     """Iterate over observations, yielding ``(obs, tod, dets_random)``.
 
@@ -244,7 +287,10 @@ def for_each_observation(
       on every iteration;
     - yields the ``component`` TOD array (validated against
       ``obs.tod_list``) so the caller does not repeat the attribute
-      indirection.
+      indirection;
+    - checks that all the observations have the fields in *required_fields*
+      before yielding the first one, so that no TOD is modified if one is
+      missing.
 
     Parameters
     ----------
@@ -269,6 +315,10 @@ def for_each_observation(
         when *requires_rng* is ``True``.  Defaults to the communicator of the
         first observation, so that the generators built from *user_seed* differ
         among MPI processes.
+    required_fields : list of str, optional
+        Fields of the detectors (attributes of the observations) that the
+        effect reads; a ValueError naming the missing one is raised before
+        any TOD is yielded.
 
     Yields
     ------
@@ -279,6 +329,7 @@ def for_each_observation(
         iteration.
     """
     obs_list = normalize_observations(observations)
+    _check_detector_fields(obs_list, required_fields or [], component)
 
     if requires_rng:
         if comm is None:

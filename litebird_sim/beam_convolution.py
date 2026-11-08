@@ -13,6 +13,8 @@ from .observation_utilities import (
     ObservationPointings,
     _ArrayPointings,
     observation_pointings,
+    _check_detector_fields,
+    _detector_keys,
 )
 from .maps_and_harmonics import SphericalHarmonics
 from .utilities import resolve_nthreads, wrap_phi
@@ -450,44 +452,23 @@ def add_convolved_sky_to_observations(
             msg = "'beam_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics of the beam, or store them in the observations if 'get_gauss_beam_alms' is used."
             raise AttributeError(msg)
     assert beam_alms is not None
-
-    for cur_obs, cur_ptg in obs_pointings:
-        # Determine input sky names
-        if isinstance(sky_alms, dict):
-            input_sky_names = (
-                cur_obs.name
-                if all(k in sky_alms for k in cur_obs.name)
-                else cur_obs.channel
-                if all(k in sky_alms for k in cur_obs.channel)
-                else None
+    for name, alms in (("sky", sky_alms), ("beam", beam_alms)):
+        if not isinstance(alms, (dict, SphericalHarmonics)):
+            raise TypeError(
+                f"The {name} must be a SphericalHarmonics instance or a dict "
+                "mapping detector/channel names to such objects"
             )
-            if input_sky_names is None:
-                raise ValueError(
-                    "Sky a_lm dictionary keys do not match detector/channel names."
-                )
-        else:
-            assert isinstance(sky_alms, SphericalHarmonics), "Invalid sky_alms format."
-            input_sky_names = None
 
-        # Determine input beam names
-        if isinstance(beam_alms, dict):
-            input_beam_names = (
-                cur_obs.name
-                if all(k in beam_alms for k in cur_obs.name)
-                else cur_obs.channel
-                if all(k in beam_alms for k in cur_obs.channel)
-                else None
-            )
-            if input_beam_names is None:
-                raise ValueError(
-                    "Beam a_lm dictionary keys do not match detector/channel names."
-                )
-        else:
-            assert isinstance(beam_alms, SphericalHarmonics), (
-                "Invalid beam_alms format."
-            )
-            input_beam_names = None
+    # The keys and the fields of all the observations, before modifying any TOD
+    _check_detector_fields(obs_list, ["mueller_hwp"], component)
+    names_list = [
+        (_detector_keys(o, sky_alms, "sky"), _detector_keys(o, beam_alms, "beam"))
+        for o in obs_list
+    ]
 
+    for (cur_obs, cur_ptg), (input_sky_names, input_beam_names) in zip(
+        obs_pointings, names_list
+    ):
         # Perform convolution
         add_convolved_sky(
             tod=getattr(cur_obs, component),

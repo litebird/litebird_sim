@@ -7,7 +7,7 @@ from ducc0.healpix import Healpix_Base
 
 from .coordinates import CoordinateSystem
 from .hwp import HWP, IdealHWP
-from .hwp_harmonics.hwp_harmonics import fill_tod_with_hwp_harmonics
+from .hwp_harmonics.hwp_harmonics import _harmonics_fields, fill_tod_with_hwp_harmonics
 from .hwp_non_ideal import NonIdealHWP
 from .input_sky import SkyInput
 from .maps_and_harmonics import (
@@ -22,6 +22,8 @@ from .observation_utilities import (
     ObservationPointings,
     _ArrayPointings,
     observation_pointings,
+    _check_detector_fields,
+    _detector_keys,
     _get_pol_angle,
 )
 
@@ -511,26 +513,24 @@ def scan_map_in_observations(
             )
             raise AttributeError(msg)
 
-    for cur_obs, cur_ptg in obs_pointings:
-        # Decide how to select maps for this observation
-        if isinstance(maps, dict):
-            if all(name in maps for name in cur_obs.name):
-                input_names = cur_obs.name
-            elif all(ch in maps for ch in cur_obs.channel):
-                input_names = cur_obs.channel
-            else:
-                raise ValueError(
-                    "The dictionary 'maps' does not contain all the relevant "
-                    "keys; please check the list of detectors and channels."
-                )
+    if not isinstance(maps, (dict, HealpixMap, SphericalHarmonics)):
+        raise TypeError(
+            "maps must be a HealpixMap, a SphericalHarmonics instance, "
+            "or a dict mapping detector/channel names to such objects."
+        )
+    # The keys of the maps and the fields of all the observations, before
+    # modifying any TOD
+    input_names_list = [_detector_keys(cur_obs, maps, "sky") for cur_obs in obs_list]
+    required_fields = set()
+    for cur_obs in obs_list:
+        cur_hwp = hwp if hwp is not None else cur_obs.hwp
+        if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
+            required_fields.update(_harmonics_fields(cur_hwp))
         else:
-            if not isinstance(maps, (HealpixMap, SphericalHarmonics)):
-                raise TypeError(
-                    "maps must be a HealpixMap, a SphericalHarmonics instance, "
-                    "or a dict mapping detector/channel names to such objects."
-                )
-            input_names = None
+            required_fields.update(["pol_angle_rad", "pol_efficiency", "mueller_hwp"])
+    _check_detector_fields(obs_list, sorted(required_fields), component)
 
+    for (cur_obs, cur_ptg), input_names in zip(obs_pointings, input_names_list):
         # HWP handling: external HWP overrides, otherwise use obs.hwp
         cur_hwp = hwp if hwp is not None else cur_obs.hwp
         hwp_angle = cur_ptg.hwp_angle
