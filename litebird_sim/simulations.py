@@ -2643,7 +2643,10 @@ class Simulation:
         """Compute pair-differenced maps for multiple split combinations.
 
         This is a wrapper around :meth:`.make_pair_differenced_map` that loops
-        over the Cartesian product of detector and time splits.
+        over the Cartesian product of detector and time splits. With
+        `include_inv_covariance`, the files also contain the covariance of
+        Q and U in each pixel (the field ``invnpp`` of the result, despite the
+        name).
         """
 
         if isinstance(components, str):
@@ -2737,7 +2740,8 @@ class Simulation:
         cartesian product of the requested detector and time splits. Here, those can be
         either strings or lists of strings. The method will return a list of filenames
         where the maps have been written to disk (`include_inv_covariance` allows to save
-        also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will
+        also the covariance of I, Q, U in each pixel, i.e., the field ``invnpp``
+        of the result, despite the name). Alternatively, setting `write_to_disk=False`, it will
         return a dictionary with the results, where the keys are the strings obtained by joining
         the detector and time splits with an underscore.
         """
@@ -2938,7 +2942,7 @@ class Simulation:
         cartesian product of the requested detector and time splits. Here, those can be either
         strings or lists of strings. The method will return a list of filenames where the
         maps have been written to disk (`include_inv_covariance` allows to save also the
-        inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary
+        covariance of I, Q, U in each pixel, despite the name). Alternatively, setting `write_to_disk=False`, it will return a dictionary
         with the results, where the keys are the strings obtained by joining the detector and time
         splits with an underscore.
         """

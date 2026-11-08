@@ -320,7 +320,16 @@ Once the call to :func:`.make_binned_map` ends, the field ``invnpp``
 of the :class:`.BinnerResult` object returned by the function
 contains an array with shape :math:`(N_p, 3, 3)`, where each
 3×3 block is the inverse of the sub-matrix :math:`M_i` for the
-*i*-th pixel.
+*i*-th pixel, i.e., the noise covariance of I, Q, U in that pixel, in
+the units of the TOD squared.
+
+.. note::
+
+   Despite the name, which comes from Madam, ``invnpp`` (and the
+   columns written with ``include_inv_covariance``) is the covariance
+   :math:`M_i^{-1}`, not its inverse :math:`M_i`. It includes only the
+   correlations among I, Q, U within each pixel, not those between
+   pixels.
 
 
 Data splits
@@ -430,7 +439,9 @@ This is the low-level usage::
 The :class:`.PairDifferencingResult` output contains:
 
 - ``binned_map`` with shape ``(2, N_pix)`` (Q/U only),
-- ``invnpp`` with shape ``(N_pix, 2, 2)``.
+- ``invnpp`` with shape ``(N_pix, 2, 2)``: the noise covariance of Q and
+  U in each pixel (like the ``invnpp`` of the binner, it is a covariance,
+  not its inverse).
 
 The corresponding high-level interface is :meth:`Simulation.make_pair_differenced_map`::
 
@@ -776,7 +787,8 @@ Given that it is often useful to have access to matrix :math:`M^{-1}`,
 the method :meth:`.NobsMatrix.get_invnpp` computes this inverse as
 a 3D array with shape :math:`(N_pix, 3, 3)`, where the first index
 runs over all the pixels and the last two dimensions are used to
-store the value of :math:`M_i^{-1}`.
+store the value of :math:`M_i^{-1}`, the noise covariance of the binned
+I, Q, U in the pixel. It does not include the uncertainty of the baselines.
 
 The pixels where :math:`M_i` cannot be inverted (too few hits or angles)
 are set to ``UNSEEN`` (:data:`healpy.UNSEEN`) in the binned and destriped

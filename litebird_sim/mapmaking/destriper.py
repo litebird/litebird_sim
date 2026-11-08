@@ -204,15 +204,15 @@ class NobsMatrix:
         return self.nobs_matrix.nbytes + self.valid_pixel.nbytes
 
     def get_invnpp(self) -> npt.NDArray:
-        """Return the inverse noise covariance matrix per pixel
+        """Return the noise covariance matrix of (I, Q, U) in each pixel
 
-        This method returns a (N_pix, 3, 3) array containing the
-        3×3 matrices associated with each pixel that contain the
-        estimate noise per pixel. Each of the N_pix matrices
-        corresponds to Mᵢ⁻¹, the inverse of Mᵢ in Eq. (10) of
-        Kurki-Suonio et al. (2009).
+        This method returns a (N_pix, 3, 3) array: each of the N_pix
+        matrices is Mᵢ⁻¹, the inverse of Mᵢ in Eq. (10) of Kurki-Suonio
+        et al. (2009), i.e., the covariance of the binned map in the pixel
+        (despite the name, which comes from Madam, it is not the inverse
+        covariance). It does not include the uncertainty of the baselines.
 
-        A null matrix is associated with each invalid pixel.
+        The matrices of the invalid pixels are ``UNSEEN``.
         """
 
         assert self.is_cholesky, (

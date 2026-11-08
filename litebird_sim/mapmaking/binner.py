@@ -45,8 +45,11 @@ class BinnerResult:
 
     - ``binned_map``: Healpix map containing the binned value for each pixel
 
-    - ``invnpp``: inverse of the covariance matrix element for each
-      pixel in the map. It is an array of shape `(12 * nside * nside, 3, 3)`
+    - ``invnpp``: the covariance matrix of (I, Q, U) in each pixel, i.e., the
+      inverse M⁻¹ of the matrix M = Σ Aᵀ A / σ² accumulated over the samples
+      (not its inverse, despite the name, which comes from Madam). It is an
+      array of shape `(12 * nside * nside, 3, 3)`, in the units of the TOD
+      squared; pixels that cannot be solved are ``UNSEEN``
 
     - ``coordinate_system``: the coordinate system of the output maps
       (a :class:`.CoordinateSistem` object)

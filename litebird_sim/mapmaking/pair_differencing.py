@@ -44,10 +44,13 @@ class PairDifferencingResult:
 
     This dataclass has the following fields:
 
-        - ``binned_map``: Healpix map containing the binned value for each pixel
+    - ``binned_map``: Healpix map containing the binned value for each pixel
 
-        - ``invnpp``: inverse of the covariance matrix element for each
-            pixel in the map. It is an array of shape `(12 * nside * nside, 2, 2)`
+    - ``invnpp``: the covariance matrix of (Q, U) in each pixel, i.e., the
+      inverse of the 2×2 matrix accumulated over the pair differences (not
+      its inverse, despite the name, which comes from Madam). It is an array
+      of shape `(12 * nside * nside, 2, 2)`, in the units of the TOD squared;
+      pixels that cannot be solved are ``UNSEEN``
 
     - ``coordinate_system``: the coordinate system of the output maps
       (a :class:`.CoordinateSistem` object)
