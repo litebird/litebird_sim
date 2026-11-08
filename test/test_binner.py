@@ -323,3 +323,14 @@ def test_make_binned_map_unknown_time_split():
 
     with pytest.raises(ValueError, match="time split"):
         lbs.make_binned_map(nside=8, observations=sim.observations, time_split="yaer2")
+
+
+def test_map_making_weights_do_not_modify_the_observation():
+    from litebird_sim.mapmaking.common import get_map_making_weights
+
+    obs = lbs.Observation(
+        detectors=2, n_samples_global=10, start_time_global=0.0, sampling_rate_hz=5.0
+    )
+    obs.net_ukrts = 2.0
+    np.testing.assert_array_equal(get_map_making_weights(obs), [20.0, 20.0])
+    assert obs.net_ukrts == 2.0

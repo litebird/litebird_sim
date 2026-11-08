@@ -4,7 +4,6 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
-from collections.abc import Callable
 
 import healpy as hp
 import numpy as np
@@ -17,8 +16,8 @@ from litebird_sim.hwp import HWP
 from litebird_sim.mpi import MPI_COMM_WORLD
 from litebird_sim.observations import Observation
 from litebird_sim.observation_utilities import (
-    _get_hwp_angle,
-    _normalize_observations_and_pointings,
+    ObservationPointings,
+    observation_pointings,
 )
 
 from ..utilities import cos_sin, resolve_nthreads
@@ -26,7 +25,6 @@ from ..utilities import cos_sin, resolve_nthreads
 from .reduction import Reduction, reduction_for_observations
 from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
-    _compute_pixel_indices,
     _is_well_conditioned,
     get_map_making_weights,
     get_pol_efficiency,
@@ -459,33 +457,14 @@ class _ObsMapping:
 
 
 def _compute_obs_mappings(
-    hpx: Healpix_Base,
-    obs_list: list[Observation],
-    ptg_list: list[npt.NDArray | Callable],
-    hwp: HWP | None,
-    output_coordinate_system: CoordinateSystem,
-    nthreads: int | None = None,
-    pointings_dtype=np.float64,
+    nside: int,
+    obs_pointings: list[tuple[Observation, ObservationPointings]],
 ) -> list[_ObsMapping]:
-    nthreads = resolve_nthreads(nthreads)
+    """The pixels and angles in the coordinate system of each
+    :class:`.ObservationPointings`"""
     result = []
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
-        # Determine the HWP angle to use:
-        # - If an external HWP object is provided, compute the angle from it
-        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
-
-        pixel_idx, pol_angle_rad = _compute_pixel_indices(
-            hpx=hpx,
-            pointings=cur_ptg,
-            pol_angle_detectors=cur_obs.pol_angle_rad,
-            num_of_detectors=cur_obs.n_detectors,
-            num_of_samples=cur_obs.n_samples_process,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
-            nthreads=nthreads,
-            pointings_dtype=pointings_dtype,
-        )
+    for cur_obs, cur_ptg in obs_pointings:
+        pixel_idx, pol_angle_rad = cur_ptg.pixel_index_and_pol_angle("all", nside)
         result.append(
             _ObsMapping(
                 pixel_idx=pixel_idx,
@@ -1685,28 +1664,24 @@ def make_destriped_map(
 
     do_destriping = params.samples_per_baseline is not None
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
-    )
-
     hpx = Healpix_Base(nside=nside, scheme="RING")
 
     # Set number of threads
     nthreads = resolve_nthreads(nthreads)
 
-    # Convert pointings and ψ angles according to the coordinate system,
-    # convert them into Healpix indices and save the result into
-    # each Observation object (don't worry, we will delete them
-    # later)
-    mapping_list = _compute_obs_mappings(
-        hpx=hpx,
-        obs_list=obs_list,
-        ptg_list=ptg_list,
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
         hwp=hwp,
         output_coordinate_system=params.output_coordinate_system,
-        nthreads=nthreads,
         pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
     )
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
+
+    # The Healpix indices and polarization angles of all the samples, kept by
+    # the destriper until the end (they are not stored in the observations)
+    mapping_list = _compute_obs_mappings(nside, obs_pointings)
 
     components_summed = False
     try:

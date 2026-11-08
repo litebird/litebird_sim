@@ -4,6 +4,7 @@ import pytest
 
 import litebird_sim as lbs
 from litebird_sim.mapmaking.h_maps import load_h_maps_from_file
+from litebird_sim.observation_utilities import ObservationPointings
 
 
 SPIN_PAIRS = np.array([[0, 0], [2, 0], [4, 0], [0, 2], [2, -4]])
@@ -217,9 +218,6 @@ def test_h_maps_stream_bounds_buffers_and_writes_before_next_detector(
     tmp_path, monkeypatch
 ):
     import weakref
-    import importlib
-
-    h_maps_module = importlib.import_module("litebird_sim.mapmaking.h_maps")
 
     samples = {name: ([0, 1], [0.2, 0.4]) for name in ("A", "B", "C")}
     obs = _make_observation(samples)
@@ -238,21 +236,16 @@ def test_h_maps_stream_bounds_buffers_and_writes_before_next_detector(
             return array
         return original_zeros(shape, *args, **kwargs)
 
-    original_compute = h_maps_module._compute_pixel_indices_single_detector
+    original_detector = ObservationPointings.detector
 
-    def compute_after_previous_write(*args, **kwargs):
-        idet = kwargs["detector_index"]
+    def detector_after_previous_write(self, idet, *args, **kwargs):
         if idet:
             previous = list(samples)[idet - 1]
             assert (tmp_path / f"h_maps_det_{previous}.h5").exists()
-        return original_compute(*args, **kwargs)
+        return original_detector(self, idet, *args, **kwargs)
 
     monkeypatch.setattr(np, "zeros", tracked_zeros)
-    monkeypatch.setattr(
-        h_maps_module,
-        "_compute_pixel_indices_single_detector",
-        compute_after_previous_write,
-    )
+    monkeypatch.setattr(ObservationPointings, "detector", detector_after_previous_write)
     result = lbs.make_h_maps(
         obs,
         nside=1,

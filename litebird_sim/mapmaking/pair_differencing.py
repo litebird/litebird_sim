@@ -7,22 +7,21 @@
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import healpy as hp
 import numpy as np
 import numpy.typing as npt
-from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
 from litebird_sim.observation_utilities import (
-    _get_hwp_angle,
-    _normalize_observations_and_pointings,
+    ObservationPointings,
+    observation_pointings,
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
@@ -32,7 +31,6 @@ from .reduction import reduction_for_observations
 from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
     COND_THRESHOLD,
-    _compute_pixel_indices,
     get_map_making_weights,
     get_pol_efficiency,
 )
@@ -161,44 +159,24 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
 
 def _build_nobs_matrix(
     nside: int,
-    obs_list: list[Observation],
-    ptg_list: list[npt.NDArray | Callable],
-    hwp: HWP | None,
+    obs_pointings: list[tuple[Observation, ObservationPointings]],
     dm_list: list[npt.NDArray],
     tm_list: list[npt.NDArray],
-    output_coordinate_system: CoordinateSystem,
     components: list[str],
-    nthreads: int,
-    pointings_dtype=np.float64,
 ) -> tuple[npt.NDArray, npt.NDArray]:
-    hpx = Healpix_Base(nside, "RING")
     n_pix = HealpixMap.nside_to_npix(nside)
 
     nobs_matrix = np.zeros((n_pix, 2, 2))
     rhs = np.zeros((n_pix, 2))
 
-    for obs_idx, (cur_obs, cur_ptg, cur_d_mask, cur_t_mask) in enumerate(
-        zip(obs_list, ptg_list, dm_list, tm_list)
+    for obs_idx, ((cur_obs, cur_ptg), cur_d_mask, cur_t_mask) in enumerate(
+        zip(obs_pointings, dm_list, tm_list)
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
         cur_pol_eff = get_pol_efficiency(cur_obs)
 
-        # Determine the HWP angle to use:
-        # - If an external HWP object is provided, compute the angle from it
-        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
-
-        pixidx_all, polang_all = _compute_pixel_indices(
-            hpx=hpx,
-            pointings=cur_ptg,
-            pol_angle_detectors=cur_obs.pol_angle_rad,
-            num_of_detectors=cur_obs.n_detectors,
-            num_of_samples=cur_obs.n_samples_process,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
-            nthreads=nthreads,
-            pointings_dtype=pointings_dtype,
-        )
+        # In the coordinate system of the map
+        pixidx_all, polang_all = cur_ptg.pixel_index_and_pol_angle("all", nside)
 
         detector_pairs = _get_detector_pairs(
             cur_obs, detector_mask=cur_d_mask, obs_idx=obs_idx
@@ -240,8 +218,10 @@ def _build_nobs_matrix(
 
         del pixidx_all, polang_all
 
-    assert obs_list, "No observations provided"
-    reduction_for_observations(obs_list).sum_in_place(nobs_matrix, rhs)
+    assert obs_pointings, "No observations provided"
+    reduction_for_observations([cur_obs for cur_obs, _ in obs_pointings]).sum_in_place(
+        nobs_matrix, rhs
+    )
 
     return nobs_matrix, rhs
 
@@ -406,10 +386,19 @@ def make_pair_differenced_map(
     if isinstance(components, str):
         components = [components]
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
+    # Set number of threads
+    nthreads = resolve_nthreads(nthreads)
+
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
     )
-    assert ptg_list, "No observations provided"
+    assert obs_pointings, "No observations provided"
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 
@@ -417,20 +406,12 @@ def make_pair_differenced_map(
 
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
-    # Set number of threads
-    nthreads = resolve_nthreads(nthreads)
-
     nobs_matrix, rhs = _build_nobs_matrix(
         nside=nside,
-        obs_list=obs_list,
-        ptg_list=ptg_list,
-        hwp=hwp,
+        obs_pointings=obs_pointings,
         dm_list=detector_mask_list,
         tm_list=time_mask_list,
-        output_coordinate_system=output_coordinate_system,
         components=components,
-        nthreads=nthreads,
-        pointings_dtype=pointings_dtype,
     )
 
     _solve_binning(nobs_matrix, rhs)

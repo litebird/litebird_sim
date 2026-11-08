@@ -670,6 +670,99 @@ class ObservationPointings:
         _center_pointings(selected, self.nside_centering, self.nthreads)
         return selected
 
+    def pixel_index(
+        self,
+        detector_idx: DetectorIndex,
+        nside: int,
+        output_coordinate_system: CoordinateSystem | None = None,
+    ) -> npt.NDArray[np.int32]:
+        """The Healpix pixel (RING scheme) seen by some detectors at each sample.
+
+        `detector_idx` is as in :meth:`.detector`; for more detectors the
+        result has shape ``(n_detectors, n_samples)``, and they are computed
+        one at a time. `output_coordinate_system` is the coordinate system of
+        the map; if None, that passed to the constructor is used."""
+        return self._for_detectors(
+            detector_idx,
+            output_coordinate_system,
+            lambda idx, ptg: self._pixel_index(ptg, nside),
+        )
+
+    def pol_angle(
+        self,
+        detector_idx: DetectorIndex,
+        output_coordinate_system: CoordinateSystem | None = None,
+    ) -> npt.NDArray:
+        """The polarization angle of some detectors at each sample, in radians.
+
+        It is ``θ_det + ψ`` without HWP and ``2·α_HWP − θ_det + ψ`` with it,
+        where θ_det is the polarization angle of the detector and ψ the
+        orientation in `output_coordinate_system`. `detector_idx` is as in
+        :meth:`.pixel_index`."""
+        return self._for_detectors(
+            detector_idx, output_coordinate_system, self._pol_angle
+        )
+
+    def pixel_index_and_pol_angle(
+        self,
+        detector_idx: DetectorIndex,
+        nside: int,
+        output_coordinate_system: CoordinateSystem | None = None,
+    ) -> tuple[npt.NDArray[np.int32], npt.NDArray]:
+        """:meth:`.pixel_index` and :meth:`.pol_angle` of some detectors,
+        computing their pointings only once"""
+        if not isinstance(detector_idx, (str, list)):
+            pointings = self.detector(detector_idx, output_coordinate_system)
+            return (
+                self._pixel_index(pointings, nside),
+                self._pol_angle(detector_idx, pointings),
+            )
+
+        indices = self._indices(detector_idx)
+        n_samples = self.observation.n_samples_process
+        pixidx = np.empty((len(indices), n_samples), dtype=np.int32)
+        pol_angle = None
+        for row, idx in enumerate(indices):
+            pixidx[row], cur_angle = self.pixel_index_and_pol_angle(
+                idx, nside, output_coordinate_system
+            )
+            if pol_angle is None:
+                pol_angle = np.empty((len(indices), n_samples), dtype=cur_angle.dtype)
+            pol_angle[row] = cur_angle
+        return pixidx, pol_angle
+
+    def _indices(self, detector_idx: str | list[int]) -> list[int]:
+        if isinstance(detector_idx, str):
+            assert detector_idx == "all", f"Unknown set of detectors: '{detector_idx}'"
+            return list(range(self.observation.n_detectors))
+        return list(detector_idx)
+
+    def _for_detectors(self, detector_idx, output_coordinate_system, function):
+        """Apply `function(idx, pointings)` to each detector and stack the results"""
+        if not isinstance(detector_idx, (str, list)):
+            return function(
+                detector_idx, self.detector(detector_idx, output_coordinate_system)
+            )
+        return np.stack(
+            [
+                function(idx, self.detector(idx, output_coordinate_system))
+                for idx in self._indices(detector_idx)
+            ]
+        )
+
+    def _pixel_index(self, pointings: npt.NDArray, nside: int) -> npt.NDArray[np.int32]:
+        hpx = Healpix_Base(nside, "RING")
+        return hpx.ang2pix(
+            pointings[:, 0:2], nthreads=resolve_nthreads(self.nthreads)
+        ).astype(np.int32)
+
+    def _pol_angle(self, detector_idx: int, pointings: npt.NDArray) -> npt.NDArray:
+        return _get_pol_angle(
+            curr_pointings_det=pointings,
+            hwp_angle=self.hwp_angle,
+            pol_angle_detectors=self.observation.pol_angle_rad[detector_idx],
+        )
+
 
 def observation_pointings(
     observations: Observation | list[Observation],
