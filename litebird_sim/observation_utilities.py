@@ -721,14 +721,11 @@ class ObservationPointings:
         indices = self._indices(detector_idx)
         n_samples = self.observation.n_samples_process
         pixidx = np.empty((len(indices), n_samples), dtype=np.int32)
-        pol_angle = None
+        pol_angle = np.empty((len(indices), n_samples), dtype=self.pointings_dtype)
         for row, idx in enumerate(indices):
-            pixidx[row], cur_angle = self.pixel_index_and_pol_angle(
+            pixidx[row], pol_angle[row] = self.pixel_index_and_pol_angle(
                 idx, nside, output_coordinate_system
             )
-            if pol_angle is None:
-                pol_angle = np.empty((len(indices), n_samples), dtype=cur_angle.dtype)
-            pol_angle[row] = cur_angle
         return pixidx, pol_angle
 
     def _indices(self, detector_idx: str | list[int]) -> list[int]:
