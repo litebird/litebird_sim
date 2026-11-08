@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking**: the pixels that cannot be solved are `UNSEEN` in the binned and destriped maps of `make_destriped_map` (they were `NaN`) and in `NobsMatrix.get_invnpp` (it was 0), as in the binner and the pair-differencing. The map-makers take the model of a sample from one function (`pointing_row`); the pair-differencing solves the 2×2 systems analytically (3.4× faster); `estimate_cond_number` is removed. Reference PR: [#666](https://github.com/litebird/litebird_sim/pull/666).
+
 -   `Simulation` appends the report templates through one method, and the reports are written by rank 0 of the communicator of the simulation instead of `MPI_COMM_WORLD`. Reference PR: [#665](https://github.com/litebird/litebird_sim/pull/665).
 
 -   The TOD effects check the fields of the detectors they read and the keys of the dictionaries of skies and beams for all the observations before modifying any TOD, raising a `ValueError` that names what is missing; `for_each_observation` takes `required_fields`. Reference PR: [#664](https://github.com/litebird/litebird_sim/pull/664).
