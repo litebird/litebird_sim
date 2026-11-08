@@ -6,10 +6,22 @@ from numba import njit
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.observations import Observation
+from litebird_sim.utilities import cos_sin
 
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not
 COND_THRESHOLD = 1e10
+
+
+@njit
+def pointing_row(psi: float, pol_eff: float) -> tuple[float, float, float]:
+    """The row of the pointing matrix of one sample: (1, γ cos 2ψ, γ sin 2ψ)
+
+    A sample of a detector with polarization angle ψ and polarization
+    efficiency γ measures I + γ Q cos 2ψ + γ U sin 2ψ. All the map-makers
+    take the model of a sample from here."""
+    cos_2psi, sin_2psi = cos_sin(2 * psi)
+    return 1.0, pol_eff * cos_2psi, pol_eff * sin_2psi
 
 
 @dataclass
@@ -259,105 +271,17 @@ def solve_cholesky(
 
 @njit
 def _is_well_conditioned(matrix: npt.NDArray) -> bool:
-    """Tell if a symmetric positive semi-definite 3×3 matrix can be inverted
+    """Tell if a symmetric positive semi-definite matrix can be inverted
 
     The condition number is the ratio between the largest and the smallest
     eigenvalue, which are computed with ``np.linalg.eigvalsh``. Closed
-    formulas like the one in :func:`.estimate_cond_number` lose too much
-    precision on the smallest eigenvalue when the matrix is singular (e.g.,
-    1–2 hits per pixel), and the test does not depend on the scale of the
-    matrix (i.e., on the units of the detector weights).
+    formulas lose too much precision on the smallest eigenvalue when the
+    matrix is singular (e.g., 1–2 hits per pixel), and the test does not
+    depend on the scale of the matrix (i.e., on the units of the detector
+    weights).
     """
     eigvals = np.linalg.eigvalsh(matrix)
-    return bool(eigvals[2] < COND_THRESHOLD * eigvals[0])
-
-
-@njit
-def estimate_cond_number(
-    a00: float,
-    a10: float,
-    a11: float,
-    a20: float,
-    a21: float,
-    a22: float,
-) -> tuple[float, bool]:
-    """Estimate the condition number for a symmetric 3×3 matrix A
-
-    The result is a tuple containing the condition number and a Boolean flag
-    telling if the matrix is non-singular (``True``) or singular (``False``).
-
-    The code is a conversion of a C++ template class by David Eberly, see
-    <https://www.geometrictools.com/Documentation/RobustEigenSymmetric3×3.pdf>
-    """
-
-    # Precondition the matrix by dividing each member by the largest
-    max_abs_element = max(
-        np.abs(a00),
-        np.abs(a10),
-        np.abs(a20),
-        np.abs(a11),
-        np.abs(a21),
-        np.abs(a22),
-    )
-
-    if max_abs_element == 0.0:
-        # All the elements are 0.0, quit immediately
-        return (0.0, False)
-
-    inv_max_abs_element = 1.0 / max_abs_element
-    a00 *= inv_max_abs_element
-    a10 *= inv_max_abs_element
-    a20 *= inv_max_abs_element
-    a11 *= inv_max_abs_element
-    a21 *= inv_max_abs_element
-    a22 *= inv_max_abs_element
-
-    norm = a10 * a10 + a20 * a20 + a21 * a21
-
-    if norm > 0:
-        q = (a00 + a11 + a22) / 3
-        b00 = a00 - q
-        b11 = a11 - q
-        b22 = a22 - q
-
-        p = np.sqrt((b00 * b00 + b11 * b11 + b22 * b22 + norm * 2) / 6)
-        c00 = b11 * b22 - a21 * a21
-        c01 = a10 * b22 - a21 * a20
-        c02 = a10 * a21 - b11 * a20
-        det = (b00 * c00 - a10 * c01 + a20 * c02) / (p * p * p)
-
-        halfDet = det * 0.5
-        halfDet = min(max(halfDet, -1), 1)
-
-        angle = np.arccos(halfDet) / 3
-        twoThirdsPi = 2 * np.pi / 3
-        beta2 = np.cos(angle) * 2
-        beta0 = np.cos(angle + twoThirdsPi) * 2
-        beta1 = -(beta0 + beta2)
-
-        eval0 = q + p * beta0
-        eval1 = q + p * beta1
-        eval2 = q + p * beta2
-
-    else:
-        eval0 = a00
-        eval1 = a11
-        eval2 = a22
-
-    # Rescale the eigenvalues, as we preconditioned the matrix,
-    # and throw away the signs, as we are not interested in them
-    eval0 = np.abs(eval0 * max_abs_element)
-    eval1 = np.abs(eval1 * max_abs_element)
-    eval2 = np.abs(eval2 * max_abs_element)
-
-    min_abs_eval = min(eval0, eval1, eval2)
-    if min_abs_eval < 1e-10:
-        # The matrix is singular (detA = 0)
-        return (0.0, False)
-
-    max_abs_eval = max(max(eval0, eval1), eval2)
-
-    return (max_abs_eval / min_abs_eval, True)
+    return bool(eigvals[-1] < COND_THRESHOLD * eigvals[0])
 
 
 def _apply_flags_to_time_masks(

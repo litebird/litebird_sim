@@ -25,12 +25,13 @@ from litebird_sim.observation_utilities import (
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
-from ..utilities import cos_sin, resolve_nthreads
+from ..utilities import resolve_nthreads
 
 from .reduction import reduction_for_observations
 from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
-    COND_THRESHOLD,
+    _is_well_conditioned,
+    pointing_row,
     _apply_flags_to_time_masks,
     get_map_making_weights,
     get_pol_efficiency,
@@ -81,11 +82,19 @@ def _solve_binning(nobs_matrix, atd):
     npix = atd.shape[0]
 
     for ipix in prange(npix):  # type: ignore[not-iterable]
-        if np.linalg.cond(nobs_matrix[ipix]) < COND_THRESHOLD:
-            atd[ipix] = np.linalg.solve(nobs_matrix[ipix], atd[ipix])
-            nobs_matrix[ipix] = np.linalg.inv(nobs_matrix[ipix])
+        m = nobs_matrix[ipix]
+        if _is_well_conditioned(m):
+            # Analytic inverse of the symmetric 2×2 matrix
+            inv_det = 1.0 / (m[0, 0] * m[1, 1] - m[0, 1] * m[1, 0])
+            m00 = m[1, 1] * inv_det
+            m11 = m[0, 0] * inv_det
+            m01 = -m[0, 1] * inv_det
+            b0, b1 = atd[ipix, 0], atd[ipix, 1]
+            atd[ipix, 0] = m00 * b0 + m01 * b1
+            atd[ipix, 1] = m01 * b0 + m11 * b1
+            m[0, 0], m[0, 1], m[1, 0], m[1, 1] = m00, m01, m01, m11
         else:
-            nobs_matrix[ipix].fill(hp.UNSEEN)
+            m.fill(hp.UNSEEN)
             atd[ipix].fill(hp.UNSEEN)
 
 
@@ -141,10 +150,11 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
     ) in zip(tod_t, tod_b, pix_t, psi_t, psi_b, t_mask):
         if cur_t_mask:
             pair_sample = cur_sample_t - cur_sample_b
-            cos_t, sin_t = cos_sin(2 * cur_psi_t)
-            cos_b, sin_b = cos_sin(2 * cur_psi_b)
-            pair_cos = pol_eff_t * cos_t - pol_eff_b * cos_b
-            pair_sin = pol_eff_t * sin_t - pol_eff_b * sin_b
+            # The difference of the two rows: the I terms cancel
+            _, q_t, u_t = pointing_row(cur_psi_t, pol_eff_t)
+            _, q_b, u_b = pointing_row(cur_psi_b, pol_eff_b)
+            pair_cos = q_t - q_b
+            pair_sin = u_t - u_b
 
             if not additional_component:
                 info_pix = nobs_matrix[cur_pix_idx]

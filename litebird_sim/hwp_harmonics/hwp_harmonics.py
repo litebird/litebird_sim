@@ -38,8 +38,6 @@ from .mueller_methods import (
 
 log = logging.getLogger(__name__)
 
-COND_THRESHOLD = 1e10
-
 k_B = getattr(const, "k_B").value  # Boltzmann constant in J/K
 c = getattr(const, "c").value  # Speed of light in m/s
 h = getattr(const, "h").value  # Planck constant in J s

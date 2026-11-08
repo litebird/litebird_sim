@@ -24,11 +24,12 @@ from litebird_sim.observation_utilities import (
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
-from ..utilities import cos_sin, resolve_nthreads
+from ..utilities import resolve_nthreads
 
 from .reduction import reduction_for_observations
 from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
+    pointing_row,
     _apply_flags_to_time_masks,
     _is_well_conditioned,
     get_map_making_weights,
@@ -151,33 +152,30 @@ def _accumulate_samples_and_build_nobs_matrix(
         if not d_mask[idet]:
             continue
 
-        inv_sigma = 1.0 / np.sqrt(weights[idet])
-        inv_sigma2 = inv_sigma * inv_sigma
-        gamma_over_sigma = pol_eff[idet] * inv_sigma
+        inv_sigma2 = 1.0 / weights[idet]
 
         # One pass for both triangles, so that cos/sin are computed once
         for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
             tod[idet, :], pix[idet, :], psi[idet, :], t_mask[idet, :]
         ):
             if cur_t_mask:
-                cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
-                cos_over_sigma = cos_2psi * gamma_over_sigma
-                sin_over_sigma = sin_2psi * gamma_over_sigma
+                r_i, r_q, r_u = pointing_row(cur_psi, pol_eff[idet])
                 info_pix = nobs_matrix[cur_pix_idx]
 
                 if not additional_component:
                     # Upper triangle
-                    info_pix[0, 0] += inv_sigma2
-                    info_pix[0, 1] += inv_sigma * cos_over_sigma
-                    info_pix[0, 2] += inv_sigma * sin_over_sigma
-                    info_pix[1, 1] += cos_over_sigma * cos_over_sigma
-                    info_pix[1, 2] += sin_over_sigma * cos_over_sigma
-                    info_pix[2, 2] += sin_over_sigma * sin_over_sigma
+                    info_pix[0, 0] += r_i * r_i * inv_sigma2
+                    info_pix[0, 1] += r_i * r_q * inv_sigma2
+                    info_pix[0, 2] += r_i * r_u * inv_sigma2
+                    info_pix[1, 1] += r_q * r_q * inv_sigma2
+                    info_pix[1, 2] += r_q * r_u * inv_sigma2
+                    info_pix[2, 2] += r_u * r_u * inv_sigma2
 
                 # Lower triangle
-                info_pix[1, 0] += cur_sample * inv_sigma2
-                info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
-                info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma
+                weighted_sample = cur_sample * inv_sigma2
+                info_pix[1, 0] += r_i * weighted_sample
+                info_pix[2, 0] += r_q * weighted_sample
+                info_pix[2, 1] += r_u * weighted_sample
 
 
 @njit

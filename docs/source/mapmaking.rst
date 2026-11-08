@@ -778,6 +778,11 @@ a 3D array with shape :math:`(N_pix, 3, 3)`, where the first index
 runs over all the pixels and the last two dimensions are used to
 store the value of :math:`M_i^{-1}`.
 
+The pixels where :math:`M_i` cannot be inverted (too few hits or angles)
+are set to ``UNSEEN`` (:data:`healpy.UNSEEN`) in the binned and destriped
+maps and in the result of :meth:`.NobsMatrix.get_invnpp`, as in the maps
+of the binner and of the pair-differencing.
+
 
 Data splits
 ^^^^^^^^^^^
