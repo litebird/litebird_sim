@@ -379,7 +379,6 @@ def scan_map_in_observations(
     hwp: HWP | None = None,
     component: str = "tod",
     pointings_dtype: DTypeLike = np.float64,
-    save_tod: bool = True,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
     mueller_phases: dict | None = None,
@@ -456,10 +455,10 @@ def scan_map_in_observations(
         (For the harmonics expansion case) adds the 2f HWP synchronous signal
         to the TOD.
 
-    mueller_phases : dict or np.ndarray, optional
-        (For the harmonics expansion case) the non-ideal phases for the Mueller
-        matrix elements. When None is given, temporary values from
-        Patanchon et al. [2021] are used.
+    mueller_phases : dict, optional
+        (For the harmonics expansion case) the non-ideal phases of the 2f and
+        4f Mueller matrices, as ``{"2f": ..., "4f": ...}``, the same for all
+        the detectors. Required with the Mueller formalism.
 
     integrate_in_band : bool, default=False
         Whether to integrate the signal over the detector's frequency band.
@@ -548,7 +547,6 @@ def scan_map_in_observations(
                 maps=maps,
                 hwp_angle=hwp_angle,
                 pointings_dtype=pointings_dtype,
-                save_tod=save_tod,
                 input_names=input_names,
                 apply_non_linearity=apply_non_linearity,
                 add_2f_hwpss=add_2f_hwpss,

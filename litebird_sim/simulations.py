@@ -5,6 +5,7 @@ import logging
 from collections import Counter
 import os
 import subprocess
+import warnings
 from collections import namedtuple
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
@@ -2090,11 +2091,15 @@ class Simulation:
         component: str = "tod",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        apply_convolution: bool = False,
+        beam_alms: SphericalHarmonics | dict[str, SphericalHarmonics] | None = None,
     ):
         """
         Fills the tod with dipole.
 
-        This is a wrapper for the function :func:`.add_dipole_to_observations`.
+        This is a wrapper for the function :func:`.add_dipole_to_observations`;
+        see it for `apply_convolution` and `beam_alms` (the dipole convolved
+        with the beam, by moment expansion).
 
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
@@ -2112,6 +2117,8 @@ class Simulation:
             dipole_type=dipole_type,
             component=component,
             pointings_dtype=pointings_dtype,
+            apply_convolution=apply_convolution,
+            beam_alms=beam_alms,
         )
 
         if append_to_report and self.mpi_comm.rank == 0:
@@ -2142,6 +2149,7 @@ class Simulation:
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
         This is a wrapper to the function :func:`.scan_map_in_observations`.
+        `band_filenames` is deprecated and has no effect.
 
         This method must be called after having set the scanning
         strategy, the instrument, the list of detectors to simulate
@@ -2151,6 +2159,13 @@ class Simulation:
         :class:`.SkyGenerator` or through :meth:`.get_sky`.
 
         """
+
+        if band_filenames is not None:
+            warnings.warn(
+                "Simulation.fill_tods: band_filenames has no effect and is deprecated",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         scan_map_in_observations(
             observations=self.observations,
@@ -2332,7 +2347,7 @@ class Simulation:
         self,
         sky_alms: None | (SphericalHarmonics | dict[str, SphericalHarmonics]) = None,
         beam_alms: None | (SphericalHarmonics | dict[str, SphericalHarmonics]) = None,
-        input_sky_alms_in_galactic: bool = True,
+        input_sky_alms_in_galactic: bool | None = None,
         convolution_params: BeamConvolutionParameters | None = None,
         component: str = "tod",
         pointings_dtype=np.float64,
@@ -2350,9 +2365,19 @@ class Simulation:
         through calls to :meth:`.set_instrument` and
         :meth:`.set_detectors`, and the method
         :meth:`.prepare_pointings`. alms are assumed to be produced by
-        :class:`.SkyGenerator`
+        :class:`.SkyGenerator`. The coordinate system of the alms is taken
+        from them: `input_sky_alms_in_galactic` is deprecated and has no
+        effect.
 
         """
+
+        if input_sky_alms_in_galactic is not None:
+            warnings.warn(
+                "Simulation.convolve_sky: input_sky_alms_in_galactic has no effect "
+                "and is deprecated; the coordinates are those of the alms",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         add_convolved_sky_to_observations(
             observations=self.observations,

@@ -150,7 +150,6 @@ def fill_tod_with_hwp_harmonics(
     maps: SkyInput | None = None,
     pointings: np.ndarray | list[np.ndarray] | ObservationPointings | None = None,
     hwp_angle: np.ndarray | None = None,
-    save_tod: bool = True,
     input_names: list[str] | None = None,
     pointings_dtype=np.float64,
     apply_non_linearity: bool = False,
@@ -197,10 +196,6 @@ def fill_tod_with_hwp_harmonics(
             :class:`.ObservationPointings` (the angle of `hwp`).
             ``hwp_angle`` must be a np.array of dimensions (N_samples).
 
-        save_tod (bool) : if True, ``obs.tod`` is saved in
-            ``observations.tod`` and locally as a .npy file;
-            if False, ``obs.tod`` gets deleted.
-
         input_names : array-like of str or None, default=None
             Per-detector keys to select entries in `maps` when `maps` is a dictionary.
 
@@ -213,9 +208,9 @@ def fill_tod_with_hwp_harmonics(
 
         add_2f_hwpss (bool) : adds the 2f hwpss signal to the TOD
 
-        mueller_phases (dict) : the non ideal phases for the mueller
-            matrix elements. When None is given, the temporary values from
-            Patanchon et al. [2021] are used.
+        mueller_phases (dict) : the non-ideal phases of the 2f and 4f
+            Mueller matrices, as ``{"2f": ..., "4f": ...}``, the same for all
+            the detectors. Required with the Mueller formalism.
 
         integrate_in_band : bool, default=False
             Whether to integrate the signal over the detector's frequency band.
@@ -603,5 +598,3 @@ def fill_tod_with_hwp_harmonics(
                     )
 
         del input_T, input_Q, input_U
-        if not save_tod:
-            del tod
