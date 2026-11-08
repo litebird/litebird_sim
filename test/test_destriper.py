@@ -376,7 +376,7 @@ def setup_simulation(
 
 
 def test_map_maker_parts():
-    from litebird_sim.observation_utilities import _normalize_observations_and_pointings
+    from litebird_sim.observation_utilities import observation_pointings
     from litebird_sim.mapmaking.destriper import (
         _compute_obs_mappings,
         _build_mask_detector_split,
@@ -397,19 +397,15 @@ def test_map_maker_parts():
 
     baseline_lengths_list = get_baseline_lengths_list(expected_solution)
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=sim.observations,
+    obs_pointings = observation_pointings(
+        sim.observations,
         pointings=[pointings],
-    )
-
-    hpx = Healpix_Base(nside=nside, scheme="RING")
-    mapping_list = _compute_obs_mappings(
-        hpx=hpx,
-        obs_list=obs_list,
-        ptg_list=ptg_list,
-        hwp=None,
         output_coordinate_system=CoordinateSystem.Ecliptic,
     )
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
+
+    hpx = Healpix_Base(nside=nside, scheme="RING")
+    mapping_list = _compute_obs_mappings(nside, obs_pointings)
 
     detector_mask_list = _build_mask_detector_split("full", obs_list)
 

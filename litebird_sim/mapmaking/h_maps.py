@@ -16,17 +16,11 @@ from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
 from litebird_sim.hwp import HWP
 from litebird_sim.maps_and_harmonics import HealpixMap
 from litebird_sim.observations import Observation
-from litebird_sim.observation_utilities import (
-    _get_hwp_angle,
-    _normalize_observations_and_pointings,
-)
+from litebird_sim.observation_utilities import observation_pointings
 from litebird_sim.utilities import cos_sin, resolve_nthreads
 
 from .reduction import reduction_for_observations
 from .splits import _build_mask_detector_split, _build_mask_time_split
-from .common import (
-    _compute_pixel_indices_single_detector,
-)
 
 log = logging.getLogger(__name__)
 
@@ -333,9 +327,15 @@ def make_h_maps(
 
     assert detector_split == "full", "detectors split over wafers is not implemented"
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointings_dtype,
+        nthreads=resolve_nthreads(nthreads),
     )
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
     time_mask_list = _build_mask_time_split(time_split, obs_list)
@@ -426,26 +426,19 @@ def make_h_maps(
         # arrays themselves have been released. Only this small dict is copied.
         nobs_matrices = working_matrices.copy()
         for obs_idx, idet in detector_observations.get(det, []):
-            cur_obs = obs_list[obs_idx]
-            cur_ptg = ptg_list[obs_idx]
+            _, cur_ptg = obs_pointings[obs_idx]
             cur_t_mask = time_mask_list[obs_idx]
             log.info(f"Computing pixel indices and angles for detector {det}")
 
-            hwp_angle = _get_hwp_angle(
-                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
+            # The h maps use the orientation ψ and the HWP angle separately,
+            # not the polarization angle
+            hwp_angle = cur_ptg.hwp_angle
+            pointings_det = cur_ptg.detector(idet)
+            pixidx = hpx.ang2pix(pointings_det[:, 0:2], nthreads=nthreads).astype(
+                np.int32
             )
-            pixidx, polang = _compute_pixel_indices_single_detector(
-                hpx=hpx,
-                pointings=cur_ptg,
-                pol_angle_detector=cur_obs.pol_angle_rad[idet],
-                num_of_samples=cur_obs.n_samples_process,
-                detector_index=idet,
-                hwp_angle=hwp_angle,
-                output_coordinate_system=output_coordinate_system,
-                pointings_dtype=pointings_dtype,
-                hmap_generation=True,
-                nthreads=nthreads,
-            )
+            polang = pointings_det[:, 2]
+            del pointings_det
             log.info(
                 f"Pixel indices and angles for detector {det} computed, now accumulating nobs matrices"
             )

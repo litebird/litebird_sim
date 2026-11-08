@@ -3,6 +3,7 @@ detectors of an observation and its HWP angle"""
 
 import numpy as np
 import pytest
+from ducc0.healpix import Healpix_Base
 
 import litebird_sim as lbs
 from litebird_sim import CoordinateSystem
@@ -30,6 +31,7 @@ def _simulation(hwp: bool, precompute: bool = False):
         lbs.DetectorInfo(
             name=f"d{i}",
             sampling_rate_hz=2.0,
+            pol_angle_rad=0.4 * i,
             quat=lbs.RotQuaternion(
                 np.array(lbs.quat_rotation_y(np.deg2rad(1.0 + 2.0 * i)))
             ),
@@ -175,3 +177,78 @@ def test_coordinate_system_override():
             galactic.detector(1),
         )
         assert ptg.output_coordinate_system == CoordinateSystem.Ecliptic
+
+
+@pytest.mark.parametrize("hwp", [False, True])
+@pytest.mark.parametrize(
+    "coordinates", [CoordinateSystem.Ecliptic, CoordinateSystem.Galactic]
+)
+def test_pixel_index_and_pol_angle(hwp, coordinates):
+    nside = 16
+    hpx = Healpix_Base(nside, "RING")
+    ways = _three_ways(hwp)
+    for ptg in ways:
+        obs = ptg.observation
+        for idet in range(N_DETS):
+            angles = ptg.detector(idet, output_coordinate_system=coordinates)
+
+            pixidx = ptg.pixel_index(idet, nside, output_coordinate_system=coordinates)
+            assert pixidx.dtype == np.int32
+            np.testing.assert_array_equal(pixidx, hpx.ang2pix(angles[:, 0:2]))
+
+            if hwp:
+                expected = 2 * ptg.hwp_angle - obs.pol_angle_rad[idet] + angles[:, 2]
+            else:
+                expected = obs.pol_angle_rad[idet] + angles[:, 2]
+            pol_angle = ptg.pol_angle(idet, output_coordinate_system=coordinates)
+            np.testing.assert_allclose(pol_angle, expected, rtol=0, atol=1e-12)
+
+            both = ptg.pixel_index_and_pol_angle(
+                idet, nside, output_coordinate_system=coordinates
+            )
+            np.testing.assert_array_equal(both[0], pixidx)
+            np.testing.assert_array_equal(both[1], pol_angle)
+
+    # The three ways agree (ψ up to 2π)
+    for other in ways[1:]:
+        for idet in range(N_DETS):
+            np.testing.assert_array_equal(
+                other.pixel_index(idet, nside, output_coordinate_system=coordinates),
+                ways[0].pixel_index(idet, nside, output_coordinate_system=coordinates),
+            )
+            _assert_same_angles(
+                other.pol_angle(idet, output_coordinate_system=coordinates),
+                ways[0].pol_angle(idet, output_coordinate_system=coordinates),
+            )
+
+
+def test_pixel_index_uses_the_default_coordinates():
+    (ptg,) = _three_ways(False, output_coordinate_system=CoordinateSystem.Galactic)[:1]
+    np.testing.assert_array_equal(
+        ptg.pixel_index(0, 8),
+        ptg.pixel_index(0, 8, output_coordinate_system=CoordinateSystem.Galactic),
+    )
+    np.testing.assert_array_equal(
+        ptg.pol_angle(0),
+        ptg.pol_angle(0, output_coordinate_system=CoordinateSystem.Galactic),
+    )
+
+
+def test_pixel_index_and_pol_angle_of_more_detectors():
+    nside = 8
+    for ptg in _three_ways(True):
+        pixidx, pol_angle = ptg.pixel_index_and_pol_angle("all", nside)
+        assert (
+            pixidx.shape
+            == pol_angle.shape
+            == (N_DETS, ptg.observation.n_samples_process)
+        )
+        assert pixidx.dtype == np.int32
+        for idet in range(N_DETS):
+            np.testing.assert_array_equal(pixidx[idet], ptg.pixel_index(idet, nside))
+            np.testing.assert_array_equal(pol_angle[idet], ptg.pol_angle(idet))
+        np.testing.assert_array_equal(ptg.pixel_index("all", nside), pixidx)
+        np.testing.assert_array_equal(ptg.pol_angle([2, 0]), pol_angle[[2, 0]])
+        np.testing.assert_array_equal(
+            ptg.pixel_index_and_pol_angle([1], nside)[0], pixidx[[1]]
+        )

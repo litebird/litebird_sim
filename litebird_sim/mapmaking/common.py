@@ -1,15 +1,11 @@
 from dataclasses import dataclass
-from collections.abc import Callable
 
 import numpy as np
 import numpy.typing as npt
-from ducc0.healpix import Healpix_Base
 from numba import njit
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.observations import Observation
-from litebird_sim.observation_utilities import _get_pointings_array, _get_pol_angle
-from litebird_sim.utilities import resolve_nthreads
 
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not
@@ -88,14 +84,18 @@ def get_map_making_weights(
     The number of elements in the result is equal to `observations.n_detectors`. If
     `check` is true, verify that the weights are ok for the map-maker to
     proceed; if not, an `assert` is raised.
+
+    The weight is the variance of one sample, ``f_samp · NET²``: the map-makers
+    divide by it. It is 1 if `observations` has no ``net_ukrts`` attribute.
+    `observations` is not modified.
     """
 
     try:
-        if isinstance(observations.net_ukrts, (float, int)):
-            observations.net_ukrts = observations.net_ukrts * np.ones(
-                observations.n_detectors
-            )
-        weights = observations.sampling_rate_hz * observations.net_ukrts**2
+        net_ukrts = np.broadcast_to(
+            np.asarray(observations.net_ukrts, dtype=np.float64),
+            (observations.n_detectors,),
+        )
+        weights = observations.sampling_rate_hz * net_ukrts**2
     except AttributeError:
         weights = np.ones(observations.n_detectors)
 
@@ -125,118 +125,6 @@ def get_pol_efficiency(observations: Observation) -> npt.NDArray:
         )
     except AttributeError:
         return np.ones(observations.n_detectors)
-
-
-def _compute_pixel_indices(
-    hpx: Healpix_Base,
-    pointings: npt.NDArray | Callable,
-    pol_angle_detectors: npt.NDArray,
-    num_of_detectors: int,
-    num_of_samples: int,
-    hwp_angle: npt.NDArray | None,
-    output_coordinate_system: CoordinateSystem,
-    nthreads: int,
-    pointings_dtype=np.float64,
-    hmap_generation: bool = False,
-) -> tuple[npt.NDArray, npt.NDArray]:
-    """Compute the index of each pixel and its attack angle
-
-    The routine returns a pair of arrays whose size is ``(N_d, N_t)`` each: rows in
-    the first array contain the index of the pixels in the Healpix map represented by `hpx`
-    for a given detector, while rows in the second array the value of the ψ angle (in
-    radians) for each detector. The coordinates used are the ones specified by
-    `output_coordinate_system`.
-
-    The code assumes that `pointings` is a tensor of rank ``(N_d, N_t, 2)``, with
-    ``N_d`` the number of detectors and ``N_t`` the number of samples in the TOD,
-    and the last rank represents the θ and φ angles (in radians) expressed in the
-    Ecliptic reference frame.
-
-    The option `hmap_generation` returns only the telescope orientation instead of
-    the polarization angle.
-    """
-
-    assert len(pol_angle_detectors) == num_of_detectors
-
-    pixidx_all = np.empty((num_of_detectors, num_of_samples), dtype=np.int32)
-    polang_all = np.empty((num_of_detectors, num_of_samples), dtype=pointings_dtype)
-
-    for idet in range(num_of_detectors):
-        curr_pointings_det, hwp_angle = _get_pointings_array(
-            detector_idx=idet,
-            pointings=pointings,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
-            pointings_dtype=pointings_dtype,
-            nthreads=nthreads,
-        )
-        if hmap_generation:
-            polang_all[idet] = curr_pointings_det[:, 2]
-        else:
-            polang_all[idet] = _get_pol_angle(
-                curr_pointings_det=curr_pointings_det,
-                hwp_angle=hwp_angle,
-                pol_angle_detectors=pol_angle_detectors[idet],
-            )
-
-        pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2], nthreads=nthreads)
-
-    if output_coordinate_system == CoordinateSystem.Galactic:
-        # Free curr_pointings_det if the output map is already in Galactic coordinates
-        try:
-            del curr_pointings_det
-        except UnboundLocalError:
-            pass
-
-    return pixidx_all, polang_all
-
-
-def _compute_pixel_indices_single_detector(
-    hpx: Healpix_Base,
-    pointings: npt.NDArray | Callable,
-    pol_angle_detector: float,
-    num_of_samples: int,
-    detector_index: int,
-    hwp_angle: npt.NDArray | None,
-    output_coordinate_system: CoordinateSystem,
-    pointings_dtype=np.float64,
-    hmap_generation: bool = False,
-    nthreads: int | None = None,
-) -> tuple[npt.NDArray, npt.NDArray]:
-    """
-    Same as _compute_pixel_indices but for a single detector, thus returning only the pixel indices and polarization angles for that detector.
-    """
-    nthreads = resolve_nthreads(nthreads)
-
-    pixidx = np.empty((num_of_samples), dtype=np.int32)
-    polang = np.empty((num_of_samples), dtype=pointings_dtype)
-    curr_pointings_det, hwp_angle = _get_pointings_array(
-        detector_idx=detector_index,
-        pointings=pointings,
-        hwp_angle=hwp_angle,
-        output_coordinate_system=output_coordinate_system,
-        pointings_dtype=pointings_dtype,
-        nthreads=nthreads,
-    )
-
-    if hmap_generation:
-        polang = curr_pointings_det[:, 2]
-    else:
-        polang = _get_pol_angle(
-            curr_pointings_det=curr_pointings_det,
-            hwp_angle=hwp_angle,
-            pol_angle_detectors=pol_angle_detector,
-        )
-    pixidx = hpx.ang2pix(curr_pointings_det[:, :2], nthreads=nthreads)
-
-    if output_coordinate_system == CoordinateSystem.Galactic:
-        # Free curr_pointings_det if the output map is already in Galactic coordinates
-        try:
-            del curr_pointings_det
-        except UnboundLocalError:
-            pass
-
-    return pixidx, polang
 
 
 def _cholesky_plain(A: npt.NDArray, dest_L: npt.NDArray) -> None:
