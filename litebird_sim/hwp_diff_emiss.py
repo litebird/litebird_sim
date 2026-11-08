@@ -86,7 +86,12 @@ def add_2f_to_observations(
             add_2f_to_observations(sim.observations, component="hwp_2f_tod")
     """
     # iterate through each observation
-    for cur_obs, tod, _ in for_each_observation(observations, component):
+    for cur_obs, tod, _ in for_each_observation(
+        observations,
+        component,
+        required_fields=["pol_angle_rad"]
+        + (["amplitude_2f_k"] if amplitude_2f_k is None else []),
+    ):
         cur_amplitude_2f_k = (
             amplitude_2f_k
             if amplitude_2f_k is not None

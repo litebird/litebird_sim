@@ -22,6 +22,7 @@ from ..maps_and_harmonics import (
 from ..observations import Observation
 from ..observation_utilities import (
     ObservationPointings,
+    _check_detector_fields,
     observation_pointings,
 )
 from ..utilities import resolve_nthreads
@@ -129,6 +130,19 @@ def set_band_params_for_one_detector(
         )
         bpi *= bandpass_prof
         return (det_params, bpi)
+
+
+def _harmonics_fields(hwp: NonIdealHWP) -> list[str]:
+    """The fields of the detectors read by :func:`.fill_tod_with_hwp_harmonics`"""
+    return [
+        "g_one_over_k",
+        "amplitude_2f_k",
+        "pol_angle_rad",
+        "pointing_theta_phi_psi_deg",
+        "bandcenter_ghz",
+        "bandwidth_ghz",
+        "mueller_hwp" if hwp.calculus is HWPFormalism.MUELLER else "jones_hwp",
+    ]
 
 
 def fill_tod_with_hwp_harmonics(
@@ -287,6 +301,10 @@ def fill_tod_with_hwp_harmonics(
             pointings_dtype=pointings_dtype,
             nthreads=nthreads,
         )
+
+    _check_detector_fields(
+        [cur_obs for cur_obs, _ in obs_pointings], _harmonics_fields(hwp)
+    )
 
     for idx_obs, (cur_obs, cur_ptg) in enumerate(obs_pointings):
         # use getattr to avoid ty errors for dynamically

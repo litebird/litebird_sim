@@ -10,6 +10,8 @@ from .observations import Observation
 from .spacecraft import SpacecraftPositionAndVelocity
 from .observation_utilities import (
     ObservationPointings,
+    _check_detector_fields,
+    _detector_keys,
     _get_tod_component,
     observation_pointings,
 )
@@ -836,6 +838,33 @@ def add_dipole(
             )
 
 
+def _beam_s_params(observation: Observation, beam_alms):
+    """The names of the beams of the detectors of `observation` (None if
+    there is one beam) and their :class:`.BeamSParams`.
+
+    The beams are `beam_alms` if given, otherwise ``observation.blms``."""
+    if beam_alms is None:
+        try:
+            beam_alms = observation.blms
+        except AttributeError:
+            msg = (
+                "apply_convolution=True but beam_alms is None and observation "
+                "has no 'blms' attribute. Provide beam_alms explicitly or store "
+                "them in the observation (e.g., using get_gauss_beam_alms)."
+            )
+            raise AttributeError(msg)
+
+    names = _detector_keys(observation, beam_alms, "beam")
+    if names is None:
+        assert isinstance(beam_alms, SphericalHarmonics), "Invalid blms format."
+        return None, BeamSParams.from_beam_alm(beam_alms)
+
+    beam_alms_dict = cast(dict[str, SphericalHarmonics], beam_alms)
+    return names, {
+        key: BeamSParams.from_beam_alm(beam_alms_dict[key]) for key in set(names)
+    }
+
+
 def add_dipole_to_observations(
     observations: Observation | list[Observation],
     pos_and_vel: SpacecraftPositionAndVelocity,
@@ -894,54 +923,24 @@ def add_dipole_to_observations(
         with :func:`.add_convolved_sky`).
     """
     # The velocity is in Ecliptic coordinates, like the default pointings
-    for cur_obs, cur_ptg in observation_pointings(
+    obs_pointings = observation_pointings(
         observations, pointings=pointings, pointings_dtype=pointings_dtype
+    )
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
+    _check_detector_fields(
+        obs_list, [] if frequency_ghz is not None else ["bandcenter_ghz"]
+    )
+
+    # The beams of all the observations, before modifying any TOD
+    beams = [
+        _beam_s_params(cur_obs, beam_alms) if apply_convolution else (None, None)
+        for cur_obs in obs_list
+    ]
+
+    for (cur_obs, cur_ptg), (input_detector_names, cur_s_params) in zip(
+        obs_pointings, beams
     ):
         tod = _get_tod_component(cur_obs, component)
-
-        # Resolve the beam S-parameters when convolution is requested.
-        # 1. Use the explicitly provided beam_alms if given.
-        # 2. Otherwise fall back to the observation's stored blms.
-        # When apply_convolution is False, any stored/passed beam is ignored
-        # and the pencil-beam dipole is computed.
-        cur_s_params = None
-        input_detector_names = None
-        if apply_convolution:
-            cur_beam_alms = beam_alms
-            if cur_beam_alms is None:
-                try:
-                    cur_beam_alms = cur_obs.blms
-                except AttributeError:
-                    msg = (
-                        "apply_convolution=True but beam_alms is None and observation "
-                        "has no 'blms' attribute. Provide beam_alms explicitly or store "
-                        "them in the observation (e.g., using get_gauss_beam_alms)."
-                    )
-                    raise AttributeError(msg)
-
-            if isinstance(cur_beam_alms, dict):
-                input_detector_names = (
-                    list(cur_obs.name)
-                    if all(k in cur_beam_alms for k in cur_obs.name)
-                    else list(cur_obs.channel)
-                    if all(k in cur_beam_alms for k in cur_obs.channel)
-                    else None
-                )
-                if input_detector_names is None:
-                    raise ValueError(
-                        "Beam blms dictionary keys do not match detector/channel names."
-                    )
-                beam_alms_dict = cast(dict[str, SphericalHarmonics], cur_beam_alms)
-                cur_s_params = {
-                    key: BeamSParams.from_beam_alm(beam_alms_dict[key])
-                    for key in set(input_detector_names)
-                }
-            else:
-                assert isinstance(cur_beam_alms, SphericalHarmonics), (
-                    "Invalid blms format."
-                )
-                input_detector_names = None
-                cur_s_params = BeamSParams.from_beam_alm(cur_beam_alms)
 
         # Alas, this allocates memory for the velocity vector! At the moment it is the
         # simplest implementation, but in the future we might want to inline the

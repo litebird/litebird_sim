@@ -23,6 +23,7 @@ from .constants import H_OVER_K_B, T_CMB_K
 from .coordinates import DEFAULT_COORDINATE_SYSTEM
 from .input_sky import _get_cmb_unit_conversion
 from .observations import Observation
+from .observation_utilities import _check_detector_fields
 from .quaternions import all_rotate_z_vectors
 from .scanning import RotQuaternion
 from .spacecraft import SpacecraftPositionAndVelocity
@@ -479,6 +480,7 @@ def add_planets_to_observations(
     obs_list = [observations] if isinstance(observations, Observation) else observations
     planets = [planets] if isinstance(planets, str) else list(planets)
     check_observations_for_planets(obs_list)
+    _check_detector_fields(obs_list, ["fwhm_arcmin"], component)
 
     if pos_and_vel is None:
         if obs_list:
