@@ -1,5 +1,7 @@
 # HEAD
 
+-   `make_sanepic_gls_map`, `estimate_sanepic_noise` and `compute_sanepic_beam_templates` take the pointings and the HWP angle from `ObservationPointings`, and no longer set `obs.has_hwp`. Reference PR: [#661](https://github.com/litebird/litebird_sim/pull/661).
+
 -   `ObservationPointings` gives the pixel index (`pixel_index`), the polarization angle (`pol_angle`) or both (`pixel_index_and_pol_angle`) of one or more detectors. The binner, pair-differencing, destriper and h-maps use them instead of their own copies of the pixelization; they no longer set `obs.has_hwp`, and `get_map_making_weights` no longer writes `obs.net_ukrts`. Reference PR: [#660](https://github.com/litebird/litebird_sim/pull/660).
 
 -   `add_convolved_sky_to_observations`, `add_dipole_to_observations`, `add_2f_to_observations`, `fill_tod_with_hwp_harmonics` and `save_simulation_for_madam` get the pointings and the HWP angle from `ObservationPointings`; `add_convolved_sky`, `add_dipole` and `fill_tod_with_hwp_harmonics` accept it as `pointings`. Fixed `fill_tod_with_hwp_harmonics` without pointings (it failed) and `save_simulation_for_madam` with a list of pointings. Pointings passed to `add_dipole_to_observations` must have three columns. Reference PR: [#659](https://github.com/litebird/litebird_sim/pull/659).
