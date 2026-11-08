@@ -1,5 +1,7 @@
 # HEAD
 
+-   Removed the private helpers `_get_hwp_angle` (which set `obs.has_hwp`), `_get_pointings_array` and `_normalize_observations_and_pointings`: `scan_map` and `add_convolved_sky` still accept an array or a function of pointings. `for_each_observation_with_pointings` is deprecated in favour of `observation_pointings`. Reference PR: [#662](https://github.com/litebird/litebird_sim/pull/662).
+
 -   `make_sanepic_gls_map`, `estimate_sanepic_noise` and `compute_sanepic_beam_templates` take the pointings and the HWP angle from `ObservationPointings`, and no longer set `obs.has_hwp`. Reference PR: [#661](https://github.com/litebird/litebird_sim/pull/661).
 
 -   `ObservationPointings` gives the pixel index (`pixel_index`), the polarization angle (`pol_angle`) or both (`pixel_index_and_pol_angle`) of one or more detectors. The binner, pair-differencing, destriper and h-maps use them instead of their own copies of the pixelization; they no longer set `obs.has_hwp`, and `get_map_making_weights` no longer writes `obs.net_ukrts`. Reference PR: [#660](https://github.com/litebird/litebird_sim/pull/660).
