@@ -233,8 +233,10 @@ a dot product with pre-computed beam moments (Eq. C.5 of NPIPE):
        + q(x)\, S_{ij} \beta_i \beta_j
        + r(x)\, S_{ijk} \beta_i \beta_j \beta_k\bigr],
 
-where :math:`\boldsymbol\beta` is the velocity in the **beam frame**
-and the S-parameters are
+where :math:`\boldsymbol\beta` is the velocity in the **beam frame**,
+obtained from the pointing :math:`(\theta, \varphi, \psi)` with the rotation
+:math:`R_z(\varphi) R_y(\theta) R_z(\psi)` used by ducc0 and
+:func:`.add_convolved_sky`, and the S-parameters are
 
 .. math::
 
@@ -427,11 +429,11 @@ simulation :func:`.Simulation.add_dipole`.
 
 .. testoutput::
 
-   3.44963e-03
-   3.45207e-03
-   3.45413e-03
-   3.45582e-03
-   3.45712e-03
+   3.44919e-03
+   3.45163e-03
+   3.45370e-03
+   3.45538e-03
+   3.45668e-03
 
 Note that even if :func:`Simulation.compute_pos_and_vel` is not explicitly
 invoked, :func:`Simulation.add_dipole` takes care of that internally initializing

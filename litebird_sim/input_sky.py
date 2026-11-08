@@ -1,4 +1,4 @@
-import logging as log
+import logging
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +26,8 @@ from .maps_and_harmonics import (
 )
 from .units import Units, UnitUtils
 from .utilities import resolve_nthreads
+
+log = logging.getLogger(__name__)
 
 # --- Utility Functions ---
 

@@ -6,15 +6,19 @@ jobs:
   tests:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      # Avoid UCX InfiniBand verbs (rc_verbs) failure on Azure Ubuntu runners with MPICH
+      UCX_TLS: tcp,self,sm
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        mpi: ["none", openmpi] # mpich
+        mpi: ["none", mpich, openmpi]
         python: ["3.11", "3.14"]
         exclude:
-          - os: macos-latest
-            mpi: mpich
+          - mpi: openmpi
             python: "3.11"
+          - mpi: mpich
+            python: "3.14"
 
     # Only run tests if there is no [skipci] or [skip ci] in the commit message
     if: |
@@ -101,43 +105,13 @@ jobs:
           PIP_CACHE_DIR: ${{ env.UV_CACHE_DIR }}
 
       - name: Tests
-        run: |
-          set -euo pipefail
-          uv run python -m pytest --cov=litebird_sim --cov-report=xml --cov-report=term --durations=5 -vv
+        run: ./bin/run_tests.sh --unittests
         env:
           COVERAGE_FILE: .coverage.${{ matrix.os }}-${{ matrix.mpi }}-${{ matrix.python }}
 
-      - name: Tests MPICH
-        if: ${{ matrix.mpi == 'mpich' }}
-        run: |
-            # See issue #457: <https://github.com/litebird/litebird_sim/issues/457>
-            if [[ "$(uname)" == "Darwin" ]]; then
-              export HDF5_USE_FILE_LOCKING=FALSE
-            fi
-            for proc in 1 2 ; do
-              echo "Running MPI test ($MPI) with $proc processes"
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_mpi.py
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_detector_blocks.py
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_shared_memory_pointings.py
-            done
-            echo "Running MPI test ($MPI) with 4 processes"
-            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 uv run python -m pytest ./test/test_mpi_n4.py
-
-      - name: Tests OpenMPI
-        if: ${{ matrix.mpi == 'openmpi' }}
-        run: |
-            # See issue #457: <https://github.com/litebird/litebird_sim/issues/457>
-            if [[ "$(uname)" == "Darwin" ]]; then
-              export HDF5_USE_FILE_LOCKING=FALSE
-            fi
-            for proc in 1 2 ; do
-              echo "Running MPI test ($MPI) with $proc processes"
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_mpi.py
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_detector_blocks.py
-              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_shared_memory_pointings.py
-            done
-            echo "Running MPI test ($MPI) with 4 processes"
-            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 uv run python -m pytest ./test/test_mpi_n4.py
+      - name: Tests MPI
+        if: ${{ matrix.mpi != 'none' }}
+        run: ./bin/run_tests.sh --mpitests
 
       - name: Store coverage data
         uses: actions/upload-artifact@v7
@@ -160,7 +134,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Download coverage data
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-*
           merge-multiple: true
@@ -170,3 +144,15 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ github.token }}
           MERGE_COVERAGE_FILES: true
+
+  # Single required check for the whole matrix. always() matters: without it
+  # a failed matrix job would skip this one, and a skipped required check
+  # counts as passed. A [skipci] commit leaves the matrix skipped, which passes.
+  test-matrix:
+    if: always()
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any matrix job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

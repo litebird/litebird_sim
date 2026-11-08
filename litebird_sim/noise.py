@@ -977,6 +977,10 @@ def add_noise(
             raise ValueError(f"Unknown noise type '{noise_type}'.")
 
 
+#: The fields of the detectors read by :func:`.add_noise_to_observations`
+_NOISE_FIELDS = ["sampling_rate_hz", "net_ukrts", "fknee_mhz", "fmin_hz", "alpha"]
+
+
 def add_noise_to_observations(
     observations,
     noise_type,
@@ -1130,6 +1134,7 @@ def add_noise_to_observations(
             user_seed=user_seed,
             dets_random=dets_random,
             requires_rng=True,
+            required_fields=_NOISE_FIELDS + ([group_by] if group_by else []),
         ):
             if corr_matrix is not None:
                 groups = None
@@ -1161,6 +1166,7 @@ def add_noise_to_observations(
         user_seed=user_seed,
         dets_random=dets_random,
         requires_rng=True,
+        required_fields=_NOISE_FIELDS,
     ):
         add_noise(
             tod=tod,

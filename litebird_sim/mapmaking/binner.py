@@ -7,33 +7,30 @@
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 import healpy as hp
 import numpy as np
 import numpy.typing as npt
-from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
 from litebird_sim.observation_utilities import (
-    _get_hwp_angle,
-    _normalize_observations_and_pointings,
+    ObservationPointings,
+    observation_pointings,
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
-from ..utilities import cos_sin, resolve_nthreads
+from ..utilities import resolve_nthreads
 
+from .reduction import reduction_for_observations
+from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
-    _get_reduction_comm,
-    _build_mask_detector_split,
-    _build_mask_time_split,
-    _check_valid_splits,
-    _compute_pixel_indices,
+    pointing_row,
+    _apply_flags_to_time_masks,
     _is_well_conditioned,
     get_map_making_weights,
     get_pol_efficiency,
@@ -48,8 +45,11 @@ class BinnerResult:
 
     - ``binned_map``: Healpix map containing the binned value for each pixel
 
-    - ``invnpp``: inverse of the covariance matrix element for each
-      pixel in the map. It is an array of shape `(12 * nside * nside, 3, 3)`
+    - ``invnpp``: the covariance matrix of (I, Q, U) in each pixel, i.e., the
+      inverse M⁻¹ of the matrix M = Σ Aᵀ A / σ² accumulated over the samples
+      (not its inverse, despite the name, which comes from Madam). It is an
+      array of shape `(12 * nside * nside, 3, 3)`, in the units of the TOD
+      squared; pixels that cannot be solved are ``UNSEEN``
 
     - ``coordinate_system``: the coordinate system of the output maps
       (a :class:`.CoordinateSistem` object)
@@ -155,33 +155,30 @@ def _accumulate_samples_and_build_nobs_matrix(
         if not d_mask[idet]:
             continue
 
-        inv_sigma = 1.0 / np.sqrt(weights[idet])
-        inv_sigma2 = inv_sigma * inv_sigma
-        gamma_over_sigma = pol_eff[idet] * inv_sigma
+        inv_sigma2 = 1.0 / weights[idet]
 
         # One pass for both triangles, so that cos/sin are computed once
         for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
-            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
+            tod[idet, :], pix[idet, :], psi[idet, :], t_mask[idet, :]
         ):
             if cur_t_mask:
-                cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
-                cos_over_sigma = cos_2psi * gamma_over_sigma
-                sin_over_sigma = sin_2psi * gamma_over_sigma
+                r_i, r_q, r_u = pointing_row(cur_psi, pol_eff[idet])
                 info_pix = nobs_matrix[cur_pix_idx]
 
                 if not additional_component:
                     # Upper triangle
-                    info_pix[0, 0] += inv_sigma2
-                    info_pix[0, 1] += inv_sigma * cos_over_sigma
-                    info_pix[0, 2] += inv_sigma * sin_over_sigma
-                    info_pix[1, 1] += cos_over_sigma * cos_over_sigma
-                    info_pix[1, 2] += sin_over_sigma * cos_over_sigma
-                    info_pix[2, 2] += sin_over_sigma * sin_over_sigma
+                    info_pix[0, 0] += r_i * r_i * inv_sigma2
+                    info_pix[0, 1] += r_i * r_q * inv_sigma2
+                    info_pix[0, 2] += r_i * r_u * inv_sigma2
+                    info_pix[1, 1] += r_q * r_q * inv_sigma2
+                    info_pix[1, 2] += r_q * r_u * inv_sigma2
+                    info_pix[2, 2] += r_u * r_u * inv_sigma2
 
                 # Lower triangle
-                info_pix[1, 0] += cur_sample * inv_sigma2
-                info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
-                info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma
+                weighted_sample = cur_sample * inv_sigma2
+                info_pix[1, 0] += r_i * weighted_sample
+                info_pix[2, 0] += r_q * weighted_sample
+                info_pix[2, 1] += r_u * weighted_sample
 
 
 @njit
@@ -220,43 +217,23 @@ def _extract_map_and_fill_info(info: npt.NDArray) -> npt.NDArray:
 
 def _build_nobs_matrix(
     nside: int,
-    obs_list: list[Observation],
-    ptg_list: list[npt.NDArray | Callable],
-    hwp: HWP | None,
+    obs_pointings: list[tuple[Observation, ObservationPointings]],
     dm_list: list[npt.NDArray],
     tm_list: list[npt.NDArray],
-    output_coordinate_system: CoordinateSystem,
     components: list[str],
-    nthreads: int,
-    pointings_dtype=np.float64,
 ) -> npt.NDArray:
-    hpx = Healpix_Base(nside, "RING")
     n_pix = HealpixMap.nside_to_npix(nside)
 
     nobs_matrix = np.zeros((n_pix, 3, 3))
 
-    for obs_idx, (cur_obs, cur_ptg, cur_d_mask, cur_t_mask) in enumerate(
-        zip(obs_list, ptg_list, dm_list, tm_list)
+    for (cur_obs, cur_ptg), cur_d_mask, cur_t_mask in zip(
+        obs_pointings, dm_list, tm_list
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
         cur_pol_eff = get_pol_efficiency(cur_obs)
 
-        # Determine the HWP angle to use:
-        # - If an external HWP object is provided, compute the angle from it
-        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
-
-        pixidx_all, polang_all = _compute_pixel_indices(
-            hpx=hpx,
-            pointings=cur_ptg,
-            pol_angle_detectors=cur_obs.pol_angle_rad,
-            num_of_detectors=cur_obs.n_detectors,
-            num_of_samples=cur_obs.n_samples,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
-            nthreads=nthreads,
-            pointings_dtype=pointings_dtype,
-        )
+        # In the coordinate system of the map
+        pixidx_all, polang_all = cur_ptg.pixel_index_and_pol_angle("all", nside)
 
         first_component = getattr(cur_obs, components[0])
         for idx, cur_component_name in enumerate(components):
@@ -280,12 +257,10 @@ def _build_nobs_matrix(
 
         del pixidx_all, polang_all
 
-    assert obs_list, "No observations provided"
-    comm = _get_reduction_comm(obs_list)
-    if comm is not None:
-        from litebird_sim.mpi import MPI
-
-        comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
+    assert obs_pointings, "No observations provided"
+    reduction_for_observations([cur_obs for cur_obs, _ in obs_pointings]).sum_in_place(
+        nobs_matrix
+    )
 
     return nobs_matrix
 
@@ -301,6 +276,8 @@ def make_binned_map(
     time_split: str = "full",
     pointings_dtype=np.float64,
     nthreads: int | None = None,
+    flags: str | list[str] | None = None,
+    flag_mask: int | None = None,
 ) -> BinnerResult:
     """Bin Map-maker
 
@@ -333,6 +310,13 @@ def make_binned_map(
             :class:`.Observation` object
         detector_split (str): select the detector split to use in the map-making
         time_split (str): select the time split to use in the map-making.
+        flags (str or list[str]): names of the :class:`.Observation`
+            attributes holding the flags, either per detector (e.g.
+            ``"local_flags"``) or common to all the detectors (e.g.
+            ``"global_flags"``). Flagged samples are excluded from the map;
+            attributes set to None mean that all the samples are good
+        flag_mask (int): bits of the flags that exclude a sample (e.g.
+            ``FLAG_PLANET``). If None, any nonzero flag excludes it
         pointings_dtype(dtype): data type for pointings generated on the fly. If
             the pointing is passed or already precomputed this parameter is
             ineffective. Default is `np.float64`.
@@ -348,29 +332,32 @@ def make_binned_map(
     if isinstance(components, str):
         components = [components]
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
-    )
-    assert ptg_list, "No observations provided"
-
-    detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
-
-    time_mask_list = _build_mask_time_split(time_split, obs_list)
-
     # Set number of threads
     nthreads = resolve_nthreads(nthreads)
 
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
+    )
+    assert obs_pointings, "No observations provided"
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
+
+    detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
+
+    time_mask_list = _apply_flags_to_time_masks(
+        _build_mask_time_split(time_split, obs_list), obs_list, flags, flag_mask
+    )
+
     nobs_matrix = _build_nobs_matrix(
         nside=nside,
-        obs_list=obs_list,
-        ptg_list=ptg_list,
-        hwp=hwp,
+        obs_pointings=obs_pointings,
         dm_list=detector_mask_list,
         tm_list=time_mask_list,
-        output_coordinate_system=output_coordinate_system,
         components=components,
-        nthreads=nthreads,
-        pointings_dtype=pointings_dtype,
     )
 
     rhs = _extract_map_and_fill_info(nobs_matrix)
@@ -385,68 +372,3 @@ def make_binned_map(
         detector_split=detector_split,
         time_split=time_split,
     )
-
-
-def check_valid_splits(
-    observations: Observation | list[Observation],
-    detector_splits: str | list[str] = "full",
-    time_splits: str | list[str] = "full",
-):
-    """Check if the splits are valid
-
-    For each observation in the list, check if the detector and time splits
-    are valid.
-    In particular, the compatibility between the detectors in each observation
-    and the desired split in detector domain is checked. On the other hand, this
-    assess whether the desired time split fits inside the duration of the
-    observation (when this applies).
-    If the splits are not compatible with the input data, an error is raised.
-
-    Args:
-        observations (list of :class:`Observations`): observations to be mapped.
-            They are required to have the following attributes as arrays
-
-            * `pointings`: the pointing information (in radians) for each tod
-               sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
-               with ``N_d`` number of detectors and ``N_t`` number of
-               samples in the TOD.
-            * any attribute listed in `components` (by default, `tod`) and
-              containing the TOD(s) to be binned together.
-
-            If the observations are distributed over some communicator(s), they
-            must share the same group processes.
-            If pointings and psi are not included in the observations, they can
-            be provided through an array (or a list of arrays) of dimension
-            (Ndetectors x Nsamples x 3), containing theta, phi and psi
-        detector_splits (str | list[str], optional): detector-domain splits
-            used to produce maps.
-
-            * "full": every detector in the observation will be used;
-            * "waferXXX": the mapmaking will be performed on the intersection
-                of the detectors specified in the input and the detectors specified
-                in the detector_split.
-                The wafer must be specified in the format "waferXXX". The valid values
-                for "XXX" are all the 3-digits strings corresponding to the wafers
-                in the LITEBIRD focal plane (e.g. L00, M01, H02).
-
-        time_splits (str | list[str], optional): time-domain splits
-            used to produce maps. This defaults to "full" indicating that every
-            sample in the observation will be used. In addition, the user can specify
-            a string, or a list of strings, to indicate a subsample of the observation
-            to be used:
-
-            * "full": every sample in the observation will be used;
-            * "first_half" and/or "second_half": the first and/or second half of the
-                observation will be used;
-            * "odd" and/or "even": the odd and/or even samples in the observation
-                will be used;
-            * "yearX": the samples in the observation will be
-                used according to the year they belong to (relative to the
-                starting time). The valid values for "X" are ["1", "2", "3"].
-            * "surveyX": the samples in the observation will be used according
-                to the requested survey. In this context, a survey is taken to
-                be complete in 6 months, thus the valid values for "X" are
-                ["1", "2", "3", "4", "5", "6"].
-
-    """
-    _check_valid_splits(observations, detector_splits, time_splits)

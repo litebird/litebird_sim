@@ -6,6 +6,7 @@ import numpy as np
 from astropy.time import Time as AstroTime
 
 import litebird_sim as lbs
+from litebird_sim.observation_utilities import ObservationPointings
 
 NUMPY_TYPES = [
     (np.float32, "float32"),
@@ -172,14 +173,21 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         ]:
             if use_mjd:
                 assert (
-                    AstroTime(cur_dataset.attrs["start_time"], format="mjd")
-                    == original_obs.start_time
+                    AstroTime(
+                        *cur_dataset.attrs["start_time_process"],
+                        format="jd",
+                        scale=cur_dataset.attrs["start_time_process_scale"],
+                    )
+                    == original_obs.start_time_process
                 )
             else:
-                assert cur_dataset.attrs["start_time"] == original_obs.start_time
+                assert (
+                    cur_dataset.attrs["start_time_process"]
+                    == original_obs.start_time_process
+                )
 
             assert cur_dataset.attrs["description"] == description
-            assert cur_dataset.attrs["mjd_time"] == use_mjd
+            assert ("start_time_process_scale" in cur_dataset.attrs) == use_mjd
             assert (
                 cur_dataset.attrs["sampling_rate_hz"] == original_obs.sampling_rate_hz
             )
@@ -245,7 +253,13 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: b
 
     obs = observations[0]
     assert isinstance(obs, lbs.Observation)
-    assert obs.start_time == original_obs.start_time
+    # Map-makers query the HWP before computing pointings: reading alone must
+    # restore its state and make the modulation angles available.
+    assert obs.has_hwp
+    hwp_angle = ObservationPointings(obs).hwp_angle
+    assert hwp_angle is not None
+    np.testing.assert_allclose(hwp_angle, original_obs.get_hwp_angle())
+    assert obs.start_time_process == original_obs.start_time_process
     assert obs.sampling_rate_hz == original_obs.sampling_rate_hz
 
     # Check that the TodDescription objects have been restored correctly
@@ -273,6 +287,12 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: b
 
     assert np.all(ref_flags == obs.local_flags)
 
+    ref_global_flags = np.zeros(obs.tod1.shape[1], dtype="uint16")
+    ref_global_flags[12:15] = 15
+
+    assert obs.global_flags.dtype == lbs.FLAG_DTYPE
+    np.testing.assert_array_equal(obs.global_flags, ref_global_flags)
+
 
 def test_read_complex_observation_mjd(tmp_path):
     __test_read_complex_observation(
@@ -290,9 +310,156 @@ def test_read_complex_observation_no_mjd(tmp_path):
     )
 
 
+def test_flags_with_long_runs(tmp_path):
+    # Runs longer than the maximum value of FLAG_DTYPE must survive the RLE
+    sim = lbs.Simulation(
+        base_path=tmp_path / "sim", start_time=0.0, duration_s=10_000, random_seed=1
+    )
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(name=name, sampling_rate_hz=10.0, bandcenter_ghz=100.0)
+            for name in ("a", "b")
+        ]
+    )
+    obs = sim.observations[0]
+    assert obs.local_flags is None and obs.global_flags is None
+
+    lbs.get_local_flags(obs)[1, 70_000:] |= lbs.FLAG_PLANET
+    lbs.get_global_flags(obs)[:80_000] |= 4
+
+    file_name = lbs.write_list_of_observations(observations=[obs], path=tmp_path)[0]
+    read_obs = lbs.io.read_one_observation(file_name, read_quaternions_if_present=False)
+
+    assert read_obs.local_flags.dtype == lbs.FLAG_DTYPE
+    np.testing.assert_array_equal(read_obs.local_flags, obs.local_flags)
+    np.testing.assert_array_equal(read_obs.global_flags, obs.global_flags)
+
+
 def test_gzip_compression_in_obs(tmp_path):
     __test_read_complex_observation(
         tmp_path,
         use_mjd=False,
         gzip_compression=True,
     )
+
+
+def __test_write_sliced_pointing_provider(
+    tmp_path, use_mjd: bool, delta_time_s: float = 10.0
+):
+    # Each file must contain only the boresight quaternions that cover its own
+    # observation, not the ones of the whole simulation
+    start_time = AstroTime("2021-01-01") if use_mjd else 0.0
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=start_time,
+        duration_s=3600.0,
+        random_seed=12345,
+    )
+    sim.set_scanning_strategy(
+        scanning_strategy=lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785_398_163_397_448_3,
+            precession_rate_hz=8.664_850_513_998_931e-05,
+            spin_rate_hz=0.000_833_333_333_333_333_4,
+            start_time=start_time,
+        ),
+        delta_time_s=delta_time_s,
+        append_to_report=False,
+    )
+    sim.set_instrument(
+        lbs.InstrumentInfo(
+            boresight_rotangle_rad=0.0,
+            spin_boresight_angle_rad=0.872_664_625_997_164_8,
+            spin_rotangle_rad=3.141_592_653_589_793,
+        )
+    )
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name="det",
+                sampling_rate_hz=1.0,
+                bandcenter_ghz=100.0,
+                quat=[0, 0, 0, 1],
+            )
+        ],
+        num_of_obs_per_detector=4,
+    )
+    sim.prepare_pointings(append_to_report=False)
+    expected = [obs.get_pointings(0)[0].copy() for obs in sim.observations]
+
+    file_list = sim.write_observations(subdir_name="", append_to_report=False)
+    assert len(file_list) == 4
+
+    for cur_file in file_list:
+        with h5py.File(cur_file, "r") as inpf:
+            # 900 s of quaternions, plus the margin for the slerp
+            assert (
+                inpf["pointing_provider_rot_quaternion"].shape[0]
+                <= 900.0 / delta_time_s + 4
+            )
+
+    observations = lbs.read_list_of_observations(
+        file_name_list=file_list, limit_mpi_rank=False
+    )
+    assert len(observations) == 4
+    for obs, ref in zip(observations, expected):
+        assert not obs.has_hwp
+        assert ObservationPointings(obs).hwp_angle is None
+        np.testing.assert_allclose(obs.get_pointings(0)[0], ref, atol=1e-10)
+
+
+def test_write_sliced_pointing_provider_mjd(tmp_path):
+    __test_write_sliced_pointing_provider(tmp_path, use_mjd=True)
+
+
+def test_write_sliced_pointing_provider_no_mjd(tmp_path):
+    __test_write_sliced_pointing_provider(tmp_path, use_mjd=False)
+
+
+def test_write_sliced_pointing_provider_fractional_delta_time(tmp_path):
+    # The start of each slice is not a round number of milliseconds
+    __test_write_sliced_pointing_provider(tmp_path, use_mjd=True, delta_time_s=1 / 3)
+
+
+def test_rot_quaternion_start_time_roundtrip(tmp_path):
+    # The start time must be saved with full precision, whatever its format
+    for start_time in [
+        AstroTime("2021-01-01T01:19:59.333333333"),
+        AstroTime(59215.123456789, format="mjd"),
+        AstroTime("2021-01-01T01:19:59.333333333", scale="tdb"),
+    ]:
+        quats = lbs.RotQuaternion(
+            quats=np.array([[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]]),
+            start_time=start_time,
+            sampling_rate_hz=3.0,
+        )
+        with h5py.File(tmp_path / "quats.h5", "w") as outf:
+            lbs.io.write_rot_quaternion_to_hdf5(
+                output_file=outf, rot_matrix=quats, field_name="q", compression=None
+            )
+        with h5py.File(tmp_path / "quats.h5", "r") as inpf:
+            result = lbs.io.read_rot_quaternion_from_hdf5(
+                input_file=inpf, field_name="q"
+            )
+
+        assert result.start_time == start_time
+        assert result.start_time.scale == start_time.scale
+
+
+def test_detector_json_quaternion_start_time():
+    # The JSON metadata must keep the precision and the scale of the start time
+    start_time = AstroTime("2021-01-01T01:19:59.333333333", scale="tdb")
+    quat = lbs.RotQuaternion(
+        quats=np.array([[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]]),
+        start_time=start_time,
+        sampling_rate_hz=3.0,
+    )
+    record = json.loads(
+        json.dumps(
+            {"name": "det", "bandcenter_ghz": 100.0, "quat": quat},
+            cls=lbs.io.DetectorJSONEncoder,
+        )
+    )
+    result = lbs.DetectorInfo.from_dict(record).quat
+
+    assert result.start_time == start_time
+    assert result.start_time.scale == "tdb"

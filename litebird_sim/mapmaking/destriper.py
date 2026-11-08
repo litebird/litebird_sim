@@ -4,7 +4,6 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
-from collections.abc import Callable
 
 import healpy as hp
 import numpy as np
@@ -13,25 +12,27 @@ from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
 from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
+from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
 from litebird_sim.hwp import HWP
-from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
+from litebird_sim.mpi import MPI_COMM_WORLD
 from litebird_sim.observations import Observation
 from litebird_sim.observation_utilities import (
-    _get_hwp_angle,
-    _normalize_observations_and_pointings,
+    ObservationPointings,
+    observation_pointings,
 )
 
-from ..utilities import cos_sin, resolve_nthreads
+from ..utilities import resolve_nthreads
 
+from .reduction import Reduction, reduction_for_observations
+from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
-    _compute_pixel_indices,
+    pointing_row,
     _is_well_conditioned,
     get_map_making_weights,
     get_pol_efficiency,
     cholesky,
     solve_cholesky,
-    _build_mask_detector_split,
-    _build_mask_time_split,
+    _apply_flags_to_time_masks,
 )
 
 # The implementation of the destriping algorithm provided here is based on the paper
@@ -42,8 +43,7 @@ from .common import (
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
-if MPI_ENABLED:
-    import mpi4py.MPI
+log = logging.getLogger(__name__)
 
 
 __DESTRIPER_RESULTS_FILE_NAME = "destriper_results.fits"
@@ -116,7 +116,7 @@ def _get_invnpp(
 
     for ipix in prange(npix):  # type: ignore[not-iterable]
         if not valid_pixel[ipix]:
-            result[ipix, :, :] = 0.0
+            result[ipix, :, :] = UNSEEN_PIXEL_VALUE
             continue
 
         # We associate each coefficient of the i-th matrix in
@@ -204,15 +204,15 @@ class NobsMatrix:
         return self.nobs_matrix.nbytes + self.valid_pixel.nbytes
 
     def get_invnpp(self) -> npt.NDArray:
-        """Return the inverse noise covariance matrix per pixel
+        """Return the noise covariance matrix of (I, Q, U) in each pixel
 
-        This method returns a (N_pix, 3, 3) array containing the
-        3×3 matrices associated with each pixel that contain the
-        estimate noise per pixel. Each of the N_pix matrices
-        corresponds to Mᵢ⁻¹, the inverse of Mᵢ in Eq. (10) of
-        Kurki-Suonio et al. (2009).
+        This method returns a (N_pix, 3, 3) array: each of the N_pix
+        matrices is Mᵢ⁻¹, the inverse of Mᵢ in Eq. (10) of Kurki-Suonio
+        et al. (2009), i.e., the covariance of the binned map in the pixel
+        (despite the name, which comes from Madam, it is not the inverse
+        covariance). It does not include the uncertainty of the baselines.
 
-        A null matrix is associated with each invalid pixel.
+        The matrices of the invalid pixels are ``UNSEEN``.
         """
 
         assert self.is_cholesky, (
@@ -389,26 +389,22 @@ def _accumulate_nobs_matrix(
         if not d_mask[det_idx]:
             continue
 
-        inv_sigma = 1.0 / np.sqrt(weights[det_idx])
-        inv_sigma2 = inv_sigma * inv_sigma
-        gamma_over_sigma = pol_eff[det_idx] * inv_sigma
+        inv_sigma2 = 1.0 / weights[det_idx]
 
         # Fill the lower triangle of M_i only for i = 1…N_pix
         for cur_pix_idx, cur_psi, cur_t_mask in zip(
-            pix_idx[det_idx], psi_angle_rad[det_idx], t_mask
+            pix_idx[det_idx], psi_angle_rad[det_idx], t_mask[det_idx]
         ):
             if cur_t_mask:
-                cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
-                cos_over_sigma = cos_2psi * gamma_over_sigma
-                sin_over_sigma = sin_2psi * gamma_over_sigma
+                r_i, r_q, r_u = pointing_row(cur_psi, pol_eff[det_idx])
                 cur_matrix = nobs_matrix[cur_pix_idx]
 
-                cur_matrix[0] += inv_sigma2
-                cur_matrix[1] += cos_over_sigma * inv_sigma
-                cur_matrix[2] += cos_over_sigma * cos_over_sigma
-                cur_matrix[3] += sin_over_sigma * inv_sigma
-                cur_matrix[4] += sin_over_sigma * cos_over_sigma
-                cur_matrix[5] += sin_over_sigma * sin_over_sigma
+                cur_matrix[0] += r_i * r_i * inv_sigma2
+                cur_matrix[1] += r_q * r_i * inv_sigma2
+                cur_matrix[2] += r_q * r_q * inv_sigma2
+                cur_matrix[3] += r_u * r_i * inv_sigma2
+                cur_matrix[4] += r_u * r_q * inv_sigma2
+                cur_matrix[5] += r_u * r_u * inv_sigma2
 
 
 @njit(parallel=True)
@@ -441,58 +437,62 @@ def _nobs_matrix_to_cholesky(
         # to zero everywhere
 
 
-def _store_pixel_idx_and_pol_angle_in_obs(
-    hpx: Healpix_Base,
-    obs_list: list[Observation],
-    ptg_list: list[npt.NDArray | Callable],
-    hwp: HWP | None,
-    output_coordinate_system: CoordinateSystem,
-    nthreads: int | None = None,
-    pointings_dtype=np.float64,
-):
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
-        cur_obs.destriper_weights = get_map_making_weights(cur_obs, check=True)
+@dataclass
+class _ObsMapping:
+    """What the destriper needs of each observation: the pixel index and
+    the polarization angle of each sample, and the weight of each detector.
 
-        # Determine the HWP angle to use:
-        # - If an external HWP object is provided, compute the angle from it
-        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+    The destriper keeps these arrays for itself instead of storing them in
+    the :class:`.Observation` objects."""
 
-        # Set number of threads
-        nthreads = resolve_nthreads(nthreads)
+    pixel_idx: npt.NDArray
+    pol_angle_rad: npt.NDArray
+    weights: npt.NDArray
 
-        (
-            cur_obs.destriper_pixel_idx,
-            cur_obs.destriper_pol_angle_rad,
-        ) = _compute_pixel_indices(
-            hpx=hpx,
-            pointings=cur_ptg,
-            pol_angle_detectors=cur_obs.pol_angle_rad,
-            num_of_detectors=cur_obs.n_detectors,
-            num_of_samples=cur_obs.n_samples,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
-            nthreads=nthreads,
-            pointings_dtype=pointings_dtype,
+    @property
+    def nbytes(self) -> int:
+        return self.pixel_idx.nbytes + self.pol_angle_rad.nbytes + self.weights.nbytes
+
+
+def _compute_obs_mappings(
+    nside: int,
+    obs_pointings: list[tuple[Observation, ObservationPointings]],
+) -> list[_ObsMapping]:
+    """The pixels and angles in the coordinate system of each
+    :class:`.ObservationPointings`"""
+    result = []
+    for cur_obs, cur_ptg in obs_pointings:
+        pixel_idx, pol_angle_rad = cur_ptg.pixel_index_and_pol_angle("all", nside)
+        result.append(
+            _ObsMapping(
+                pixel_idx=pixel_idx,
+                pol_angle_rad=pol_angle_rad,
+                weights=get_map_making_weights(cur_obs, check=True),
+            )
         )
+    return result
 
 
 def _build_nobs_matrix(
     hpx: Healpix_Base,
     obs_list: list[Observation],
+    mapping_list: "list[_ObsMapping]",
     dm_list: list[npt.NDArray],
     tm_list: list[npt.NDArray],
+    reduction: Reduction | None = None,
 ) -> NobsMatrix:
     # Instead of a shape like (Npix, 3, 3), i.e., one 3×3 matrix per each
     # pixel, we only store the lower triangular part in a 6-element array.
     # In this way we reduce the memory usage by ~30% and the code is faster too.
     nobs_matrix = np.zeros((hpx.npix(), 6))  # Do not use np.empty() here!
 
-    for cur_obs, cur_d_mask, cur_t_mask in zip(obs_list, dm_list, tm_list):
+    for cur_obs, cur_map, cur_d_mask, cur_t_mask in zip(
+        obs_list, mapping_list, dm_list, tm_list
+    ):
         _accumulate_nobs_matrix(
-            pix_idx=cur_obs.destriper_pixel_idx,
-            psi_angle_rad=cur_obs.destriper_pol_angle_rad,
-            weights=cur_obs.destriper_weights,
+            pix_idx=cur_map.pixel_idx,
+            psi_angle_rad=cur_map.pol_angle_rad,
+            weights=cur_map.weights,
             pol_eff=get_pol_efficiency(cur_obs),
             nobs_matrix=nobs_matrix,
             d_mask=cur_d_mask,
@@ -500,8 +500,9 @@ def _build_nobs_matrix(
         )
 
     # Now we must accumulate the result of every MPI process
-    if MPI_ENABLED:
-        MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, nobs_matrix, op=mpi4py.MPI.SUM)
+    if reduction is None:
+        reduction = reduction_for_observations(obs_list)
+    reduction.sum_in_place(nobs_matrix)
 
     # `nobs_matrix_cholesky` will *not* contain the M_i maps shown in
     # Eq. 9 of KurkiSuonio2009, but its Cholesky decomposition, i.e.,
@@ -545,10 +546,11 @@ def _sum_map_contribution_from_one_sample(
 ) -> None:
     "This code implements Eqq. (18)–(20)"
 
-    cos_2psi, sin_2psi = cos_sin(2 * pol_angle_rad)
-    dest_array[0] += sample / weight
-    dest_array[1] += sample * pol_eff * cos_2psi / weight
-    dest_array[2] += sample * pol_eff * sin_2psi / weight
+    r_i, r_q, r_u = pointing_row(pol_angle_rad, pol_eff)
+    weighted_sample = sample / weight
+    dest_array[0] += r_i * weighted_sample
+    dest_array[1] += r_q * weighted_sample
+    dest_array[2] += r_u * weighted_sample
 
 
 @njit
@@ -584,7 +586,7 @@ def _update_sum_map_with_tod(
         samples_in_this_baseline = 0
 
         for sample_idx in range(tod.shape[1]):
-            if not t_mask[sample_idx]:
+            if not t_mask[det_idx, sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_lengths
                 )
@@ -637,7 +639,7 @@ def _update_sum_map_with_baseline(
         samples_in_this_baseline = 0
 
         for sample_idx in range(pixel_idx.shape[1]):
-            if not t_mask[sample_idx]:
+            if not t_mask[det_idx, sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_lengths
                 )
@@ -686,6 +688,7 @@ def _sum_map_to_binned_map(
 
 def _compute_binned_map(
     obs_list: list[Observation],
+    mapping_list: "list[_ObsMapping]",
     nobs_matrix_cholesky: NobsMatrix,
     baselines_list: list[npt.NDArray] | None,
     baseline_lengths_list: list[npt.NDArray],
@@ -694,6 +697,7 @@ def _compute_binned_map(
     component: str | None,
     output_hit_map: npt.NDArray,
     output_sky_map: npt.NDArray,
+    reduction: Reduction | None = None,
 ) -> None:
     """
     Compute the global binned map
@@ -727,8 +731,14 @@ def _compute_binned_map(
     output_sky_map[:] = 0
     output_hit_map[:] = 0
 
-    for obs_idx, (cur_obs, cur_baseline_lengths, cur_d_mask, cur_t_mask) in enumerate(
-        zip(obs_list, baseline_lengths_list, dm_list, tm_list)
+    for obs_idx, (
+        cur_obs,
+        cur_map,
+        cur_baseline_lengths,
+        cur_d_mask,
+        cur_t_mask,
+    ) in enumerate(
+        zip(obs_list, mapping_list, baseline_lengths_list, dm_list, tm_list)
     ):
         if baselines_list is None:
             assert component is not None
@@ -736,9 +746,9 @@ def _compute_binned_map(
                 sky_map=output_sky_map,
                 hit_map=output_hit_map,
                 tod=getattr(cur_obs, component),
-                pol_angle_rad=cur_obs.destriper_pol_angle_rad,
-                pixel_idx=cur_obs.destriper_pixel_idx,
-                weights=cur_obs.destriper_weights,
+                pol_angle_rad=cur_map.pol_angle_rad,
+                pixel_idx=cur_map.pixel_idx,
+                weights=cur_map.weights,
                 pol_eff=get_pol_efficiency(cur_obs),
                 d_mask=cur_d_mask,
                 t_mask=cur_t_mask,
@@ -749,9 +759,9 @@ def _compute_binned_map(
             _update_sum_map_with_baseline(
                 sky_map=output_sky_map,
                 hit_map=output_hit_map,
-                pol_angle_rad=cur_obs.destriper_pol_angle_rad,
-                pixel_idx=cur_obs.destriper_pixel_idx,
-                weights=cur_obs.destriper_weights,
+                pol_angle_rad=cur_map.pol_angle_rad,
+                pixel_idx=cur_map.pixel_idx,
+                weights=cur_map.weights,
                 pol_eff=get_pol_efficiency(cur_obs),
                 d_mask=cur_d_mask,
                 t_mask=cur_t_mask,
@@ -759,9 +769,9 @@ def _compute_binned_map(
                 baseline_lengths=cur_baseline_lengths,
             )
 
-    if MPI_ENABLED:
-        MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, output_sky_map, op=mpi4py.MPI.SUM)
-        MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, output_hit_map, op=mpi4py.MPI.SUM)
+    if reduction is None:
+        reduction = reduction_for_observations(obs_list)
+    reduction.sum_in_place(output_sky_map, output_hit_map)
 
     # Step 2: compute the “binned map” (Eq. 21)
     _sum_map_to_binned_map(
@@ -775,12 +785,12 @@ def _compute_binned_map(
 def estimate_sample_from_map(
     cur_pixel: int, cur_psi: float, cur_pol_eff: float, sky_map: npt.NDArray
 ) -> float:
-    cur_i = sky_map[0, cur_pixel]
-    cur_q = sky_map[1, cur_pixel]
-    cur_u = sky_map[2, cur_pixel]
-
-    cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
-    return cur_i + cur_pol_eff * (cur_q * cos_2psi + cur_u * sin_2psi)
+    r_i, r_q, r_u = pointing_row(cur_psi, cur_pol_eff)
+    return (
+        r_i * sky_map[0, cur_pixel]
+        + r_q * sky_map[1, cur_pixel]
+        + r_u * sky_map[2, cur_pixel]
+    )
 
 
 @njit
@@ -821,7 +831,7 @@ def _compute_tod_sums_for_one_component(
         samples_in_this_baseline = 0
 
         for sample_idx in range(len(det_pixel_idx)):
-            if not t_mask[sample_idx]:
+            if not t_mask[det_idx, sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_length
                 )
@@ -880,7 +890,7 @@ def _compute_baseline_sums_for_one_component(
         samples_in_this_baseline = 0
 
         for sample_idx in range(len(det_pixel_idx)):
-            if not t_mask[sample_idx]:
+            if not t_mask[det_idx, sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_length
                 )
@@ -903,6 +913,7 @@ def _compute_baseline_sums_for_one_component(
 
 def _compute_baseline_sums(
     obs_list: list[Observation],
+    mapping_list: "list[_ObsMapping]",
     sky_map: npt.NDArray,
     baselines_list: list[npt.NDArray] | None,
     baseline_lengths_list: list[npt.NDArray],
@@ -946,12 +957,20 @@ def _compute_baseline_sums(
     # Compute the value of the F^t C_w⁻¹ Z operator
     for obs_idx, (
         cur_obs,
+        cur_map,
         cur_baseline_lengths,
         cur_sums,
         cur_d_mask,
         cur_t_mask,
     ) in enumerate(
-        zip(obs_list, baseline_lengths_list, output_sums_list, dm_list, tm_list)
+        zip(
+            obs_list,
+            mapping_list,
+            baseline_lengths_list,
+            output_sums_list,
+            dm_list,
+            tm_list,
+        )
     ):
         assert len(cur_baseline_lengths) == cur_sums.shape[1], (
             f"The output buffer for observation {obs_idx=} "
@@ -967,9 +986,9 @@ def _compute_baseline_sums(
             )
 
             _compute_baseline_sums_for_one_component(
-                weights=cur_obs.destriper_weights,
-                pixel_idx=cur_obs.destriper_pixel_idx,
-                psi_angle_rad=cur_obs.destriper_pol_angle_rad,
+                weights=cur_map.weights,
+                pixel_idx=cur_map.pixel_idx,
+                psi_angle_rad=cur_map.pol_angle_rad,
                 pol_eff=get_pol_efficiency(cur_obs),
                 sky_map=sky_map,
                 d_mask=cur_d_mask,
@@ -981,10 +1000,10 @@ def _compute_baseline_sums(
         else:
             assert component is not None
             _compute_tod_sums_for_one_component(
-                weights=cur_obs.destriper_weights,
+                weights=cur_map.weights,
                 tod=getattr(cur_obs, component),
-                pixel_idx=cur_obs.destriper_pixel_idx,
-                psi_angle_rad=cur_obs.destriper_pol_angle_rad,
+                pixel_idx=cur_map.pixel_idx,
+                psi_angle_rad=cur_map.pol_angle_rad,
                 pol_eff=get_pol_efficiency(cur_obs),
                 sky_map=sky_map,
                 d_mask=cur_d_mask,
@@ -994,7 +1013,7 @@ def _compute_baseline_sums(
             )
 
 
-def _mpi_dot(a: list[npt.NDArray], b: list[npt.NDArray]) -> float:
+def _mpi_dot(a: list[npt.NDArray], b: list[npt.NDArray], reduction: Reduction) -> float:
     """Compute a dot product between lists of vectors using MPI
 
     This function is a glorified version of ``numpy.dot``. It assumes
@@ -1010,13 +1029,10 @@ def _mpi_dot(a: list[npt.NDArray], b: list[npt.NDArray]) -> float:
     # we call “flatten” to make them 1D and produce *one* scalar out of
     # the dot product
     local_result = sum([np.dot(x1.flatten(), x2.flatten()) for (x1, x2) in zip(a, b)])
-    if MPI_ENABLED:
-        return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.SUM)
-    else:
-        return local_result
+    return reduction.sum(local_result)
 
 
-def _get_stopping_factor(residual: list[npt.NDArray]) -> float:
+def _get_stopping_factor(residual: list[npt.NDArray], reduction: Reduction) -> float:
     """Given a list of baseline residuals, estimate the stopping factor
 
     Our assumption here is that the stopping factor is the maximum absolute
@@ -1027,14 +1043,12 @@ def _get_stopping_factor(residual: list[npt.NDArray]) -> float:
     but a few of them are significantly off.
     """
     local_result = np.max(np.abs(residual))
-    if MPI_ENABLED:
-        return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.MAX)
-    else:
-        return local_result
+    return reduction.max(local_result)
 
 
 def _compute_b_or_Ax(
     obs_list: list[Observation],
+    mapping_list: "list[_ObsMapping]",
     nobs_matrix_cholesky: NobsMatrix,
     sky_map: npt.NDArray,
     hit_map: npt.NDArray,
@@ -1044,6 +1058,7 @@ def _compute_b_or_Ax(
     baseline_lengths_list: list[npt.NDArray],
     component: str | None,
     result: list[npt.NDArray],
+    reduction: Reduction | None = None,
 ):
     """Either compute `Ax` or `b` in the map-making equation `Ax=b`
 
@@ -1054,6 +1069,7 @@ def _compute_b_or_Ax(
 
     _compute_binned_map(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
@@ -1062,10 +1078,12 @@ def _compute_b_or_Ax(
         component=component,
         output_sky_map=sky_map,
         output_hit_map=hit_map,
+        reduction=reduction,
     )
 
     _compute_baseline_sums(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         sky_map=sky_map,
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
@@ -1078,6 +1096,7 @@ def _compute_b_or_Ax(
 
 def compute_b(
     obs_list: list[Observation],
+    mapping_list: "list[_ObsMapping]",
     nobs_matrix_cholesky: NobsMatrix,
     sky_map: npt.NDArray,
     hit_map: npt.NDArray,
@@ -1086,6 +1105,7 @@ def compute_b(
     dm_list: list[npt.NDArray],
     tm_list: list[npt.NDArray],
     result: list[npt.NDArray],
+    reduction: Reduction | None = None,
 ) -> None:
     """
     Compute `F^t·C_w⁻¹·Z·y
@@ -1096,6 +1116,7 @@ def compute_b(
 
     _compute_b_or_Ax(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         sky_map=sky_map,
         hit_map=hit_map,
@@ -1105,11 +1126,13 @@ def compute_b(
         baseline_lengths_list=baseline_lengths_list,
         component=component,
         result=result,
+        reduction=reduction,
     )
 
 
 def compute_Ax(
     obs_list: list[Observation],
+    mapping_list: "list[_ObsMapping]",
     nobs_matrix_cholesky: NobsMatrix,
     sky_map: npt.NDArray,
     hit_map: npt.NDArray,
@@ -1118,6 +1141,7 @@ def compute_Ax(
     baselines_list: list[npt.NDArray],
     baseline_lengths_list: list[npt.NDArray],
     result: list[npt.NDArray],
+    reduction: Reduction | None = None,
 ) -> None:
     """
     Compute `F^t·C_w⁻¹·Z·F·a
@@ -1129,6 +1153,7 @@ def compute_Ax(
 
     _compute_b_or_Ax(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         sky_map=sky_map,
         hit_map=hit_map,
@@ -1138,6 +1163,7 @@ def compute_Ax(
         baseline_lengths_list=baseline_lengths_list,
         component=None,
         result=result,
+        reduction=reduction,
     )
 
 
@@ -1161,11 +1187,15 @@ def compute_weighted_baseline_length(
         result[baseline_idx] = 1.0 / result[baseline_idx]
 
 
-def _create_preconditioner(obs_list, baseline_lengths_list) -> list[npt.NDArray]:
+def _create_preconditioner(
+    obs_list: list[Observation],
+    mapping_list: "list[_ObsMapping]",
+    baseline_lengths_list: list[npt.NDArray],
+) -> list[npt.NDArray]:
     """
     We just compute (F^T·C_w⁻¹·F)⁻¹, which is a diagonal matrix containing
     the number of elements in each baseline divided by σ². (Remember
-    that the field `destriper_weights` already contains σ².)
+    that the field `weights` of each :class:`._ObsMapping` already contains σ².)
 
     This is the most common choice, but it's not necessarily the best one.
     See for instance these papers:
@@ -1185,9 +1215,9 @@ def _create_preconditioner(obs_list, baseline_lengths_list) -> list[npt.NDArray]
     )
 
     result = [np.empty(len(len_k)) for len_k in baseline_lengths_list]
-    for obs_k, lengths_k, result_k in zip(obs_list, baseline_lengths_list, result):
+    for map_k, lengths_k, result_k in zip(mapping_list, baseline_lengths_list, result):
         compute_weighted_baseline_length(
-            weights=obs_k.destriper_weights, lengths=lengths_k, result=result_k
+            weights=map_k.weights, lengths=lengths_k, result=result_k
         )
 
     return result
@@ -1204,6 +1234,7 @@ def _compute_num_of_bytes_in_list(x: list[npt.NDArray]) -> int:
 
 def _run_destriper(
     obs_list: list[Observation],
+    mapping_list: "list[_ObsMapping]",
     nobs_matrix_cholesky: NobsMatrix,
     binned_map: npt.NDArray,
     destriped_map: npt.NDArray,
@@ -1220,6 +1251,7 @@ def _run_destriper(
     callback_kwargs: dict[Any, Any],
     recycled_convergence: bool,
     recycle_baselines: bool | None = False,
+    reduction: Reduction | None = None,
 ) -> tuple[
     list[npt.NDArray],  # The solution, i.e., the list of baselines
     list[npt.NDArray],  # The error bars of the baselines
@@ -1229,6 +1261,9 @@ def _run_destriper(
     int,  # Number of bytes used by temporary buffers
 ]:
     """Apply the Conjugate Gradient (CG) algorithm to find the solution for Ax=b"""
+
+    if reduction is None:
+        reduction = reduction_for_observations(obs_list)
 
     # To understand how the PCG algorithm works, you should read the paper
     # “Painless conjugate gradient” by Shewchuk (1994), which tells you everything
@@ -1296,6 +1331,7 @@ def _run_destriper(
     # Initialize r_k
     compute_b(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         sky_map=destriped_map,
         hit_map=hit_map,
@@ -1304,9 +1340,11 @@ def _run_destriper(
         baseline_lengths_list=baseline_lengths_list,
         component=component,
         result=b,
+        reduction=reduction,
     )
     compute_Ax(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         sky_map=destriped_map,
         hit_map=hit_map,
@@ -1315,6 +1353,7 @@ def _run_destriper(
         baselines_list=x,
         baseline_lengths_list=baseline_lengths_list,
         result=Ax,
+        reduction=reduction,
     )
     for r_k, b_k, A_k in zip(r, b, Ax):
         r_k[:] = b_k - A_k
@@ -1326,7 +1365,9 @@ def _run_destriper(
     bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(z)
 
     precond = _create_preconditioner(
-        obs_list=obs_list, baseline_lengths_list=baseline_lengths_list
+        obs_list=obs_list,
+        mapping_list=mapping_list,
+        baseline_lengths_list=baseline_lengths_list,
     )
     bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(precond)
 
@@ -1337,9 +1378,9 @@ def _run_destriper(
     bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(p)
     k = 0
 
-    old_r_dot = _mpi_dot(z, r)
+    old_r_dot = _mpi_dot(z, r, reduction)
 
-    history_of_stopping_factors: list[float] = [_get_stopping_factor(r)]
+    history_of_stopping_factors: list[float] = [_get_stopping_factor(r, reduction)]
     # the threshold is relative to the initial residual, whose scale depends on
     # the data (units, noise level, baseline length)
     absolute_threshold = threshold * history_of_stopping_factors[0]
@@ -1365,6 +1406,7 @@ def _run_destriper(
 
         compute_Ax(
             obs_list=obs_list,
+            mapping_list=mapping_list,
             nobs_matrix_cholesky=nobs_matrix_cholesky,
             sky_map=destriped_map,
             hit_map=hit_map,
@@ -1373,8 +1415,9 @@ def _run_destriper(
             baselines_list=p,
             baseline_lengths_list=baseline_lengths_list,
             result=Ax,
+            reduction=reduction,
         )
-        α = old_r_dot / _mpi_dot(p, Ax)
+        α = old_r_dot / _mpi_dot(p, Ax, reduction)
 
         for x_k, p_k in zip(x, p):
             x_k += α * p_k
@@ -1382,7 +1425,7 @@ def _run_destriper(
         for new_r_k, r_k, Ax_k in zip(new_r, r, Ax):
             new_r_k[:] = r_k - α * Ax_k
 
-        cur_stopping_factor = _get_stopping_factor(new_r)
+        cur_stopping_factor = _get_stopping_factor(new_r, reduction)
         if (not best_stopping_factor) or cur_stopping_factor < best_stopping_factor:
             best_stopping_factor = cur_stopping_factor
             for cur_best_x_k, x_k in zip(best_x, x):
@@ -1407,7 +1450,7 @@ def _run_destriper(
         if use_preconditioner:
             _apply_preconditioner(precond, z)
 
-        new_r_dot = _mpi_dot(new_r, z)
+        new_r_dot = _mpi_dot(new_r, z, reduction)
         for p_k, z_k in zip(p, z):
             p_k[:] = z_k + (new_r_dot / old_r_dot) * p_k
 
@@ -1419,6 +1462,7 @@ def _run_destriper(
     # First, compute the binned map by passing `baselines_list=None`…
     _compute_binned_map(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         output_sky_map=binned_map,
         output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
@@ -1427,11 +1471,13 @@ def _run_destriper(
         tm_list=tm_list,
         baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
+        reduction=reduction,
     )
 
     # …then compute the map from the “unrolled” baselines F·a…
     _compute_binned_map(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         output_sky_map=destriped_map,
         output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
@@ -1440,6 +1486,7 @@ def _run_destriper(
         component=None,
         baselines_list=best_x,
         baseline_lengths_list=baseline_lengths_list,
+        reduction=reduction,
     )
 
     # …and finally get the destriped map from their difference
@@ -1451,11 +1498,7 @@ def _run_destriper(
     destriped_map[0, mask] -= np.mean(destriped_map[0, mask])
     bytes_in_temporary_buffers += mask.nbytes
 
-    if MPI_ENABLED:
-        bytes_in_temporary_buffers = MPI_COMM_WORLD.allreduce(
-            bytes_in_temporary_buffers,
-            op=mpi4py.MPI.SUM,
-        )
+    bytes_in_temporary_buffers = reduction.sum(bytes_in_temporary_buffers)
 
     return (
         best_x,
@@ -1476,7 +1519,7 @@ def destriper_log_callback(
     is running the (potentially long) Conjugated Gradient iteration.
     """
     if MPI_COMM_WORLD.rank == 0:
-        logging.info(
+        log.info(
             f"Destriper CG iteration {step_number + 1}/{max_steps}, "
             f"stopping factor: {stopping_factor:.3e}"
         )
@@ -1500,6 +1543,8 @@ def make_destriped_map(
     callback_kwargs: dict[Any, Any] | None = None,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
+    flags: str | list[str] | None = None,
+    flag_mask: int | None = None,
 ) -> DestriperResult:
     """
     Applies the destriping algorithm to produce a map out from a TOD
@@ -1574,17 +1619,25 @@ def make_destriped_map(
     :param params: an instance of the :class:`.DestriperParameters` class
     :param components: components to extract from
        the TOD and sum together. The default is to use `observations.tod`.
-    :param keep_weights: the destriper adds a `destriper_weights`
-       field to each :class:`.Observation` object in `observations`, and
-       it deletes it once the map has been produced. Setting
-       this parameter to ``True`` prevents the field from being
-       deleted. (Useful for debugging.)
-    :param keep_pixel_idx: same as `keep_weights`, but the
-       field to be kept from the :class:`.Observation`
-       classes is `destriper_pixel_idx`
-    :param keep_pol_angle_rad: same as `keep_weights`, but the
-       field to be kept from the :class:`.Observation`
-       classes is `destriper_pol_angle_rad`
+    :param keep_weights: the destriper computes the weight of each
+       detector and keeps it for itself; setting this parameter to
+       ``True`` stores it in the field `destriper_weights` of each
+       :class:`.Observation` once the map has been produced. (Useful
+       for debugging.) Without the `keep_*` parameters, the destriper
+       adds no field to the observations, and the TOD components are
+       left unchanged also if an exception is raised.
+    :param keep_pixel_idx: same as `keep_weights`, but for the pixel
+       index of each sample, stored in `destriper_pixel_idx`
+    :param keep_pol_angle_rad: same as `keep_weights`, but for the
+       polarization angle of each sample, stored in
+       `destriper_pol_angle_rad`
+    :param flags: names of the :class:`.Observation` attributes holding
+       the flags, either per detector (e.g. ``"local_flags"``) or common
+       to all the detectors (e.g. ``"global_flags"``). Flagged samples are
+       excluded both from the maps and from the estimation of the
+       baselines; attributes set to None mean that all the samples are good
+    :param flag_mask: bits of the flags that exclude a sample (e.g.
+       ``FLAG_PLANET``). If None, any nonzero flag excludes it
     :param callback: a function that is called during each
        iteration of the CG routine. It is meant as a way to
        provide some visual feedback to the user. The default
@@ -1610,182 +1663,182 @@ def make_destriped_map(
 
     do_destriping = params.samples_per_baseline is not None
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
-    )
-
     hpx = Healpix_Base(nside=nside, scheme="RING")
 
     # Set number of threads
     nthreads = resolve_nthreads(nthreads)
 
-    # Convert pointings and ψ angles according to the coordinate system,
-    # convert them into Healpix indices and save the result into
-    # each Observation object (don't worry, we will delete them
-    # later)
-    _store_pixel_idx_and_pol_angle_in_obs(
-        hpx=hpx,
-        obs_list=obs_list,
-        ptg_list=ptg_list,
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
         hwp=hwp,
         output_coordinate_system=params.output_coordinate_system,
-        nthreads=nthreads,
         pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
     )
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
 
-    if len(components) > 1:
-        # It is often the case that one asks to create a map out of a
-        # sum of TODs (e.g., “CMB”, “synchrotron”, “1/f noise”, “white
-        # noise”, etc.). It is a burden for the destriping code to take
-        # into account the sum of all the components in each function,
-        # so we sum all the TODs into the first one and only use that
-        # in the map-making. We'll revert the change later
-        _sum_components_into_obs(
-            obs_list=obs_list,
-            target=components[0],
-            other_components=components[1:],
-            factor=+1.0,
+    # The Healpix indices and polarization angles of all the samples, kept by
+    # the destriper until the end (they are not stored in the observations)
+    mapping_list = _compute_obs_mappings(nside, obs_pointings)
+
+    components_summed = False
+    try:
+        if len(components) > 1:
+            # It is often the case that one asks to create a map out of a
+            # sum of TODs (e.g., “CMB”, “synchrotron”, “1/f noise”, “white
+            # noise”, etc.). It is a burden for the destriping code to take
+            # into account the sum of all the components in each function,
+            # so we sum all the TODs into the first one and only use that
+            # in the map-making. We revert the change in the `finally` block
+            _sum_components_into_obs(
+                obs_list=obs_list,
+                target=components[0],
+                other_components=components[1:],
+                factor=+1.0,
+            )
+            components_summed = True
+
+        detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
+
+        time_mask_list = _apply_flags_to_time_masks(
+            _build_mask_time_split(time_split, obs_list), obs_list, flags, flag_mask
         )
 
-    detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
+        # The MPI processes over which the contributions of `obs_list` are summed
+        reduction = reduction_for_observations(obs_list)
 
-    time_mask_list = _build_mask_time_split(time_split, obs_list)
+        nobs_matrix_cholesky = _build_nobs_matrix(
+            hpx=hpx,
+            obs_list=obs_list,
+            mapping_list=mapping_list,
+            dm_list=detector_mask_list,
+            tm_list=time_mask_list,
+            reduction=reduction,
+        )
 
-    nobs_matrix_cholesky = _build_nobs_matrix(
-        hpx=hpx,
-        obs_list=obs_list,
-        dm_list=detector_mask_list,
-        tm_list=time_mask_list,
-    )
+        number_of_pixels = hpx.npix()
+        binned_map = np.empty((3, number_of_pixels))
+        hit_map = np.empty(number_of_pixels)
 
-    number_of_pixels = hpx.npix()
-    binned_map = np.empty((3, number_of_pixels))
-    hit_map = np.empty(number_of_pixels)
-
-    if do_destriping:
-        if isinstance(params.samples_per_baseline, list):
-            baseline_lengths_list = params.samples_per_baseline
-            assert len(baseline_lengths_list) == len(obs_list), (
-                f"The list baseline_lengths_list has {len(baseline_lengths_list)} "
-                f"elements, but there are {len(obs_list)} observations"
-            )
-        else:
-            assert isinstance(params.samples_per_baseline, int)
-            baseline_lengths_list = [
-                split_items_evenly(
-                    n=getattr(cur_obs, components[0]).shape[1],
-                    sub_n=params.samples_per_baseline,
+        if do_destriping:
+            if isinstance(params.samples_per_baseline, list):
+                baseline_lengths_list = params.samples_per_baseline
+                assert len(baseline_lengths_list) == len(obs_list), (
+                    f"The list baseline_lengths_list has {len(baseline_lengths_list)} "
+                    f"elements, but there are {len(obs_list)} observations"
                 )
-                for cur_obs in obs_list
-            ]
+            else:
+                assert isinstance(params.samples_per_baseline, int)
+                baseline_lengths_list = [
+                    split_items_evenly(
+                        n=getattr(cur_obs, components[0]).shape[1],
+                        sub_n=params.samples_per_baseline,
+                    )
+                    for cur_obs in obs_list
+                ]
 
-        # Each element of this list is a 2D array with shape (N_det, N_baselines),
-        # where N_det is the number of detectors in the i-th Observation object
-        recycle_baselines = False
-        if baselines_list is None:
-            baselines_list = [
-                np.zeros((getattr(cur_obs, components[0]).shape[0], len(cur_baseline)))
-                for (cur_obs, cur_baseline) in zip(obs_list, baseline_lengths_list)
-            ]
-        else:
-            recycle_baselines = True
+            # Each element of this list is a 2D array with shape (N_det, N_baselines),
+            # where N_det is the number of detectors in the i-th Observation object
+            recycle_baselines = False
+            if baselines_list is None:
+                baselines_list = [
+                    np.zeros(
+                        (getattr(cur_obs, components[0]).shape[0], len(cur_baseline))
+                    )
+                    for (cur_obs, cur_baseline) in zip(obs_list, baseline_lengths_list)
+                ]
+            else:
+                recycle_baselines = True
 
-        destriped_map = np.empty((3, number_of_pixels))
-        (
-            baselines_list,
-            baseline_errors_list,
-            history_of_stopping_factors,
-            best_stopping_factor,
-            converged,
-            bytes_in_temporary_buffers,
-        ) = _run_destriper(
-            obs_list=obs_list,
-            nobs_matrix_cholesky=nobs_matrix_cholesky,
-            binned_map=binned_map,
-            destriped_map=destriped_map,
-            hit_map=hit_map,
-            baseline_lengths_list=baseline_lengths_list,
-            baselines_list_start=baselines_list,
-            recycle_baselines=recycle_baselines,
-            recycled_convergence=recycled_convergence,
-            dm_list=detector_mask_list,
-            tm_list=time_mask_list,
-            component=components[0],
-            threshold=params.threshold,
-            max_steps=params.iter_max,
-            use_preconditioner=params.use_preconditioner,
-            callback=callback,
-            callback_kwargs=callback_kwargs if callback_kwargs else {},
-        )
-
-        if MPI_ENABLED:
-            bytes_in_temporary_buffers = MPI_COMM_WORLD.allreduce(
+            destriped_map = np.empty((3, number_of_pixels))
+            (
+                baselines_list,
+                baseline_errors_list,
+                history_of_stopping_factors,
+                best_stopping_factor,
+                converged,
                 bytes_in_temporary_buffers,
-                op=mpi4py.MPI.SUM,
+            ) = _run_destriper(
+                obs_list=obs_list,
+                mapping_list=mapping_list,
+                nobs_matrix_cholesky=nobs_matrix_cholesky,
+                binned_map=binned_map,
+                destriped_map=destriped_map,
+                hit_map=hit_map,
+                baseline_lengths_list=baseline_lengths_list,
+                baselines_list_start=baselines_list,
+                recycle_baselines=recycle_baselines,
+                recycled_convergence=recycled_convergence,
+                dm_list=detector_mask_list,
+                tm_list=time_mask_list,
+                component=components[0],
+                threshold=params.threshold,
+                max_steps=params.iter_max,
+                use_preconditioner=params.use_preconditioner,
+                callback=callback,
+                callback_kwargs=callback_kwargs if callback_kwargs else {},
+                reduction=reduction,
             )
-    else:
-        # No need to run the destriping, just compute the binned map with
-        # one single baseline set to zero
-        _compute_binned_map(
-            obs_list=obs_list,
-            output_sky_map=binned_map,
-            output_hit_map=hit_map,
-            nobs_matrix_cholesky=nobs_matrix_cholesky,
-            component=components[0],
-            dm_list=detector_mask_list,
-            tm_list=time_mask_list,
-            baselines_list=None,
-            baseline_lengths_list=[
-                np.array([getattr(cur_obs, components[0]).shape[1]], dtype=int)
-                for cur_obs in obs_list
-            ],
-        )
-        bytes_in_temporary_buffers = 0
-        destriped_map = None
-        baseline_lengths_list = None
-        baselines_list = None
-        baseline_errors_list = None
-        history_of_stopping_factors = None
-        best_stopping_factor = None
-        converged = True
+        else:
+            # No need to run the destriping, just compute the binned map with
+            # one single baseline set to zero
+            _compute_binned_map(
+                obs_list=obs_list,
+                mapping_list=mapping_list,
+                output_sky_map=binned_map,
+                output_hit_map=hit_map,
+                nobs_matrix_cholesky=nobs_matrix_cholesky,
+                component=components[0],
+                dm_list=detector_mask_list,
+                tm_list=time_mask_list,
+                baselines_list=None,
+                baseline_lengths_list=[
+                    np.array([getattr(cur_obs, components[0]).shape[1]], dtype=int)
+                    for cur_obs in obs_list
+                ],
+                reduction=reduction,
+            )
+            bytes_in_temporary_buffers = 0
+            destriped_map = None
+            baseline_lengths_list = None
+            baselines_list = None
+            baseline_errors_list = None
+            history_of_stopping_factors = None
+            best_stopping_factor = None
+            converged = True
+    finally:
+        # Revert the value of the first TOD component, also if something
+        # went wrong, so that the TOD of the caller is never left modified
+        if components_summed:
+            _sum_components_into_obs(
+                obs_list=obs_list,
+                target=components[0],
+                other_components=components[1:],
+                factor=-1.0,
+            )
 
     # Add the temporary memory that was allocated *before* calling the destriper
-    try:
-        bytes_in_temporary_buffers += sum(
-            [
-                getattr(cur_obs, "destriper_weights").nbytes
-                + getattr(cur_obs, "destriper_pixel_idx").nbytes
-                + getattr(cur_obs, "destriper_pol_angle_rad").nbytes
-                for cur_obs in obs_list
-            ]
-        )
-    except UnboundLocalError:
-        # The case when `bytes_in_temporary_buffers` is not defined
-        bytes_in_temporary_buffers = 0
+    bytes_in_temporary_buffers += sum(cur_map.nbytes for cur_map in mapping_list)
 
-    # We're nearly done! Let's clean up some stuff…
-    if not keep_weights:
-        for cur_obs in obs_list:
-            del cur_obs.destriper_weights
-    if not keep_pixel_idx:
-        for cur_obs in obs_list:
-            del cur_obs.destriper_pixel_idx
-    if not keep_pol_angle_rad:
-        for cur_obs in obs_list:
-            del cur_obs.destriper_pol_angle_rad
-
-    # Make sure that the `del` statements above are applied immediately
+    # For debugging, the caller can ask to keep these arrays in the observations
+    for cur_obs, cur_map in zip(obs_list, mapping_list):
+        if keep_weights:
+            cur_obs.destriper_weights = cur_map.weights
+        if keep_pixel_idx:
+            cur_obs.destriper_pixel_idx = cur_map.pixel_idx
+        if keep_pol_angle_rad:
+            cur_obs.destriper_pol_angle_rad = cur_map.pol_angle_rad
+    del mapping_list
     gc.collect()
 
-    # Revert the value of the first TOD component, if other
-    # components were added to it
-    if len(components) > 1:
-        _sum_components_into_obs(
-            obs_list=obs_list,
-            target=components[0],
-            other_components=components[1:],
-            factor=-1.0,
-        )
+    # The CG uses NaN for the pixels that cannot be solved (the samples that
+    # fall in them are skipped); the result uses UNSEEN, as the other
+    # map-makers
+    invalid_pixels = ~nobs_matrix_cholesky.valid_pixel
+    binned_map[:, invalid_pixels] = UNSEEN_PIXEL_VALUE
+    if destriped_map is not None:
+        destriped_map[:, invalid_pixels] = UNSEEN_PIXEL_VALUE
 
     elapsed_time_s = time.monotonic() - elapsed_time_s
     return DestriperResult(
