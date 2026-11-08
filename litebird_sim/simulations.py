@@ -37,7 +37,7 @@ from .beam_convolution import (
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .constants import NUMBA_NUM_THREADS_ENVVAR  # noqa: F401  (re-exported)
-from .coordinates import CoordinateSystem
+from .coordinates import CoordinateSystem, coord_sys_to_healpix_string
 from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .flags import FLAG_PLANET, flag_planets_in_observations
@@ -2743,7 +2743,7 @@ class Simulation:
                             Path(file),
                             mapp,
                             column_names=names,
-                            coord=result.coordinate_system.name,
+                            coord=coord_sys_to_healpix_string(result.coordinate_system),
                         )
                     )
 
@@ -2841,7 +2841,7 @@ class Simulation:
                             Path(file),
                             mapp,
                             column_names=names,
-                            coord=result.coordinate_system.name,
+                            coord=coord_sys_to_healpix_string(result.coordinate_system),
                         )
                     )
             return filenames

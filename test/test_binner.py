@@ -407,4 +407,4 @@ def test_make_binned_map_splits_writes_the_fields_by_name(
         ):
             np.testing.assert_allclose(row, invnpp[:, i, j], rtol=1e-6)
     header = dict(hp.read_map(file_name, h=True)[1])
-    assert header["COORDSYS"] == "Galactic"
+    assert header["COORDSYS"] == "GALACTIC"
