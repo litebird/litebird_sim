@@ -994,3 +994,27 @@ def test_ducc_wrappers_do_not_use_numba_threads(monkeypatch):
     sim.fill_tods(maps={}, append_to_report=False, nthreads=5)
     sim.convolve_sky(sky_alms={}, beam_alms={}, append_to_report=False, nthreads=5)
     assert received == {"fill": 5, "convolve": 5}
+
+
+def test_append_template_to_report(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path, start_time=0.0, duration_s=1.0, random_seed=1
+    )
+    before = sim.report
+    sim._append_template_to_report("report_noise.md", noise_type="white")
+    added = sim.report[len(before) :]
+    assert "## Noise generation" in added
+    assert "Noise white has been generated" in added
+
+
+def test_report_only_when_requested(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path, start_time=0.0, duration_s=10.0, random_seed=1
+    )
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="d", sampling_rate_hz=1.0, net_ukrts=1.0)]
+    )
+    sim.add_noise(noise_type="white", append_to_report=False)
+    assert "Noise generation" not in sim.report
+    sim.add_noise(noise_type="white")
+    assert "Noise white has been generated" in sim.report
