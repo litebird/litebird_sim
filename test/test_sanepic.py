@@ -706,3 +706,23 @@ def test_sanepic_beam_templates():
         sim.make_sanepic_gls_map(
             nside=8, params=params, sky_model=sky, templates=templates
         )
+
+
+def test_sanepic_subpixel_order():
+    # subpixel_order needs the angles: pointing_form="auto" passes them, to
+    # the map-maker and to estimate_sanepic_noise
+    if "subpixel_order" not in inspect.signature(pysanepic.GLSParameters).parameters:
+        pytest.skip("pysanepic without subpixel_order")
+    sim, _ = _calibration_sim(n_days=8)
+    rng = np.random.default_rng(4)
+    for obs in sim.observations:
+        obs.tod += rng.normal(0, 1e-5, obs.tod.shape)
+    params = pysanepic.GLSParameters(chunk_s=86400.0, subpixel_order=1)
+    result = sim.make_sanepic_gls_map(nside=8, params=params, append_to_report=False)
+    assert result.gradient is not None
+    with pytest.raises(ValueError, match="angles"):
+        sim.make_sanepic_gls_map(
+            nside=8, params=params, pointing_form="pixels", append_to_report=False
+        )
+    noise = sim.estimate_sanepic_noise(result, chunk_s=86400.0, nbins=10)
+    assert sorted(noise) == ["a", "b", "c", "d"]
