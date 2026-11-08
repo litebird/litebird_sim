@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import astropy.time
+import healpy as hp
 import numpy as np
 import pytest
 import numpy.testing as nptest
@@ -618,9 +619,8 @@ def _compare_analytical_vs_estimated_map(
                 rtol=1e-5,
             )
         else:
-            assert np.isnan(actual[0, cur_pix])
-            assert np.isnan(actual[1, cur_pix])
-            assert np.isnan(actual[2, cur_pix])
+            # As the other map-makers
+            assert np.all(actual[:, cur_pix] == hp.UNSEEN)
 
 
 def _make_zero_mean(x: npt.NDArray) -> npt.NDArray:
@@ -1279,3 +1279,15 @@ def test_destriper_keeps_fields_on_request():
     )
     assert _destriper_fields(obs) == {"destriper_weights", "destriper_pixel_idx"}
     assert obs.destriper_pixel_idx.shape == obs.tod.shape
+
+
+def test_invnpp_of_invalid_pixels_is_unseen():
+    nobs = NobsMatrix(
+        nobs_matrix=np.zeros((2, 6)),
+        valid_pixel=np.array([False, True]),
+        is_cholesky=True,
+    )
+    nobs.nobs_matrix[1] = [1.0, 0.0, 2.0, 0.0, 0.0, 4.0]
+    invnpp = nobs.get_invnpp()
+    assert np.all(invnpp[0] == hp.UNSEEN)
+    np.testing.assert_allclose(invnpp[1], np.diag([1.0, 0.25, 1 / 16]))

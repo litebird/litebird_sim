@@ -12,6 +12,7 @@ from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
 from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
+from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
 from litebird_sim.hwp import HWP
 from litebird_sim.mpi import MPI_COMM_WORLD
 from litebird_sim.observations import Observation
@@ -20,11 +21,12 @@ from litebird_sim.observation_utilities import (
     observation_pointings,
 )
 
-from ..utilities import cos_sin, resolve_nthreads
+from ..utilities import resolve_nthreads
 
 from .reduction import Reduction, reduction_for_observations
 from .splits import _build_mask_detector_split, _build_mask_time_split
 from .common import (
+    pointing_row,
     _is_well_conditioned,
     get_map_making_weights,
     get_pol_efficiency,
@@ -114,7 +116,7 @@ def _get_invnpp(
 
     for ipix in prange(npix):  # type: ignore[not-iterable]
         if not valid_pixel[ipix]:
-            result[ipix, :, :] = 0.0
+            result[ipix, :, :] = UNSEEN_PIXEL_VALUE
             continue
 
         # We associate each coefficient of the i-th matrix in
@@ -202,15 +204,15 @@ class NobsMatrix:
         return self.nobs_matrix.nbytes + self.valid_pixel.nbytes
 
     def get_invnpp(self) -> npt.NDArray:
-        """Return the inverse noise covariance matrix per pixel
+        """Return the noise covariance matrix of (I, Q, U) in each pixel
 
-        This method returns a (N_pix, 3, 3) array containing the
-        3×3 matrices associated with each pixel that contain the
-        estimate noise per pixel. Each of the N_pix matrices
-        corresponds to Mᵢ⁻¹, the inverse of Mᵢ in Eq. (10) of
-        Kurki-Suonio et al. (2009).
+        This method returns a (N_pix, 3, 3) array: each of the N_pix
+        matrices is Mᵢ⁻¹, the inverse of Mᵢ in Eq. (10) of Kurki-Suonio
+        et al. (2009), i.e., the covariance of the binned map in the pixel
+        (despite the name, which comes from Madam, it is not the inverse
+        covariance). It does not include the uncertainty of the baselines.
 
-        A null matrix is associated with each invalid pixel.
+        The matrices of the invalid pixels are ``UNSEEN``.
         """
 
         assert self.is_cholesky, (
@@ -387,26 +389,22 @@ def _accumulate_nobs_matrix(
         if not d_mask[det_idx]:
             continue
 
-        inv_sigma = 1.0 / np.sqrt(weights[det_idx])
-        inv_sigma2 = inv_sigma * inv_sigma
-        gamma_over_sigma = pol_eff[det_idx] * inv_sigma
+        inv_sigma2 = 1.0 / weights[det_idx]
 
         # Fill the lower triangle of M_i only for i = 1…N_pix
         for cur_pix_idx, cur_psi, cur_t_mask in zip(
             pix_idx[det_idx], psi_angle_rad[det_idx], t_mask[det_idx]
         ):
             if cur_t_mask:
-                cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
-                cos_over_sigma = cos_2psi * gamma_over_sigma
-                sin_over_sigma = sin_2psi * gamma_over_sigma
+                r_i, r_q, r_u = pointing_row(cur_psi, pol_eff[det_idx])
                 cur_matrix = nobs_matrix[cur_pix_idx]
 
-                cur_matrix[0] += inv_sigma2
-                cur_matrix[1] += cos_over_sigma * inv_sigma
-                cur_matrix[2] += cos_over_sigma * cos_over_sigma
-                cur_matrix[3] += sin_over_sigma * inv_sigma
-                cur_matrix[4] += sin_over_sigma * cos_over_sigma
-                cur_matrix[5] += sin_over_sigma * sin_over_sigma
+                cur_matrix[0] += r_i * r_i * inv_sigma2
+                cur_matrix[1] += r_q * r_i * inv_sigma2
+                cur_matrix[2] += r_q * r_q * inv_sigma2
+                cur_matrix[3] += r_u * r_i * inv_sigma2
+                cur_matrix[4] += r_u * r_q * inv_sigma2
+                cur_matrix[5] += r_u * r_u * inv_sigma2
 
 
 @njit(parallel=True)
@@ -548,10 +546,11 @@ def _sum_map_contribution_from_one_sample(
 ) -> None:
     "This code implements Eqq. (18)–(20)"
 
-    cos_2psi, sin_2psi = cos_sin(2 * pol_angle_rad)
-    dest_array[0] += sample / weight
-    dest_array[1] += sample * pol_eff * cos_2psi / weight
-    dest_array[2] += sample * pol_eff * sin_2psi / weight
+    r_i, r_q, r_u = pointing_row(pol_angle_rad, pol_eff)
+    weighted_sample = sample / weight
+    dest_array[0] += r_i * weighted_sample
+    dest_array[1] += r_q * weighted_sample
+    dest_array[2] += r_u * weighted_sample
 
 
 @njit
@@ -786,12 +785,12 @@ def _compute_binned_map(
 def estimate_sample_from_map(
     cur_pixel: int, cur_psi: float, cur_pol_eff: float, sky_map: npt.NDArray
 ) -> float:
-    cur_i = sky_map[0, cur_pixel]
-    cur_q = sky_map[1, cur_pixel]
-    cur_u = sky_map[2, cur_pixel]
-
-    cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
-    return cur_i + cur_pol_eff * (cur_q * cos_2psi + cur_u * sin_2psi)
+    r_i, r_q, r_u = pointing_row(cur_psi, cur_pol_eff)
+    return (
+        r_i * sky_map[0, cur_pixel]
+        + r_q * sky_map[1, cur_pixel]
+        + r_u * sky_map[2, cur_pixel]
+    )
 
 
 @njit
@@ -1832,6 +1831,14 @@ def make_destriped_map(
             cur_obs.destriper_pol_angle_rad = cur_map.pol_angle_rad
     del mapping_list
     gc.collect()
+
+    # The CG uses NaN for the pixels that cannot be solved (the samples that
+    # fall in them are skipped); the result uses UNSEEN, as the other
+    # map-makers
+    invalid_pixels = ~nobs_matrix_cholesky.valid_pixel
+    binned_map[:, invalid_pixels] = UNSEEN_PIXEL_VALUE
+    if destriped_map is not None:
+        destriped_map[:, invalid_pixels] = UNSEEN_PIXEL_VALUE
 
     elapsed_time_s = time.monotonic() - elapsed_time_s
     return DestriperResult(

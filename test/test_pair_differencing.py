@@ -278,3 +278,31 @@ def test_simulation_make_pair_differenced_map_splits(tmp_path):
     )
     _, header = hp.read_map(file_name, field=[0, 1], h=True)
     assert dict(header)["COORDSYS"] == "ECLIPTIC"
+
+
+def test_solve_binning_matches_numpy():
+    from litebird_sim.mapmaking.pair_differencing import _solve_binning
+
+    rng = np.random.default_rng(1)
+    n_pix = 50
+    nobs = np.empty((n_pix, 2, 2))
+    for ipix in range(n_pix):
+        a = rng.normal(size=(5, 2))
+        nobs[ipix] = a.T @ a * 10.0 ** rng.uniform(-8, 8)
+    # Singular pixels: one hit, and no hits
+    v = np.array([np.cos(0.3), np.sin(0.3)])
+    nobs[3] = np.outer(v, v)
+    nobs[7] = 0.0
+    rhs = rng.normal(size=(n_pix, 2))
+
+    good = np.ones(n_pix, dtype=bool)
+    good[[3, 7]] = False
+    expected_inv = np.linalg.inv(nobs[good])
+    expected_map = np.einsum("pij,pj->pi", expected_inv, rhs[good])
+
+    _solve_binning(nobs, rhs)
+
+    np.testing.assert_allclose(nobs[good], expected_inv, rtol=1e-9)
+    np.testing.assert_allclose(rhs[good], expected_map, rtol=1e-9)
+    assert np.all(nobs[~good] == hp.UNSEEN)
+    assert np.all(rhs[~good] == hp.UNSEEN)
