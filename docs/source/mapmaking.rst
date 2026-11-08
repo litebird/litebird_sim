@@ -944,6 +944,24 @@ period. See the pysanepic documentation for the masks and the details.
   result.templates   # {"fg_deriv1": {detector name: shift of its band [GHz]}, "thermal": {...}}
   result.template_covariance  # {"labels": [(template, detector), ...], "matrix": ...}
 
+With pysanepic 0.6.5 or later, :func:`.estimate_sanepic_noise` removes the
+whole fitted TOD model from the residual (gains, dipole and templates), not
+only the maps: after a map with calibration, pass the same
+``dipole_component``; the TOD templates are read from the components of the
+observations with their names, as in the map-maker.
+
+.. code-block:: python
+
+  noise = sim.estimate_sanepic_noise(result, dipole_component="dipole")
+
+From pysanepic 0.6.5 the binned map of ``sky_model`` put back in the maps
+weights the detectors by their white-noise level
+(``GLSParameters.binned_weights="noise"``; ``"equal"`` is the behavior of
+0.6.4): the maps change only with ``sky_model`` and detectors of different
+NETs. ``GLSParameters(subpixel_order=1)`` (or 2, pysanepic 0.6.4 or later)
+also fits the gradient (and Hessian) of I within each pixel; it needs the
+angles of the samples, which ``pointing_form="auto"`` passes.
+
 With ``sum_zero=True`` the amplitudes of a sky template sum to zero over the
 detectors (needed for templates as maps, whose common part is the map); as
 alm their common part can be fitted too, which avoids biasing the absolute

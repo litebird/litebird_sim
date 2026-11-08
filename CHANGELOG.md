@@ -1,5 +1,7 @@
 # HEAD
 
+-   Support pysanepic 0.6.5: `estimate_sanepic_noise` (and `Simulation.estimate_sanepic_noise`) has `dipole_component` and passes the TOD templates and, with alm templates or sub-pixel terms, the angles of the map, so that the residual of the whole fitted model (gains, dipole, templates) can be computed; before, a map made with calibration or TOD templates raised a `ValueError`. `make_sanepic_gls_map` with `pointing_form="auto"` passes the angles when `params.subpixel_order > 0`. The docs recommend `pysanepic>=0.6.5`.
+
 -   `make_destriped_map` sums its observations over their MPI communicator (via `reduction_for_observations`) instead of `MPI_COMM_WORLD`, so it gives correct maps when the observations live on a sub-communicator. `bytes_in_temporary_buffers` is no longer summed over the processes twice. Reference PR: [#653](https://github.com/litebird/litebird_sim/pull/653).
 
 -   New module `mapmaking/reduction.py`: `reduction_for_observations` decides the MPI communicator over which a map-maker sums its observations and returns an `MpiReduction` or a `SerialReduction`. The binner and pair-differencing use it; it replaces `_get_reduction_comm`. Reference PR: [#652](https://github.com/litebird/litebird_sim/pull/652).

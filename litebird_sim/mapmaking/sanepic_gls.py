@@ -411,7 +411,10 @@ def make_sanepic_gls_map(
         computed here as in the other map-makers), ``"angles"`` (θ, φ, ψ,
         pixelized by pysanepic) or ``"auto"`` (default): angles if
         `sky_model` or some template is given as alm, which are
-        interpolated at the pointing and need the angles, pixels otherwise.
+        interpolated at the pointing and need the angles, or with
+        ``params.subpixel_order`` > 0 (pysanepic 0.6.4 or later), which
+        needs the position of the samples within the pixels; pixels
+        otherwise.
         The maps are the same; pixels keep less memory per detector.
     verbose : bool, optional
         Print the progress of pysanepic on the first MPI process: the PCG
@@ -467,7 +470,10 @@ def make_sanepic_gls_map(
             "they are interpolated at the pointing and need the angles "
             "(use 'angles' or 'auto', or pass them as maps)"
         )
-    angles = pointing_form == "angles" or (pointing_form == "auto" and alm)
+    subpixel = getattr(params, "subpixel_order", 0) > 0
+    angles = pointing_form == "angles" or (
+        pointing_form == "auto" and (alm or subpixel)
+    )
     if noise_model not in ("toast", "keshner"):
         raise ValueError(
             f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
@@ -684,13 +690,19 @@ def estimate_sanepic_noise(
     correlation: dict | None = None,
     n_modes: int = 1,
     flag_mask: int | None = None,
+    dipole_component: str | None = None,
 ) -> dict:
     """
     Noise spectrum of each detector from the residual of a pysanepic map.
 
-    The residual between the TOD and the maps of `result` (e.g. a first call
-    of :func:`.make_sanepic_gls_map`, with the same `components`, `flags` and
-    `flag_mask`)
+    The residual between the TOD and the TOD model of `result` (e.g. a first
+    call of :func:`.make_sanepic_gls_map`, with the same observations,
+    `components`, `flags`, `flag_mask` and `correlation`): the maps and,
+    since pysanepic 0.6.5, the fitted gains, dipole and templates. With
+    calibration in `result`, `dipole_component` is the TOD component with the
+    dipole given to the map-maker; the TOD templates of `result` are read
+    from the components of the observations with their names, as in the
+    map-maker. The residual
     is cut in chunks of `chunk_s` seconds and its periodogram is averaged
     over all the observations of each detector (also across MPI processes),
     in `nbins` logarithmic bins. See ``pysanepic.estimate_noise``.
@@ -728,6 +740,23 @@ def estimate_sanepic_noise(
     )
     nthreads = resolve_nthreads(nthreads)
     coordinate_system = {v: k for k, v in _COORDINATES.items()}[result.coordinates]
+    # pysanepic >= 0.6.5: the residual of the whole TOD model of make_maps
+    if getattr(result, "calibration", None) is not None and dipole_component is None:
+        raise ValueError(
+            "the map was made with calibration: estimate_sanepic_noise needs "
+            "dipole_component, the TOD component with the dipole"
+        )
+    definitions = getattr(result, "template_definitions", None) or {}
+    tod_templates = [k for k, t in definitions.items() if t.sky is None]
+    for k in tod_templates:
+        if any(not hasattr(obs, k) for obs in obs_list):
+            raise ValueError(
+                f"template '{k}' of the map has no sky: the observations need "
+                f"the TOD component '{k}' given to the map-maker"
+            )
+    angles = getattr(result, "gradient", None) is not None or any(
+        t.sky is not None and np.iscomplexobj(t.sky) for t in definitions.values()
+    )
     data = _detector_data(
         pysanepic,
         obs_list,
@@ -743,6 +772,9 @@ def estimate_sanepic_noise(
         None,
         correlation,
         flag_mask=flag_mask,
+        dipole_component=dipole_component,
+        angles=angles,
+        tod_templates=tod_templates,
     )
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
     return pysanepic.estimate_noise(

@@ -593,3 +593,61 @@ def test_sanepic_beam_templates():
         sim.make_sanepic_gls_map(
             nside=8, params=params, sky_model=sky, templates=templates
         )
+
+
+def test_sanepic_noise_estimation_full_model():
+    # pysanepic >= 0.6.5: the residual of estimate_sanepic_noise removes the
+    # fitted gains, dipole and templates, which need the same TOD components
+    # as the map-maker
+    if not hasattr(pysanepic.MapResult, "__dataclass_fields__") or (
+        "template_definitions" not in pysanepic.MapResult.__dataclass_fields__
+    ):
+        pytest.skip("pysanepic older than 0.6.5")
+    sim, _ = _calibration_sim(n_days=8)
+    sim.add_dipole(append_to_report=False)
+    sim.add_dipole(component="dipole", append_to_report=False)
+    _apply_gains(sim)
+    rng = np.random.default_rng(3)
+    sigma = 1e-5
+    for obs in sim.observations:
+        obs.thermal = rng.normal(size=obs.tod.shape)
+        obs.tod += 1e-4 * obs.thermal + rng.normal(0, sigma, obs.tod.shape)
+    params = pysanepic.GLSParameters(chunk_s=86400.0, tol=1e-10)
+    result = sim.make_sanepic_gls_map(
+        nside=8,
+        params=params,
+        calibration=pysanepic.CalibrationParameters(gain_period_s=86400.0),
+        dipole_component="dipole",
+        templates={"thermal": pysanepic.Template()},
+        append_to_report=False,
+    )
+    with pytest.raises(ValueError, match="dipole_component"):
+        sim.estimate_sanepic_noise(result)
+    noise = sim.estimate_sanepic_noise(
+        result, dipole_component="dipole", chunk_s=86400.0, nbins=10
+    )
+    for est in noise.values():
+        # white: 2 sigma^2 / fs at all frequencies (the gain errors times the
+        # dipole and the thermal template would be ~100 times larger)
+        assert abs(np.median(est.psd) / (2 * sigma**2 / 0.05) - 1) < 0.2
+
+
+def test_sanepic_subpixel_order():
+    # subpixel_order needs the angles: pointing_form="auto" passes them, to
+    # the map-maker and to estimate_sanepic_noise
+    if "subpixel_order" not in inspect.signature(pysanepic.GLSParameters).parameters:
+        pytest.skip("pysanepic without subpixel_order")
+    sim, _ = _calibration_sim(n_days=8)
+    rng = np.random.default_rng(4)
+    for obs in sim.observations:
+        obs.tod += rng.normal(0, 1e-5, obs.tod.shape)
+    params = pysanepic.GLSParameters(chunk_s=86400.0, subpixel_order=1)
+    result = sim.make_sanepic_gls_map(nside=8, params=params, append_to_report=False)
+    assert result.gradient is not None
+    with pytest.raises(ValueError, match="angles"):
+        sim.make_sanepic_gls_map(
+            nside=8, params=params, pointing_form="pixels", append_to_report=False
+        )
+    if "template_definitions" in pysanepic.MapResult.__dataclass_fields__:
+        noise = sim.estimate_sanepic_noise(result, chunk_s=86400.0, nbins=10)
+        assert sorted(noise) == ["a", "b", "c", "d"]
