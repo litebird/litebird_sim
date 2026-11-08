@@ -84,9 +84,7 @@ benchmarks = {
     "destriper": lambda: lbs.make_destriped_map(
         nside, sim.observations, params=destriper_params
     ),
-    "pair-differencing": lambda: lbs.make_pair_differenced_map(
-        nside, sim.observations
-    ),
+    "pair-differencing": lambda: lbs.make_pair_differenced_map(nside, sim.observations),
 }
 for name, function in benchmarks.items():
     print(f"{name:20s} {best_time(function):8.3f} s")
