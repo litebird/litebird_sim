@@ -1,5 +1,7 @@
 # HEAD
 
+-   The TOD effects check the fields of the detectors they read and the keys of the dictionaries of skies and beams for all the observations before modifying any TOD, raising a `ValueError` that names what is missing; `for_each_observation` takes `required_fields`. Reference PR: [#664](https://github.com/litebird/litebird_sim/pull/664).
+
 -   litebird_sim no longer uses the private helpers `_get_hwp_angle` (which set `obs.has_hwp`), `_get_pointings_array` and `_normalize_observations_and_pointings`; they are deprecated and kept only for BrahMap. `scan_map` and `add_convolved_sky` still accept an array or a function of pointings. `for_each_observation_with_pointings` is deprecated in favour of `observation_pointings`. Reference PR: [#662](https://github.com/litebird/litebird_sim/pull/662).
 
 -   `make_sanepic_gls_map`, `estimate_sanepic_noise` and `compute_sanepic_beam_templates` take the pointings and the HWP angle from `ObservationPointings`, and no longer set `obs.has_hwp`. Reference PR: [#661](https://github.com/litebird/litebird_sim/pull/661).
