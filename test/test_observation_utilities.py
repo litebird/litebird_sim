@@ -113,7 +113,8 @@ def test_for_each_observation_with_pointings_pairs_arrays():
     n_det, n_samp = obs.tod.shape
     pointings = np.zeros((n_det, n_samp, 3))
 
-    yielded = list(lbs.for_each_observation_with_pointings(obs, pointings))
+    with pytest.deprecated_call():
+        yielded = list(lbs.for_each_observation_with_pointings(obs, pointings))
 
     assert len(yielded) == 1
     cur_obs, tod, cur_ptg = yielded[0]
@@ -129,7 +130,10 @@ def test_for_each_observation_with_pointings_pairs_lists():
         np.zeros((obs.tod.shape[0], obs.tod.shape[1], 3)) for obs in obs_list
     ]
 
-    yielded = list(lbs.for_each_observation_with_pointings(obs_list, pointings_list))
+    with pytest.deprecated_call():
+        yielded = list(
+            lbs.for_each_observation_with_pointings(obs_list, pointings_list)
+        )
 
     assert len(yielded) == len(obs_list)
     for (cur_obs, _, cur_ptg), exp_obs, exp_ptg in zip(

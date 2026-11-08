@@ -20,8 +20,8 @@ from .observations import Observation
 
 from .observation_utilities import (
     ObservationPointings,
+    _ArrayPointings,
     observation_pointings,
-    _get_pointings_array,
     _get_pol_angle,
 )
 
@@ -224,6 +224,13 @@ def scan_map(
 
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
+    if not isinstance(pointings, ObservationPointings):
+        pointings = _ArrayPointings(
+            pointings,
+            hwp_angle=hwp_angle,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
 
     if pol_angle_detectors is None:
         pol_angle_detectors = np.zeros(n_detectors)
@@ -266,21 +273,11 @@ def scan_map(
         # ----------------------------------------------------------
         # Get pointings in the correct coordinate system
         # ----------------------------------------------------------
-        if isinstance(pointings, ObservationPointings):
-            curr_pointings_det = pointings.detector(
-                detector_idx, output_coordinate_system=coordinates
-            )
-            if hwp_angle is None:
-                hwp_angle = pointings.hwp_angle
-        else:
-            curr_pointings_det, hwp_angle = _get_pointings_array(
-                detector_idx=detector_idx,
-                pointings=pointings,
-                hwp_angle=hwp_angle,
-                output_coordinate_system=coordinates,
-                pointings_dtype=pointings_dtype,
-                nthreads=nthreads,
-            )
+        curr_pointings_det = pointings.detector(
+            detector_idx, output_coordinate_system=coordinates
+        )
+        if hwp_angle is None:
+            hwp_angle = pointings.hwp_angle
 
         # ----------------------------------------------------------
         # REAL SPACE (HealpixMap)

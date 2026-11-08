@@ -141,61 +141,6 @@ def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     )
 
 
-def _get_hwp_angle(
-    obs: Observation,
-    hwp: HWP | None = None,
-    pointing_dtype=np.float64,
-) -> np.ndarray | None:
-    """Obtains the hwp angle for an observation
-
-    Parameters
-    ----------
-    obs : Observation
-        An instance of the :class:`.Observation` class
-    hwp : HWP | None, optional
-        An instance of the :class:`.HWP` class (optional)
-    pointing_dtype : dtype, optional
-        The dtype for the computed hwp angle, by default `np.float64`
-
-    Returns
-    -------
-    np.ndarray | None
-        An array containing the HWP angles or `None`
-    """
-    if hwp is None:
-        if obs.has_hwp:
-            if hasattr(obs, "hwp_angle"):
-                return obs.hwp_angle
-            else:
-                return obs.get_hwp_angle(pointings_dtype=pointing_dtype)
-        else:
-            if hasattr(obs, "mueller_hwp"):
-                if not obs.no_mueller_hwp():
-                    raise AssertionError(
-                        "Detectors have been initialized with a mueller_hwp, "
-                        "but no HWP is either passed or initialized in the pointing."
-                    )
-            return None
-    else:
-        # Compute HWP angle from HWP object
-        start_time = obs.start_time_process - obs.start_time_simulation
-        time_from_sim_start_s = (
-            start_time.to("s").value
-            if isinstance(start_time, astropy.time.TimeDelta)
-            else start_time
-        )
-
-        hwp_angle = np.empty(obs.n_samples_process, dtype=pointing_dtype)
-        hwp.get_hwp_angle(
-            hwp_angle,
-            time_from_sim_start_s,
-            1.0 / obs.sampling_rate_hz,
-        )
-
-        obs.has_hwp = True
-        return hwp_angle
-
-
 def _get_pol_angle(
     curr_pointings_det: np.ndarray,
     hwp_angle: np.ndarray | None,
@@ -223,151 +168,6 @@ def _get_pol_angle(
         pol_angle = 2 * hwp_angle - pol_angle_detectors + curr_pointings_det[:, 2]
 
     return pol_angle
-
-
-def _get_pointings_array(
-    detector_idx: int,
-    pointings: npt.NDArray | Callable,
-    hwp_angle: np.ndarray | None,
-    output_coordinate_system: CoordinateSystem,
-    nside_centering: int | None = None,
-    pointings_dtype=np.float64,
-    nthreads: int | None = None,
-) -> tuple[np.ndarray, np.ndarray | None]:
-    """Compute the pointings (θ, φ) and HWP angle for a given detector.
-
-    Parameters
-    ----------
-    detector_idx : int
-        Index of the detector, local to an :class:`Observation`.
-    pointings : npt.NDArray | Callable
-        Pointing information, either a precomputed array or a callable returning
-        (pointings, hwp_angle) for the specified detector.
-    hwp_angle : np.ndarray | None
-        Array of HWP angles. If None, the angle is assumed to be provided by the `pointings` callable.
-    output_coordinate_system : CoordinateSystem
-        Desired coordinate system for the output pointings.
-    nside_centering : int | None, optional
-        If provided, the pointings will be aligned to the center of the HEALPix pixel.
-    pointings_dtype : np.dtype, optional
-        Data type for computed pointings and angles. Default is `np.float64`.
-    nthreads : int or None, optional
-        Number of threads to use for HEALPix operations when centering pointings.
-        If None, resolved via :func:`.resolve_nthreads`.
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray | None]
-        A tuple `(pointings, hwp_angle)`, where:
-                    - `pointings` is an array of shape (n_samples, N_cols), where
-                        N_cols is typically 2 ([θ, φ]) or 3 ([θ, φ, ψ]).
-          - `hwp_angle` is either the provided array or the one computed by the callable.
-    """
-    nthreads = resolve_nthreads(nthreads)
-
-    if isinstance(pointings, np.ndarray):
-        # Precomputed pointings are in Ecliptic coordinates
-        curr_pointings_det = pointings[detector_idx, :, :]
-        computed_hwp_angle = None
-        if output_coordinate_system == CoordinateSystem.Galactic:
-            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
-    else:
-        # Do not recompute the HWP angle for each detector if the caller has it
-        curr_pointings_det, computed_hwp_angle = pointings(
-            detector_idx,
-            pointings_dtype=pointings_dtype,
-            compute_hwp_angle=hwp_angle is None,
-            output_coordinate_system=output_coordinate_system,
-        )
-
-    if nside_centering is not None:
-        hpx = Healpix_Base(nside_centering, "RING")
-        output_pointings = np.empty_like(curr_pointings_det)
-
-        # Apply centering on the first two columns (θ, φ)
-        output_pointings[:, 0:2] = hpx.pix2ang(
-            hpx.ang2pix(curr_pointings_det[:, 0:2], nthreads=nthreads),
-            nthreads=nthreads,
-        )
-
-        # Copy any additional columns (e.g., polarization angles) without change
-        if curr_pointings_det.shape[1] > 2:
-            output_pointings[:, 2:] = curr_pointings_det[:, 2:]
-
-        return output_pointings, hwp_angle if isinstance(
-            hwp_angle, np.ndarray
-        ) else computed_hwp_angle
-
-    return curr_pointings_det, hwp_angle if isinstance(
-        hwp_angle, np.ndarray
-    ) else computed_hwp_angle
-
-
-def _normalize_observations_and_pointings(
-    observations: Observation | list[Observation],
-    pointings: np.ndarray | list[np.ndarray] | None,
-) -> tuple[list[Observation], list[npt.NDArray | Callable]]:
-    """This function builds the tuple (`obs_list`, `ptg_list`) and returns it.
-
-    - `obs_list` contains a list of the observations to be used by current MPI
-      process. This is *always* a list, even if just one observation is
-      provided in the input.
-    - `ptg_list` contains a list of pointing matrices, either as numpy arrays
-      or callable functions, one per each observation, each belonging to the
-      current MPI process.
-
-    Parameters
-    ----------
-    observations : Observation | list[Observation]
-        An observation or a list of observations
-    pointings : np.ndarray | list[np.ndarray] | None
-        External pointing information, if not already included in the observation
-
-    Returns
-    -------
-    tuple[list[Observation], list[npt.NDArray | Callable]]
-        The tuple of the list of observations and list of pointings
-    """
-
-    obs_list: list[Observation]
-    ptg_list: list[npt.NDArray | Callable]
-
-    if pointings is None:
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix]
-            else:
-                ptg_list = [observations.get_pointings]
-        else:
-            obs_list = list(observations)
-            ptg_list = []
-            for ob in observations:
-                if hasattr(ob, "pointing_matrix"):
-                    ptg_list.append(ob.pointing_matrix)
-                else:
-                    ptg_list.append(ob.get_pointings)
-    else:
-        if isinstance(observations, Observation):
-            assert isinstance(pointings, np.ndarray), (
-                "You must pass a list of observations *and* a list "
-                + "of pointing matrices to scan_map_in_observations"
-            )
-            obs_list = [observations]
-            ptg_list = [pointings]
-        else:
-            assert isinstance(pointings, list), (
-                "When you pass a list of observations to scan_map_in_observations, "
-                + "you must do the same for `pointings`"
-            )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
-            )
-            obs_list = list(observations)
-            ptg_list = list(pointings)
-
-    return obs_list, ptg_list
 
 
 # ---------------------------------------------------------------------------
@@ -496,18 +296,22 @@ def for_each_observation(
         yield cur_obs, _get_tod_component(cur_obs, component), dets_random
 
 
+@deprecated(
+    version="0.19.0",
+    reason="Use observation_pointings, which gives one ObservationPointings "
+    "per observation",
+)
 def for_each_observation_with_pointings(
     observations: Observation | list[Observation],
     pointings: np.ndarray | list[np.ndarray] | None,
     component: str = "tod",
-) -> Iterator[tuple[Observation, np.ndarray, np.ndarray]]:
+) -> Iterator[tuple[Observation, np.ndarray, np.ndarray | Callable]]:
     """Iterate over observations paired with their pointing matrices.
 
-    The pointing-aware counterpart of :func:`for_each_observation`, for effects
-    that need a pointing matrix per observation (e.g. the CMB dipole).  It uses
-    ``_normalize_observations_and_pointings``, so a single observation may
-    be paired with a single pointing array, or a list with a list.  When
-    *pointings* is ``None`` the pointing matrix is taken from each observation.
+    The pointing-aware counterpart of :func:`for_each_observation`. A single
+    observation may be paired with a single pointing array, or a list with a
+    list.  When *pointings* is ``None`` the pointing matrix is taken from each
+    observation.
 
     Yields
     ------
@@ -516,9 +320,13 @@ def for_each_observation_with_pointings(
         either a pointing array or the observation's ``get_pointings`` callable
         (matching the behaviour of the underlying normalizer).
     """
-    obs_list, ptg_list = _normalize_observations_and_pointings(observations, pointings)
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
-        yield cur_obs, _get_tod_component(cur_obs, component), cur_ptg
+    for cur_obs, cur_ptg in observation_pointings(observations, pointings):
+        ecliptic = cur_ptg._ecliptic_array
+        yield (
+            cur_obs,
+            _get_tod_component(cur_obs, component),
+            ecliptic if ecliptic is not None else cur_obs.get_pointings,
+        )
 
 
 # ----------------------------------------------------------------------------
@@ -652,23 +460,13 @@ class ObservationPointings:
             )
             return pointings
 
-        if isinstance(detector_idx, str):
-            assert detector_idx == "all", f"Unknown set of detectors: '{detector_idx}'"
-            selected = self._ecliptic_array
-        else:
-            selected = self._ecliptic_array[detector_idx]
-
-        if output_coordinate_system == CoordinateSystem.Galactic:
-            if selected.ndim == 2:
-                selected = rotate_coordinates_e2g(selected)
-            else:
-                selected = np.stack([rotate_coordinates_e2g(x) for x in selected])
-        elif self.nside_centering is not None:
-            # Do not move the pixels of the caller's array
-            selected = selected.copy()
-
-        _center_pointings(selected, self.nside_centering, self.nthreads)
-        return selected
+        return _select_from_ecliptic_array(
+            self._ecliptic_array,
+            detector_idx,
+            output_coordinate_system,
+            self.nside_centering,
+            self.nthreads,
+        )
 
     def pixel_index(
         self,
@@ -798,3 +596,82 @@ def observation_pointings(
         (cur_obs, ObservationPointings(cur_obs, pointings=cur_ptg, hwp=hwp, **kwargs))
         for cur_obs, cur_ptg in zip(obs_list, ptg_list)
     ]
+
+
+def _select_from_ecliptic_array(
+    array: npt.NDArray,
+    detector_idx: DetectorIndex,
+    output_coordinate_system: CoordinateSystem,
+    nside_centering: int | None,
+    nthreads: int | None,
+) -> npt.NDArray:
+    """The pointings of some detectors from an array ``(n_detectors,
+    n_samples, 3)`` in Ecliptic coordinates, rotated and centered as
+    requested. The array is never modified."""
+    if isinstance(detector_idx, str):
+        assert detector_idx == "all", f"Unknown set of detectors: '{detector_idx}'"
+        selected = array
+    else:
+        selected = array[detector_idx]
+
+    if output_coordinate_system == CoordinateSystem.Galactic:
+        if selected.ndim == 2:
+            selected = rotate_coordinates_e2g(selected)
+        else:
+            selected = np.stack([rotate_coordinates_e2g(x) for x in selected])
+    elif nside_centering is not None:
+        # Do not move the pixels of the caller's array
+        selected = selected.copy()
+
+    _center_pointings(selected, nside_centering, nthreads)
+    return selected
+
+
+class _ArrayPointings:
+    """The pointings given to the low-level functions (:func:`.scan_map`,
+    :func:`.add_convolved_sky`) without an observation, with the interface of
+    :class:`.ObservationPointings` (:meth:`detector` and ``hwp_angle``).
+
+    `pointings` is an array ``(n_detectors, n_samples, 3)`` in Ecliptic
+    coordinates, or a function like :meth:`.Observation.get_pointings`. The
+    HWP angle is `hwp_angle`; if None, it is that returned by the function,
+    once a detector has been asked for."""
+
+    def __init__(
+        self,
+        pointings: npt.NDArray | Callable,
+        hwp_angle: npt.NDArray | None = None,
+        nside_centering: int | None = None,
+        pointings_dtype=np.float64,
+        nthreads: int | None = None,
+    ):
+        self.pointings = pointings
+        self.hwp_angle = hwp_angle
+        self.nside_centering = nside_centering
+        self.pointings_dtype = pointings_dtype
+        self.nthreads = nthreads
+
+    def detector(
+        self,
+        detector_idx: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic,
+    ) -> npt.NDArray:
+        if isinstance(self.pointings, np.ndarray):
+            return _select_from_ecliptic_array(
+                self.pointings,
+                detector_idx,
+                output_coordinate_system,
+                self.nside_centering,
+                self.nthreads,
+            )
+
+        pointings, hwp_angle = self.pointings(
+            detector_idx,
+            pointings_dtype=self.pointings_dtype,
+            compute_hwp_angle=self.hwp_angle is None,
+            output_coordinate_system=output_coordinate_system,
+        )
+        if self.hwp_angle is None:
+            self.hwp_angle = hwp_angle
+        _center_pointings(pointings, self.nside_centering, self.nthreads)
+        return pointings
