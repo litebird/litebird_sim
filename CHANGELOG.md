@@ -1,5 +1,7 @@
 # HEAD
 
+-   New class `ObservationPointings` in `observation_utilities.py`: it gives the pointings of the detectors of one observation (precomputed, computed on the fly, or passed by the caller) and its HWP angle, without writing into the observation; `observation_pointings` builds one per observation. `scan_map_in_observations` uses it, and `scan_map` accepts it as `pointings`. Reference PR: [#658](https://github.com/litebird/litebird_sim/pull/658).
+
 -   `make_destriped_map` keeps the pixel indices, polarization angles and weights for itself instead of storing them in the observations (`keep_weights`, `keep_pixel_idx` and `keep_pol_angle_rad` still store them at the end), and restores the TOD components it sums also when an exception is raised. Reference PR: [#657](https://github.com/litebird/litebird_sim/pull/657).
 
 -   New module `mapmaking/splits.py`: each time split name is bound to the function that builds its mask, and the map-makers validate the splits whenever they build the masks, also when called without a `Simulation`. Unknown detector splits raise instead of producing an empty map; `surveyX` is checked against the duration like `yearX`; `check_valid_splits` is defined once and no longer prints. Reference PR: [#656](https://github.com/litebird/litebird_sim/pull/656).
