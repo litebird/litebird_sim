@@ -10,8 +10,8 @@ from .hwp import HWP
 from .mueller_convolver import MuellerConvolver
 from .observations import Observation
 from .observation_utilities import (
-    _get_hwp_angle,
-    _normalize_observations_and_pointings,
+    ObservationPointings,
+    observation_pointings,
     _get_pointings_array,
 )
 from .maps_and_harmonics import SphericalHarmonics
@@ -229,10 +229,12 @@ def add_convolved_sky(
     ----------
     tod : np.ndarray
         Time-ordered data (TOD) for multiple detectors, to which the convolved signal is added.
-    pointings : np.ndarray or callable
-        Pointing information for each detector. If an array, it should have shape
-        (n_detectors, n_samples, 3). If a callable, it should return pointing data when
-        passed a detector index.
+    pointings : np.ndarray, callable or ObservationPointings
+        Pointing information for each detector. An :class:`.ObservationPointings`
+        gives them in the coordinate system of each sky, together with the HWP
+        angle if `hwp_angle` is None; its own `nside_centering` is used. If an
+        array, it should have shape (n_detectors, n_samples, 3). If a callable, it
+        should return pointing data when passed a detector index.
     sky_alms : SphericalHarmonics | Dict[str, SphericalHarmonics]
         Spherical harmonic coefficients representing the sky maps. If a dictionary, keys should
         correspond to detector or channel names.
@@ -328,15 +330,22 @@ def add_convolved_sky(
         # ----------------------------------------------------------
         # Get pointings in the correct coordinate system
         # ----------------------------------------------------------
-        curr_pointings_det, hwp_angle = _get_pointings_array(
-            detector_idx=detector_idx,
-            pointings=pointings,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=coordinates,
-            nside_centering=nside_centering,
-            pointings_dtype=pointings_dtype,
-            nthreads=nthreads,
-        )
+        if isinstance(pointings, ObservationPointings):
+            curr_pointings_det = pointings.detector(
+                detector_idx, output_coordinate_system=coordinates
+            )
+            if hwp_angle is None:
+                hwp_angle = pointings.hwp_angle
+        else:
+            curr_pointings_det, hwp_angle = _get_pointings_array(
+                detector_idx=detector_idx,
+                pointings=pointings,
+                hwp_angle=hwp_angle,
+                output_coordinate_system=coordinates,
+                nside_centering=nside_centering,
+                pointings_dtype=pointings_dtype,
+                nthreads=nthreads,
+            )
 
         # ducc wants phi in [0, 2π): wrap a copy, as `curr_pointings_det` can
         # be a view of the caller's pointings
@@ -414,9 +423,20 @@ def add_convolved_sky_to_observations(
     - Calls `add_convolved_sky` to process the TOD for all detectors.
     """
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
+    # Set number of threads
+    nthreads = resolve_nthreads(nthreads)
+
+    # Pointings in Ecliptic coordinates by default: add_convolved_sky asks for
+    # those of the coordinate system of each sky
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        nside_centering=nside_centering,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
     )
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
 
     if sky_alms is None:
         try:
@@ -434,7 +454,7 @@ def add_convolved_sky_to_observations(
             raise AttributeError(msg)
     assert beam_alms is not None
 
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+    for cur_obs, cur_ptg in obs_pointings:
         # Determine input sky names
         if isinstance(sky_alms, dict):
             input_sky_names = (
@@ -471,21 +491,13 @@ def add_convolved_sky_to_observations(
             )
             input_beam_names = None
 
-        # Determine the HWP angle to use:
-        # - If an external HWP object is provided, compute the angle from it
-        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
-
-        # Set number of threads
-        nthreads = resolve_nthreads(nthreads)
-
         # Perform convolution
         add_convolved_sky(
             tod=getattr(cur_obs, component),
             pointings=cur_ptg,
             sky_alms=sky_alms,
             beam_alms=beam_alms,
-            hwp_angle=hwp_angle,
+            hwp_angle=cur_ptg.hwp_angle,
             mueller_hwp=cur_obs.mueller_hwp,
             input_sky_names=input_sky_names,
             input_beam_names=input_beam_names,

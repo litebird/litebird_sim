@@ -8,7 +8,11 @@ import numpy as np
 from .maps_and_harmonics import SphericalHarmonics
 from .observations import Observation
 from .spacecraft import SpacecraftPositionAndVelocity
-from .observation_utilities import for_each_observation_with_pointings
+from .observation_utilities import (
+    ObservationPointings,
+    _get_tod_component,
+    observation_pointings,
+)
 
 # Updated imports to match the new constants.py structure
 from .constants import C_LIGHT_KM_OVER_S, H_OVER_K_B, T_CMB_K
@@ -691,6 +695,15 @@ def add_dipole_for_one_detector_convolved(
         )
 
 
+def _detector_pointings(pointings, detector_idx: int, pointings_dtype):
+    """The pointings of one detector, in Ecliptic coordinates"""
+    if isinstance(pointings, ObservationPointings):
+        return pointings.detector(detector_idx)
+    if isinstance(pointings, np.ndarray):
+        return pointings[detector_idx]
+    return pointings(detector_idx, pointings_dtype=pointings_dtype)[0]
+
+
 def add_dipole(
     tod,
     pointings,
@@ -716,7 +729,8 @@ def add_dipole(
     tod:
         2-D time-ordered data array for all detectors (shape ``(n_det, n_samples)``).
     pointings:
-        Pointing matrices. If ``s_params`` is given, the matrix must
+        Pointings in Ecliptic coordinates: an :class:`.ObservationPointings`,
+        a callable, or a matrix. If ``s_params`` is given, the matrix must
         include the ``psi`` column (shape ``(n_det, n_samples, 3)``).
         Otherwise, only ``theta`` and ``phi`` are used (shape
         ``(n_det, n_samples, 2)`` or more).
@@ -791,12 +805,9 @@ def add_dipole(
                 assert isinstance(s_params, BeamSParams)
                 sp = s_params
 
-            if type(pointings) is np.ndarray:
-                theta_phi_psi_det = pointings[detector_idx, :, :]
-            else:
-                theta_phi_psi_det = pointings(
-                    detector_idx, pointings_dtype=pointings_dtype
-                )[0][:, 0:3]
+            theta_phi_psi_det = _detector_pointings(
+                pointings, detector_idx, pointings_dtype
+            )[:, 0:3]
 
             add_dipole_for_one_detector_convolved(
                 tod_det=tod[detector_idx],
@@ -811,12 +822,9 @@ def add_dipole(
             )
         else:
             # Standard (non-convolved) dipole calculation
-            if type(pointings) is np.ndarray:
-                theta_phi_det = pointings[detector_idx, :, 0:2]
-            else:
-                theta_phi_det = pointings(
-                    detector_idx, pointings_dtype=pointings_dtype
-                )[0][:, 0:2]
+            theta_phi_det = _detector_pointings(
+                pointings, detector_idx, pointings_dtype
+            )[:, 0:2]
 
             add_dipole_for_one_detector(
                 tod_det=tod[detector_idx],
@@ -861,9 +869,8 @@ def add_dipole_to_observations(
     pos_and_vel : SpacecraftPositionAndVelocity
         Spacecraft position and velocity data.
     pointings : np.ndarray | list[np.ndarray] | None, default=None
-        Pointing matrices. If None, extracted from observations. Convolved
-        calculations require the ``psi`` column, i.e. shape
-        ``(n_det, n_samples, 3)``.
+        Pointing matrices in Ecliptic coordinates, with shape
+        ``(n_det, n_samples, 3)``. If None, extracted from observations.
     t_cmb_k : float, default=T_CMB_K
         CMB monopole temperature in Kelvin.
     dipole_type : DipoleType, default=TOTAL_FROM_LIN_T
@@ -886,17 +893,11 @@ def add_dipole_to_observations(
         keys should correspond to detector or channel names (consistent
         with :func:`.add_convolved_sky`).
     """
-    # For convolved types we keep the full (θ, φ, ψ) columns; otherwise strip to (θ, φ).
-    ptg_cols = slice(None) if apply_convolution else slice(0, 2)
-
-    for cur_obs, tod, cur_ptg in for_each_observation_with_pointings(
-        observations, pointings, component
+    # The velocity is in Ecliptic coordinates, like the default pointings
+    for cur_obs, cur_ptg in observation_pointings(
+        observations, pointings=pointings, pointings_dtype=pointings_dtype
     ):
-        # Callables (lazy pointings) are forwarded untouched, matching the
-        # behaviour of the underlying normalizer. Convolved calculations need
-        # the psi column too, hence ptg_cols rather than a hardcoded 0:2.
-        if isinstance(cur_ptg, np.ndarray):
-            cur_ptg = cur_ptg[:, :, ptg_cols]
+        tod = _get_tod_component(cur_obs, component)
 
         # Resolve the beam S-parameters when convolution is requested.
         # 1. Use the explicitly provided beam_alms if given.

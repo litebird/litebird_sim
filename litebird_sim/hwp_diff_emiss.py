@@ -5,7 +5,7 @@ from numba import njit, prange
 
 from .hwp import HWP
 from .observations import Observation
-from .observation_utilities import _get_hwp_angle
+from .observation_utilities import ObservationPointings
 from .observation_utilities import for_each_observation
 from .utilities import cos_sin
 
@@ -98,10 +98,10 @@ def add_2f_to_observations(
             "attribute of the Observation instance."
         )
 
-        # Determine the HWP angle to use:
-        # - If an external HWP object is provided, compute the angle from it
-        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        # The HWP passed here has the precedence over the one of the observation
+        hwp_angle = ObservationPointings(
+            cur_obs, hwp=hwp, pointings_dtype=pointings_dtype
+        ).hwp_angle
 
         add_2f(
             tod=tod,
