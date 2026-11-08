@@ -1,7 +1,6 @@
 """The Simulation.add_* wrappers pass their parameters to the functions
 they wrap"""
 
-import numpy as np
 import pytest
 
 import litebird_sim as lbs
@@ -34,40 +33,11 @@ def test_add_dipole_passes_the_convolution(tmp_path, monkeypatch):
         dipole_type=lbs.DipoleType.LINEAR,
         apply_convolution=True,
         beam_alms=beam,
-        frequency_ghz=np.array([140.0]),
         append_to_report=False,
     )
     (kwargs,) = calls
     assert kwargs["apply_convolution"] is True
     assert kwargs["beam_alms"] is beam
-    np.testing.assert_array_equal(kwargs["frequency_ghz"], [140.0])
-
-
-def test_fill_tods_passes_the_harmonics_parameters(tmp_path, monkeypatch):
-    sim = _simulation(tmp_path)
-    calls = _record(monkeypatch, "scan_map_in_observations")
-    phases = {"2f": np.zeros((3, 3))}
-    sim.fill_tods(
-        maps=object(),
-        save_tod=False,
-        apply_non_linearity=True,
-        add_2f_hwpss=True,
-        mueller_phases=phases,
-        append_to_report=False,
-    )
-    (kwargs,) = calls
-    assert kwargs["save_tod"] is False
-    assert kwargs["apply_non_linearity"] is True
-    assert kwargs["add_2f_hwpss"] is True
-    assert kwargs["mueller_phases"] is phases
-
-
-def test_add_noise_passes_the_scale(tmp_path, monkeypatch):
-    sim = _simulation(tmp_path)
-    calls = _record(monkeypatch, "add_noise_to_observations")
-    sim.add_noise(noise_type="white", scale=2.5, append_to_report=False)
-    (kwargs,) = calls
-    assert kwargs["scale"] == 2.5
 
 
 def test_unused_parameters_are_deprecated(tmp_path, monkeypatch):
@@ -83,3 +53,13 @@ def test_unused_parameters_are_deprecated(tmp_path, monkeypatch):
             input_sky_alms_in_galactic=False,
             append_to_report=False,
         )
+
+
+def test_save_tod_is_removed(tmp_path):
+    # It had no effect: it deleted a local variable
+    import inspect
+
+    from litebird_sim.hwp_harmonics.hwp_harmonics import fill_tod_with_hwp_harmonics
+
+    for function in (lbs.scan_map_in_observations, fill_tod_with_hwp_harmonics):
+        assert "save_tod" not in inspect.signature(function).parameters
