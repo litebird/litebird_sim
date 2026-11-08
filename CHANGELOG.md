@@ -1,5 +1,7 @@
 # HEAD
 
+-   `Simulation.add_dipole` takes `frequency_ghz`, `apply_convolution` and `beam_alms`; `Simulation.fill_tods` takes `save_tod`, `apply_non_linearity`, `add_2f_hwpss` and `mueller_phases`; `Simulation.add_noise` takes `scale`. The unused `band_filenames` (`fill_tods`) and `input_sky_alms_in_galactic` (`convolve_sky`) are deprecated. Reference PR: [#668](https://github.com/litebird/litebird_sim/pull/668).
+
 -   **Breaking**: the pixels that cannot be solved are `UNSEEN` in the binned and destriped maps of `make_destriped_map` (they were `NaN`) and in `NobsMatrix.get_invnpp` (it was 0), as in the binner and the pair-differencing. The map-makers take the model of a sample from one function (`pointing_row`); the pair-differencing solves the 2×2 systems analytically (3.4× faster); `estimate_cond_number` is removed. Reference PR: [#666](https://github.com/litebird/litebird_sim/pull/666).
 
 -   `Simulation` appends the report templates through one method, and the reports are written by rank 0 of the communicator of the simulation instead of `MPI_COMM_WORLD`. Reference PR: [#665](https://github.com/litebird/litebird_sim/pull/665).
