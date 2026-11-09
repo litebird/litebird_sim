@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from litebird_sim.mapmaking.common import cholesky, solve_cholesky, estimate_cond_number
+from litebird_sim.mapmaking.common import cholesky, solve_cholesky
 
 
 def _generate_random_positive_definite_matrix(
@@ -78,30 +78,9 @@ def test_cholesky_and_solve_random():
         np.testing.assert_allclose(actual=x, desired=np.linalg.solve(A, v))
 
 
-def test_estimate_cond_number():
-    random = np.random.Generator(np.random.PCG64(12345))
-
-    # Run the test on 1000 matrices
-    for i in range(1000):
-        A = _generate_random_positive_definite_matrix(3, random)
-        assert np.allclose(np.transpose(A), A)
-
-        (cond, found) = estimate_cond_number(
-            a00=A[0][0],
-            a10=A[1][0],
-            a11=A[1][1],
-            a20=A[2][0],
-            a21=A[2][1],
-            a22=A[2][2],
-        )
-
-        if found:
-            np.testing.assert_almost_equal(actual=cond, desired=np.linalg.cond(A))
-
-
 def test_is_well_conditioned():
     # Singular matrices (1-2 hits per pixel) must be rejected whatever the
-    # scale of the weights; estimate_cond_number accepts some of them
+    # scale of the weights
     from litebird_sim.mapmaking.common import _is_well_conditioned
 
     def nobs_matrix(psi_list, weight):
@@ -177,3 +156,15 @@ def test_flags_in_binner_and_destriper():
     obs.tod[:, 5000:5100] = 1e10
     planet_only = maps(flags=names, flag_mask=lbs.FLAG_PLANET)
     assert np.nanmax(np.abs(planet_only[0])) > 1e8
+
+
+def test_pointing_row():
+    from litebird_sim.mapmaking.common import pointing_row
+
+    for psi, gamma in ((0.0, 1.0), (0.3, 0.9), (2.0, 0.5)):
+        np.testing.assert_allclose(
+            pointing_row(psi, gamma),
+            (1.0, gamma * np.cos(2 * psi), gamma * np.sin(2 * psi)),
+            rtol=1e-15,
+            atol=1e-15,
+        )

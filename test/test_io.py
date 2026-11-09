@@ -6,7 +6,7 @@ import numpy as np
 from astropy.time import Time as AstroTime
 
 import litebird_sim as lbs
-from litebird_sim.observation_utilities import _get_hwp_angle
+from litebird_sim.observation_utilities import ObservationPointings
 
 NUMPY_TYPES = [
     (np.float32, "float32"),
@@ -256,7 +256,7 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: b
     # Map-makers query the HWP before computing pointings: reading alone must
     # restore its state and make the modulation angles available.
     assert obs.has_hwp
-    hwp_angle = _get_hwp_angle(obs)
+    hwp_angle = ObservationPointings(obs).hwp_angle
     assert hwp_angle is not None
     np.testing.assert_allclose(hwp_angle, original_obs.get_hwp_angle())
     assert obs.start_time_process == original_obs.start_time_process
@@ -403,7 +403,7 @@ def __test_write_sliced_pointing_provider(
     assert len(observations) == 4
     for obs, ref in zip(observations, expected):
         assert not obs.has_hwp
-        assert _get_hwp_angle(obs) is None
+        assert ObservationPointings(obs).hwp_angle is None
         np.testing.assert_allclose(obs.get_pointings(0)[0], ref, atol=1e-10)
 
 

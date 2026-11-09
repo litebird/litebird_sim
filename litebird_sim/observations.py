@@ -1311,6 +1311,7 @@ class Observation:
                 nside_centering=nside_centering,
                 compute_hwp_angle=compute_hwp_angle,
                 output_coordinate_system=output_coordinate_system,
+                nthreads=nthreads,
             )
 
         # Most complex case: an explicit list (or NumPy array) of detectors
@@ -1362,6 +1363,7 @@ class Observation:
                 # The HWP angle is the same for all the detectors
                 compute_hwp_angle=(hwp_buffer is not None) and (rel_det_idx == 0),
                 output_coordinate_system=output_coordinate_system,
+                nthreads=nthreads,
             )
 
         _center_pointings(pointing_buffer, nside_centering, nthreads)

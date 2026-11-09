@@ -113,7 +113,8 @@ def test_for_each_observation_with_pointings_pairs_arrays():
     n_det, n_samp = obs.tod.shape
     pointings = np.zeros((n_det, n_samp, 3))
 
-    yielded = list(lbs.for_each_observation_with_pointings(obs, pointings))
+    with pytest.deprecated_call():
+        yielded = list(lbs.for_each_observation_with_pointings(obs, pointings))
 
     assert len(yielded) == 1
     cur_obs, tod, cur_ptg = yielded[0]
@@ -129,7 +130,10 @@ def test_for_each_observation_with_pointings_pairs_lists():
         np.zeros((obs.tod.shape[0], obs.tod.shape[1], 3)) for obs in obs_list
     ]
 
-    yielded = list(lbs.for_each_observation_with_pointings(obs_list, pointings_list))
+    with pytest.deprecated_call():
+        yielded = list(
+            lbs.for_each_observation_with_pointings(obs_list, pointings_list)
+        )
 
     assert len(yielded) == len(obs_list)
     for (cur_obs, _, cur_ptg), exp_obs, exp_ptg in zip(
@@ -169,3 +173,55 @@ def test_prepare_pointings_shares_boresight_quaternions():
         )
         own_pointings, _ = cur_obs.get_pointings()
         np.testing.assert_array_equal(shared_pointings, own_pointings)
+
+
+def test_get_pointings_all_forwards_nthreads(monkeypatch):
+    import litebird_sim.observations as observations
+
+    calls = []
+    original = observations._center_pointings
+
+    def spy(pointings, nside_centering, nthreads):
+        calls.append(nthreads)
+        original(pointings, nside_centering, nthreads)
+
+    monkeypatch.setattr(observations, "_center_pointings", spy)
+
+    sim = lbs.Simulation(start_time=0.0, duration_s=10.0, random_seed=1)
+    sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.7, 1e-4, 1e-2))
+    sim.set_instrument(lbs.InstrumentInfo(name="i", spin_boresight_angle_rad=0.8))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(name="a", sampling_rate_hz=1.0),
+            lbs.DetectorInfo(name="b", sampling_rate_hz=1.0),
+        ]
+    )
+    sim.prepare_pointings()
+
+    sim.observations[0].get_pointings("all", nside_centering=8, nthreads=7)
+    assert calls and all(n == 7 for n in calls)
+
+
+def test_helpers_used_by_brahmap_are_kept():
+    # brahmap.lbsim imports these private helpers: keep them until it uses
+    # ObservationPointings
+    sim, _ = _make_two_observations()
+    obs = sim.observations[0]
+    pointings = np.zeros((obs.n_detectors, obs.n_samples_process, 3))
+    with pytest.deprecated_call():
+        obs_list, ptg_list = (
+            lbs.observation_utilities._normalize_observations_and_pointings(
+                obs, pointings
+            )
+        )
+    assert obs_list == [obs] and ptg_list[0] is pointings
+    with pytest.deprecated_call():
+        assert lbs.observation_utilities._get_hwp_angle(obs) is None
+    with pytest.deprecated_call():
+        det, angle = lbs.observation_utilities._get_pointings_array(
+            0, pointings, None, lbs.CoordinateSystem.Ecliptic
+        )
+    assert det.shape == (obs.n_samples_process, 3) and angle is None
+    assert lbs.observation_utilities._get_pol_angle(det, None, 0.5).shape == (
+        obs.n_samples_process,
+    )

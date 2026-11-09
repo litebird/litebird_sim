@@ -556,6 +556,7 @@ def apply_gaindrift_to_observations(
         user_seed=user_seed,
         dets_random=dets_random,
         requires_rng=True,
+        required_fields=["sampling_rate_hz", drift_params.focalplane_group],
     ):
         sampling_freq_hz = cur_obs.sampling_rate_hz
         focalplane_attr = getattr(cur_obs, drift_params.focalplane_group)

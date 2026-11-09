@@ -5,6 +5,7 @@ import logging
 from collections import Counter
 import os
 import subprocess
+import warnings
 from collections import namedtuple
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
@@ -37,7 +38,7 @@ from .beam_convolution import (
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .constants import NUMBA_NUM_THREADS_ENVVAR  # noqa: F401  (re-exported)
-from .coordinates import CoordinateSystem
+from .coordinates import CoordinateSystem, coord_sys_to_healpix_string
 from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .flags import FLAG_PLANET, flag_planets_in_observations
@@ -512,11 +513,8 @@ class Simulation:
         self.report = ""
 
         # Add a header to the report
-        template_file_path = get_template_file_path("report_header.md")
-        with template_file_path.open("rt") as inpf:
-            markdown_template = "".join(inpf.readlines())
-        self.append_to_report(
-            markdown_template,
+        self._append_template_to_report(
+            "report_header.md",
             name=self.name if (self.name and (self.name != "")) else "<Untitled>",
             description=self.description,
             start_time=self.start_time.to_datetime()
@@ -531,17 +529,13 @@ class Simulation:
             import mpi4py
             from mpi4py import MPI
 
-            template_file_path = get_template_file_path("report_mpi.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-
             mpi_version = MPI.Get_version()
             warning_mpi_version = None
             if mpi_version[0] < 4:
                 warning_mpi_version = True
 
-            self.append_to_report(
-                markdown_template,
+            self._append_template_to_report(
+                "report_mpi.md",
                 mpi4py_version=getattr(mpi4py, "__version__"),
                 mpi_version=".".join([str(x) for x in mpi_version]),
                 mpi_implementation=str(MPI.Get_library_version()).strip(),
@@ -785,6 +779,12 @@ class Simulation:
 
         return filename
 
+    def _append_template_to_report(self, template_name: str, **kwargs):
+        """Append to the report the template `template_name`, expanded with
+        `kwargs` (see :meth:`.append_to_report`)"""
+        with get_template_file_path(template_name).open("rt") as inpf:
+            self.append_to_report(inpf.read(), **kwargs)
+
     def append_to_report(
         self,
         markdown_text: str,
@@ -1026,12 +1026,9 @@ class Simulation:
         )
         self._fill_dictionary_with_code_status(dictionary, include_git_diff)
 
-        template_file_path = get_template_file_path("report_appendix.md")
-        with template_file_path.open("rt") as inpf:
-            markdown_template = "".join(inpf.readlines())
-        self.append_to_report(markdown_template, figures=[], **dictionary)
+        self._append_template_to_report("report_appendix.md", figures=[], **dictionary)
 
-        return self._generate_html_report() if MPI_COMM_WORLD.rank == 0 else None
+        return self._generate_html_report() if self.mpi_comm.rank == 0 else None
 
     @_profile
     def set_detectors(
@@ -1756,12 +1753,9 @@ class Simulation:
         if append_to_report and MPI_ENABLED:
             num_of_obs = self.mpi_comm.allreduce(num_of_obs)
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_quaternions.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+        if append_to_report and self.mpi_comm.rank == 0:
+            self._append_template_to_report(
+                "report_quaternions.md",
                 num_of_obs=num_of_obs,
                 num_of_mpi_processes=MPI_COMM_WORLD.size,
                 delta_time_s=delta_time_s,
@@ -1936,12 +1930,9 @@ class Simulation:
             memory_occupation = self.mpi_comm.allreduce(memory_occupation)
             num_of_obs = self.mpi_comm.allreduce(num_of_obs)
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_pointings.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+        if append_to_report and self.mpi_comm.rank == 0:
+            self._append_template_to_report(
+                "report_pointings.md",
                 num_of_obs=num_of_obs,
                 hwp_description=str(self.hwp) if self.hwp else "No HWP",
                 num_of_mpi_processes=MPI_COMM_WORLD.size,
@@ -2032,12 +2023,9 @@ class Simulation:
             bandpass_integration=bandpass_integration,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_add_planets.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+        if append_to_report and self.mpi_comm.rank == 0:
+            self._append_template_to_report(
+                "report_add_planets.md",
                 planets=", ".join(planets),
                 component=component,
                 bandpass_integration=bandpass_integration,
@@ -2081,12 +2069,9 @@ class Simulation:
             }
             num_of_samples = self.mpi_comm.allreduce(num_of_samples)
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_flag_planets.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+        if append_to_report and self.mpi_comm.rank == 0:
+            self._append_template_to_report(
+                "report_flag_planets.md",
                 radius_fwhm=radius_fwhm,
                 threshold_k_cmb=threshold_k_cmb,
                 bit=bit,
@@ -2106,11 +2091,15 @@ class Simulation:
         component: str = "tod",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        apply_convolution: bool = False,
+        beam_alms: SphericalHarmonics | dict[str, SphericalHarmonics] | None = None,
     ):
         """
         Fills the tod with dipole.
 
-        This is a wrapper for the function :func:`.add_dipole_to_observations`.
+        This is a wrapper for the function :func:`.add_dipole_to_observations`;
+        see it for `apply_convolution` and `beam_alms` (the dipole convolved
+        with the beam, by moment expansion).
 
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
@@ -2128,19 +2117,17 @@ class Simulation:
             dipole_type=dipole_type,
             component=component,
             pointings_dtype=pointings_dtype,
+            apply_convolution=apply_convolution,
+            beam_alms=beam_alms,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_dipole.md")
-
+        if append_to_report and self.mpi_comm.rank == 0:
             dip_lat_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lat_rad)
             dip_lon_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lon_rad)
             dip_velocity = self.pos_and_vel.orbit.solar_velocity_km_s
 
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+            self._append_template_to_report(
+                "report_dipole.md",
                 t_cmb_k=t_cmb_k,
                 dipole_type=dipole_type,
                 dip_lat_deg=dip_lat_deg,
@@ -2162,6 +2149,7 @@ class Simulation:
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
         This is a wrapper to the function :func:`.scan_map_in_observations`.
+        `band_filenames` is deprecated and has no effect.
 
         This method must be called after having set the scanning
         strategy, the instrument, the list of detectors to simulate
@@ -2172,8 +2160,12 @@ class Simulation:
 
         """
 
-        if nthreads is None:
-            nthreads = self.numba_threads
+        if band_filenames is not None:
+            warnings.warn(
+                "Simulation.fill_tods: band_filenames has no effect and is deprecated",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         scan_map_in_observations(
             observations=self.observations,
@@ -2185,10 +2177,7 @@ class Simulation:
             nthreads=nthreads,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_scan_map.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
+        if append_to_report and self.mpi_comm.rank == 0:
             if maps is None:
                 assert self.observations, "No observations available"
                 maps = self.observations[0].sky
@@ -2201,8 +2190,8 @@ class Simulation:
                     else:
                         fg_model = "N/A"
 
-                    self.append_to_report(
-                        markdown_template,
+                    self._append_template_to_report(
+                        "report_scan_map.md",
                         nside=maps["SkyGenerationParams"].nside,
                         has_cmb=maps["SkyGenerationParams"].make_cmb,
                         has_fg=maps["SkyGenerationParams"].make_fg,
@@ -2210,16 +2199,16 @@ class Simulation:
                     )
             elif isinstance(maps, HealpixMap):
                 nside = HealpixMap.npix_to_nside(maps.npix)
-                self.append_to_report(
-                    markdown_template,
+                self._append_template_to_report(
+                    "report_scan_map.md",
                     nside=nside,
                     has_cmb="N/A",
                     has_fg="N/A",
                     fg_model="N/A",
                 )
             else:
-                self.append_to_report(
-                    markdown_template,
+                self._append_template_to_report(
+                    "report_scan_map.md",
                     nside="N/A",
                     has_cmb="N/A",
                     has_fg="N/A",
@@ -2252,20 +2241,16 @@ class Simulation:
             nthreads=nthreads,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
+        if append_to_report and self.mpi_comm.rank == 0:
             assert self.observations, "No observations available"
-            template_file_path = get_template_file_path("report_scan_spin_maps.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-
             if isinstance(spin_maps, dict):
                 assert spin_maps, "spin_maps must not be empty"
                 first_maps = next(iter(spin_maps.values()))
             else:
                 first_maps = spin_maps
 
-            self.append_to_report(
-                markdown_template,
+            self._append_template_to_report(
+                "report_scan_spin_maps.md",
                 spins=", ".join(str(spin) for spin in first_maps.spins),
                 nside=first_maps.nside,
                 n_detectors=sum(len(obs.name) for obs in self.observations),
@@ -2403,7 +2388,7 @@ class Simulation:
         self,
         sky_alms: None | (SphericalHarmonics | dict[str, SphericalHarmonics]) = None,
         beam_alms: None | (SphericalHarmonics | dict[str, SphericalHarmonics]) = None,
-        input_sky_alms_in_galactic: bool = True,
+        input_sky_alms_in_galactic: bool | None = None,
         convolution_params: BeamConvolutionParameters | None = None,
         component: str = "tod",
         pointings_dtype=np.float64,
@@ -2421,12 +2406,19 @@ class Simulation:
         through calls to :meth:`.set_instrument` and
         :meth:`.set_detectors`, and the method
         :meth:`.prepare_pointings`. alms are assumed to be produced by
-        :class:`.SkyGenerator`
+        :class:`.SkyGenerator`. The coordinate system of the alms is taken
+        from them: `input_sky_alms_in_galactic` is deprecated and has no
+        effect.
 
         """
 
-        if nthreads is None:
-            nthreads = self.numba_threads
+        if input_sky_alms_in_galactic is not None:
+            warnings.warn(
+                "Simulation.convolve_sky: input_sky_alms_in_galactic has no effect "
+                "and is deprecated; the coordinates are those of the alms",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         add_convolved_sky_to_observations(
             observations=self.observations,
@@ -2439,10 +2431,7 @@ class Simulation:
             nthreads=nthreads,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_convolve_sky.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
+        if append_to_report and self.mpi_comm.rank == 0:
             if sky_alms is None:
                 assert self.observations, "No observations available"
                 sky_alms = self.observations[0].sky
@@ -2456,15 +2445,15 @@ class Simulation:
                     else:
                         fg_model = "N/A"
 
-                    self.append_to_report(
-                        markdown_template,
+                    self._append_template_to_report(
+                        "report_convolve_sky.md",
                         has_cmb=sky_alms["SkyGenerationParams"].make_cmb,
                         has_fg=sky_alms["SkyGenerationParams"].make_fg,
                         fg_model=fg_model,
                     )
             else:
-                self.append_to_report(
-                    markdown_template,
+                self._append_template_to_report(
+                    "report_convolve_sky.md",
                     has_cmb="N/A",
                     has_fg="N/A",
                     fg_model="N/A",
@@ -2495,19 +2484,14 @@ class Simulation:
             pointings_dtype=pointings_dtype,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_2f.md")
-
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-
+        if append_to_report and self.mpi_comm.rank == 0:
             if amplitude_2f_k is None:
                 amp = "Amplitudes taken from IMo"
             else:
                 amp = amplitude_2f_k
 
-            self.append_to_report(
-                markdown_template,
+            self._append_template_to_report(
+                "report_2f.md",
                 amplitude_2f=amp,
             )
 
@@ -2544,19 +2528,14 @@ class Simulation:
             conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_quad_nonlin.md")
-
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-
+        if append_to_report and self.mpi_comm.rank == 0:
             if nl_params is None:
                 g = "Detector non-linearity factor taken from IMo"
             else:
                 g = nl_params
 
-            self.append_to_report(
-                markdown_template,
+            self._append_template_to_report(
+                "report_quad_nonlin.md",
                 g=g,
                 conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
             )
@@ -2636,12 +2615,9 @@ class Simulation:
             correlation=correlation,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_noise.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+        if append_to_report and self.mpi_comm.rank == 0:
+            self._append_template_to_report(
+                "report_noise.md",
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
@@ -2669,6 +2645,8 @@ class Simulation:
         time_split: str = "full",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        flags: str | list[str] | None = None,
+        flag_mask: int | None = None,
     ) -> PairDifferencingResult:
         """QU pair-differencing map-maker.
 
@@ -2694,14 +2672,9 @@ class Simulation:
         if detector_split != "full" or time_split != "full":
             self.check_valid_splits(detector_split, time_split)
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path(
-                "report_pair_differenced_map.md"
-            )
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+        if append_to_report and self.mpi_comm.rank == 0:
+            self._append_template_to_report(
+                "report_pair_differenced_map.md",
                 nside=nside,
                 coord=str(output_coordinate_system),
             )
@@ -2714,6 +2687,8 @@ class Simulation:
             detector_split=detector_split,
             time_split=time_split,
             pointings_dtype=pointings_dtype,
+            flags=flags,
+            flag_mask=flag_mask,
         )
 
     @_profile
@@ -2728,11 +2703,16 @@ class Simulation:
         include_inv_covariance: bool = False,
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        flags: str | list[str] | None = None,
+        flag_mask: int | None = None,
     ) -> list[str] | dict[str, PairDifferencingResult]:
         """Compute pair-differenced maps for multiple split combinations.
 
         This is a wrapper around :meth:`.make_pair_differenced_map` that loops
-        over the Cartesian product of detector and time splits.
+        over the Cartesian product of detector and time splits. With
+        `include_inv_covariance`, the files also contain the covariance of
+        Q and U in each pixel (the field ``invnpp`` of the result, despite the
+        name).
         """
 
         if isinstance(components, str):
@@ -2744,14 +2724,9 @@ class Simulation:
         if detector_splits != ["full"] or time_splits != ["full"]:
             self.check_valid_splits(detector_splits, time_splits)
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path(
-                "report_pair_differenced_map_splits.md"
-            )
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+        if append_to_report and self.mpi_comm.rank == 0:
+            self._append_template_to_report(
+                "report_pair_differenced_map_splits.md",
                 time_split=time_splits,
                 detector_split=detector_splits,
                 nside=nside,
@@ -2769,6 +2744,8 @@ class Simulation:
                         detector_split=ds,
                         time_split=ts,
                         pointings_dtype=pointings_dtype,
+                        flags=flags,
+                        flag_mask=flag_mask,
                     )
 
                     file = f"pair_differenced_map_DET{ds}_TIME{ts}.fits"
@@ -2786,7 +2763,7 @@ class Simulation:
                             Path(file),
                             mapp,
                             column_names=names,
-                            coord=result.coordinate_system.name,
+                            coord=coord_sys_to_healpix_string(result.coordinate_system),
                         )
                     )
 
@@ -2803,6 +2780,8 @@ class Simulation:
                     detector_split=ds,
                     time_split=ts,
                     pointings_dtype=pointings_dtype,
+                    flags=flags,
+                    flag_mask=flag_mask,
                 )
 
         return pair_maps
@@ -2827,7 +2806,8 @@ class Simulation:
         cartesian product of the requested detector and time splits. Here, those can be
         either strings or lists of strings. The method will return a list of filenames
         where the maps have been written to disk (`include_inv_covariance` allows to save
-        also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will
+        also the covariance of I, Q, U in each pixel, i.e., the field ``invnpp``
+        of the result, despite the name). Alternatively, setting `write_to_disk=False`, it will
         return a dictionary with the results, where the keys are the strings obtained by joining
         the detector and time splits with an underscore.
         """
@@ -2841,12 +2821,9 @@ class Simulation:
         if detector_splits != ["full"] or time_splits != ["full"]:
             self.check_valid_splits(detector_splits, time_splits)
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_binned_map_splits.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+        if append_to_report and self.mpi_comm.rank == 0:
+            self._append_template_to_report(
+                "report_binned_map_splits.md",
                 time_split=time_splits,
                 detector_split=detector_splits,
                 nside=nside,
@@ -2869,21 +2846,20 @@ class Simulation:
                     )
                     file = f"binned_map_DET{ds}_TIME{ts}.fits"
                     names = ["I", "Q", "U"]
-                    result = list(result.__dict__.items())
-                    mapp = result.pop(0)[1]
-                    inv_cov = result.pop(0)[1]
-                    coords = result.pop(0)[1].name
-                    del result
-                    inv_cov = inv_cov.T[np.tril_indices(3)]
-                    inv_cov[[2, 3]] = inv_cov[[3, 2]]
-                    inv_cov = list(inv_cov)
+                    mapp = result.binned_map
                     if include_inv_covariance:
+                        # The upper triangle of the symmetric 3×3 matrices
+                        rows, cols = np.triu_indices(3)
                         names.extend(["II", "IQ", "IU", "QQ", "QU", "UU"])
-                        for _ in range(6):
-                            mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
+                        mapp = np.concatenate(
+                            [mapp, result.invnpp[:, rows, cols].T], axis=0
+                        )
                     filenames.append(
                         self.write_healpix_map(
-                            Path(file), mapp, column_names=names, coord=coords
+                            Path(file),
+                            mapp,
+                            column_names=names,
+                            coord=coord_sys_to_healpix_string(result.coordinate_system),
                         )
                     )
             return filenames
@@ -2930,12 +2906,9 @@ class Simulation:
         if detector_split != "full" or time_split != "full":
             self.check_valid_splits(detector_split, time_split)
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_binned_map.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
+        if append_to_report and self.mpi_comm.rank == 0:
+            self._append_template_to_report(
+                "report_binned_map.md",
                 nside=nside,
                 coord=str(output_coordinate_system),
             )
@@ -2966,10 +2939,17 @@ class Simulation:
         pointings_dtype=np.float64,
         save_to_file: bool = True,
         output_directory: str = "./h_n_maps",
+        *,
+        keep_maps: bool = True,
     ) -> HMapsResult:
         """
         Computes the Hn maps from the pointings  of `sim.observations`.
         This is a wrapper around :func:`litebird_sim.mapmaking.make_h_maps`.
+
+        Set ``keep_maps=False`` with ``save_to_file=True`` to write detector
+        files progressively and return their paths in ``result.filenames``
+        without retaining the maps. All simulation processes must participate,
+        including processes without local observations.
 
         """
         return make_h_maps(
@@ -2983,6 +2963,8 @@ class Simulation:
             pointings_dtype=pointings_dtype,
             save_to_file=save_to_file,
             output_directory=output_directory,
+            keep_maps=keep_maps,
+            comm=self.mpi_comm,
         )
 
     def _impose_and_check_full_split(self, detector_splits, time_splits):
@@ -3026,7 +3008,7 @@ class Simulation:
         cartesian product of the requested detector and time splits. Here, those can be either
         strings or lists of strings. The method will return a list of filenames where the
         maps have been written to disk (`include_inv_covariance` allows to save also the
-        inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary
+        covariance of I, Q, U in each pixel, despite the name). Alternatively, setting `write_to_disk=False`, it will return a dictionary
         with the results, where the keys are the strings obtained by joining the detector and time
         splits with an underscore.
         """
@@ -3195,9 +3177,6 @@ class Simulation:
         time_split: str,
         results: DestriperResult,
     ):
-        template_file_path = get_template_file_path(template_file)
-        with template_file_path.open("rt") as inpf:
-            markdown_template = "".join(inpf.readlines())
 
         if results.params.samples_per_baseline is not None:
             fig, ax = plt.subplots()
@@ -3211,10 +3190,10 @@ class Simulation:
             )
             cg_plot_filename = f"destriper-DET{detector_split}-TIME{time_split}-cg-convergence-{uuid4()}.png"
 
-            self.append_to_report(
+            self._append_template_to_report(
+                template_file,
                 detector_split=detector_split,
                 time_split=time_split,
-                markdown_text=markdown_template,
                 results=results,
                 history_of_stopping_factors=[
                     float(x) for x in results.history_of_stopping_factors
@@ -3228,10 +3207,10 @@ class Simulation:
                 ],
             )
         else:
-            self.append_to_report(
+            self._append_template_to_report(
+                template_file,
                 detector_split=detector_split,
                 time_split=time_split,
-                markdown_text=markdown_template,
                 results=results,
                 bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
             )
@@ -3267,16 +3246,13 @@ class Simulation:
             gls_params=gls_params,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
+        if append_to_report and self.mpi_comm.rank == 0:
             import brahmap  # noqa
 
-            template_file_path = get_template_file_path("report_brahmap.md")
             brahmap_version = getattr(brahmap, "__version__", "unknown")
             brahmap_hash = getattr(brahmap, "__git_hash__", "unknown")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_text=markdown_template,
+            self._append_template_to_report(
+                "report_brahmap.md",
                 brahmap_version=brahmap_version,
                 brahmap_hash=brahmap_hash,
                 gls_params=gls_params,
@@ -3335,16 +3311,14 @@ class Simulation:
             template_covariance=template_covariance,
             pointing_form=pointing_form,
             verbose=verbose,
+            comm=self.mpi_comm,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
+        if append_to_report and self.mpi_comm.rank == 0:
             import pysanepic  # noqa
 
-            template_file_path = get_template_file_path("report_sanepic.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_text=markdown_template,
+            self._append_template_to_report(
+                "report_sanepic.md",
                 sanepic_version=getattr(pysanepic, "__version__", "unknown"),
                 params=params or pysanepic.GLSParameters(),
                 result=result,
@@ -3378,6 +3352,7 @@ class Simulation:
             dtype=dtype,
             pointings_dtype=pointings_dtype,
             nthreads=nthreads,
+            comm=self.mpi_comm,
         )
 
     @_profile
@@ -3394,6 +3369,7 @@ class Simulation:
         correlation: dict | None = None,
         n_modes: int = 1,
         flag_mask: int | None = None,
+        dipole_component: str | None = None,
     ) -> dict:
         """Noise spectra of the detectors from the residual of a pysanepic map.
 
@@ -3413,6 +3389,8 @@ class Simulation:
             nthreads=nthreads,
             correlation=correlation,
             n_modes=n_modes,
+            dipole_component=dipole_component,
+            comm=self.mpi_comm,
         )
 
     @_profile
@@ -3550,7 +3528,7 @@ class Simulation:
             dets_random=dets_random,
         )
 
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
+        if append_to_report and self.mpi_comm.rank == 0:
             dictionary = {
                 "sampling_dist": "Gaussian" if drift_params.sampling_dist else "Uniform"
             }
@@ -3584,11 +3562,8 @@ class Simulation:
                 for key in keys_to_get:
                     dictionary[key] = getattr(drift_params, key)
 
-            template_file_path = get_template_file_path("report_gaindrift.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_text=markdown_template,
+            self._append_template_to_report(
+                "report_gaindrift.md",
                 component=component,
                 user_seed=user_seed,
                 figures=[],

@@ -211,6 +211,7 @@ def apply_quadratic_nonlin_to_observations(
         user_seed=user_seed,
         requires_rng=True,
         comm=obs_list[0].comm_time_block,
+        required_fields=["bandcenter_ghz", "bandwidth_ghz"],
     ):
         bandcenter_ghz = getattr(cur_obs, "bandcenter_ghz")
         bandwidth_ghz = getattr(cur_obs, "bandwidth_ghz")
