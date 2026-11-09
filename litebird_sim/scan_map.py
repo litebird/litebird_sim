@@ -622,8 +622,8 @@ def scan_spin_maps(
     the polarization angle :math:`\gamma_d` of the detector.
 
     The spin maps are taken from :class:`.SpinMap` objects, which hold one
-    complex map per spin order, in the detector frame, and are selected per
-    detector. A single :class:`.SpinMap` is used for all the detectors when
+    complex map per spin order, and are selected per detector.
+    A single :class:`.SpinMap` is used for all the detectors when
     `spin_maps` is not a dictionary.
 
     Parameters
@@ -678,11 +678,7 @@ def scan_spin_maps(
     Notes
     -----
     - The presence of an HWP is currently unsupported
-    - The signal is added in place; the function returns ``None``.
-    - Maps are sampled with nearest-neighbour lookup (``ang2pix``). Only
-      real-space maps are supported.
-    - The spin maps are evaluated at the observed pixel on the fly, so no
-      array indexed by spin and by sample is ever allocated.
+    - The signal is added in place to `tod`; the function returns ``None``.
     """
     nthreads = resolve_nthreads(nthreads)
 
