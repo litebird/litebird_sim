@@ -320,7 +320,16 @@ Once the call to :func:`.make_binned_map` ends, the field ``invnpp``
 of the :class:`.BinnerResult` object returned by the function
 contains an array with shape :math:`(N_p, 3, 3)`, where each
 3×3 block is the inverse of the sub-matrix :math:`M_i` for the
-*i*-th pixel.
+*i*-th pixel, i.e., the noise covariance of I, Q, U in that pixel, in
+the units of the TOD squared.
+
+.. note::
+
+   Despite the name, which comes from Madam, ``invnpp`` (and the
+   columns written with ``include_inv_covariance``) is the covariance
+   :math:`M_i^{-1}`, not its inverse :math:`M_i`. It includes only the
+   correlations among I, Q, U within each pixel, not those between
+   pixels.
 
 
 Data splits
@@ -357,6 +366,35 @@ split is compatible with the observation duration and the detector
 list. Thus, for example, if the observation lasts one year, the split ``year2``
 will raise an ``AssertionError``. Similarly, if some detector in the L00 wafer
 does the observation, ``waferL03`` will also raise an ``AssertionError``.
+The map-makers run the same checks every time they build the masks of the
+splits, also when they are called directly instead of through
+:class:`.Simulation`. The splits for ``yearX`` and ``surveyX`` require the
+observation to last at least X years or X half-years.
+
+
+.. _mapmaking-flags:
+
+Flags
+^^^^^
+
+The parameter `flags` of :func:`.make_binned_map` lists the attributes of
+the :class:`.Observation` objects holding the flags (see
+:ref:`observations`), either per detector, like ``"local_flags"``, or
+common to all the detectors, like ``"global_flags"``. Flagged samples are
+excluded from the map, together with those outside the time split. By
+default, any nonzero flag excludes a sample; with `flag_mask`, only the
+bits it contains do::
+
+    # Exclude only the samples near planets
+    result = lbs.make_binned_map(
+        nside=nside,
+        observations=sim.observations,
+        flags=["local_flags", "global_flags"],
+        flag_mask=lbs.FLAG_PLANET,
+    )
+
+Flags that have never been written (``None``) mean that all the samples
+are good. By default, `flags` is ``None`` and no sample is excluded.
 
 
 .. _mapmaking-pair-differencing:
@@ -377,11 +415,20 @@ of the two detectors in the pair, the model used in map-making is
 
    d_T - d_B = Q\,[\gamma_T\cos(2\psi_T) - \gamma_B\cos(2\psi_B)] + U\,[\gamma_T\sin(2\psi_T) - \gamma_B\sin(2\psi_B)].
 
-The pair weight is the average of the detector weights:
+The detector weights returned by ``get_map_making_weights`` are
+sample noise variances, :math:`w_i = \sigma_i^2 = f_{\mathrm{samp}}\,\mathrm{NET}_i^2`.
+For independent detector noise, the variance of the differenced timeline is
+the sum of the detector variances:
 
 .. math::
 
-   w_{\mathrm{pair}} = \frac{w_T + w_B}{2}.
+   w_{\mathrm{pair}} = \sigma_T^2 + \sigma_B^2 = w_T + w_B.
+
+The normal matrix and right-hand side use :math:`1/w_{\mathrm{pair}}`.
+
+The parameters `flags` and `flag_mask` work as in :func:`.make_binned_map`
+(see :ref:`mapmaking-flags`): a sample enters the difference of a pair only
+if it is flagged in neither detector.
 
 This is the low-level usage::
 
@@ -392,7 +439,9 @@ This is the low-level usage::
 The :class:`.PairDifferencingResult` output contains:
 
 - ``binned_map`` with shape ``(2, N_pix)`` (Q/U only),
-- ``invnpp`` with shape ``(N_pix, 2, 2)``.
+- ``invnpp`` with shape ``(N_pix, 2, 2)``: the noise covariance of Q and
+  U in each pixel (like the ``invnpp`` of the binner, it is a covariance,
+  not its inverse).
 
 The corresponding high-level interface is :meth:`Simulation.make_pair_differenced_map`::
 
@@ -738,7 +787,13 @@ Given that it is often useful to have access to matrix :math:`M^{-1}`,
 the method :meth:`.NobsMatrix.get_invnpp` computes this inverse as
 a 3D array with shape :math:`(N_pix, 3, 3)`, where the first index
 runs over all the pixels and the last two dimensions are used to
-store the value of :math:`M_i^{-1}`.
+store the value of :math:`M_i^{-1}`, the noise covariance of the binned
+I, Q, U in the pixel. It does not include the uncertainty of the baselines.
+
+The pixels where :math:`M_i` cannot be inverted (too few hits or angles)
+are set to ``UNSEEN`` (:data:`healpy.UNSEEN`) in the binned and destriped
+maps and in the result of :meth:`.NobsMatrix.get_invnpp`, as in the maps
+of the binner and of the pair-differencing.
 
 
 Data splits
@@ -753,6 +808,10 @@ details.
 The difference is that each split is applied to the TOD before the
 destriper runs. Therefore, the destriper will only use the samples
 within the split to compute the baselines.
+
+The parameters `flags` and `flag_mask` work as in :func:`.make_binned_map`:
+flagged samples are excluded both from the maps and from the estimation
+of the baselines.
 
 
 BrahMap GLS mapmaker
@@ -821,7 +880,8 @@ generated with ``engine="ducc"``. With
 Flagged samples are excluded with ``flags``, the names of the
 :class:`.Observation` attributes that hold them (per detector, like
 ``"local_flags"``, or common to all detectors, like ``"global_flags"``;
-nonzero means excluded). pysanepic fits them with unknowns of their own, so
+nonzero means excluded, or only the bits in ``flag_mask``, as in
+:func:`.make_binned_map`). pysanepic fits them with unknowns of their own, so
 that the maps are the exact GLS solution without them; long gaps split the
 chunks (``flag_method`` and ``split_gap_s`` in ``GLSParameters``).
 
@@ -839,6 +899,19 @@ later):
 
 With ``fit="toast"`` or ``fit="keshner"`` the spectra are fitted with a 1/f
 model instead of being tabulated.
+
+The residual is that of the whole TOD model fitted by the map-maker (with
+pysanepic newer than 0.6.4): the maps and their sub-pixel gradient, the gains
+and the dipole with ``calibration``, and the fitted templates. Call it with
+the observations, ``components``, ``flags`` and ``correlation`` of the
+map-making call, and, with calibration, the same ``dipole_component``:
+
+.. code-block:: python
+
+  first = sim.make_sanepic_gls_map(
+      nside=nside, params=params, calibration=cal, dipole_component="dipole"
+  )
+  noise = sim.estimate_sanepic_noise(first, dipole_component="dipole")
 
 Noise correlated between detectors, simulated with the common-mode model of
 :func:`.add_noise_to_observations` (``noise_type="correlated"``), is modelled
@@ -873,7 +946,146 @@ back to those of uncorrelated noise.
 
 Correlations exist only between detectors of the same :class:`.Observation`:
 keep the correlated detectors together (e.g. ``n_blocks_det=1``) and
-distribute the observations over the processes. The HWP angle and
+distribute the observations over the processes.
+
+With ``calibration`` (a ``pysanepic.CalibrationParameters``), pysanepic fits
+one gain per detector and period together with the maps, using the dipole as
+calibrator. The dipole of each sample is read from a TOD component, e.g.
+filled by :meth:`.Simulation.add_dipole` with the settings used for the data;
+it is subtracted from the calibrated TOD, and its orbital part sets the
+absolute calibration. A ``sky_model`` (maps, or alm as ``SphericalHarmonics``
+interpolated at the pointing, which removes the pixelization error of its
+structure below the pixel size) is passed to pysanepic (0.5.0 or later), and
+``templates`` (``pysanepic.Template``, pysanepic 0.6.0 or later) are fitted
+with the maps: sky signals (e.g. the derivative of the foregrounds with
+respect to frequency, for bandpass mismatch) or TOD components of the
+observations with the name of the template (e.g. a thermometer), with one
+amplitude per detector (also summing to zero), one common to all, or one per
+period. See the pysanepic documentation for the masks and the details.
+
+.. code-block:: python
+
+  from pysanepic import CalibrationParameters, Template
+
+  sim.add_dipole(component="dipole")  # a TOD component created with create_observations
+  result = sim.make_sanepic_gls_map(
+      nside=nside,
+      params=params,
+      calibration=CalibrationParameters(gain_period_s=3600.0, mask=galactic_mask),
+      dipole_component="dipole",
+      sky_model=sky_alm,                              # CMB + foregrounds at the band centre
+      templates={
+          "fg_deriv1": Template(sky=dfg_dnu_alm, sum_zero=True),  # dF/dnu at the band centre
+          "thermal": Template(),  # the TOD component obs.thermal, one coupling per detector
+      },
+      template_covariance=True,
+  )
+  result.gains       # one array per detector and observation of this process
+  result.templates   # {"fg_deriv1": {detector name: shift of its band [GHz]}, "thermal": {...}}
+  result.template_covariance  # {"labels": [(template, detector), ...], "matrix": ...}
+
+From pysanepic 0.6.5 the binned map of ``sky_model`` put back in the maps
+weights the detectors by their white-noise level
+(``GLSParameters.binned_weights="noise"``; ``"equal"`` is the behavior of
+0.6.4): the maps change only with ``sky_model`` and detectors of different
+NETs. ``GLSParameters(subpixel_order=1)`` (or 2, pysanepic 0.6.4 or later)
+also fits the gradient (and Hessian) of I within each pixel; it needs the
+angles of the samples, which ``pointing_form="auto"`` passes.
+
+With ``sum_zero=True`` the amplitudes of a sky template sum to zero over the
+detectors (needed for templates as maps, whose common part is the map); as
+alm their common part can be fitted too, which avoids biasing the absolute
+calibration when the mean band of the detectors is not at the frequency of
+``sky_model`` (see the pysanepic documentation).
+
+pysanepic (0.6.0 or later) has helpers for the templates of polarization
+angles and beams, built from the sky model:
+
+- ``pysanepic.pol_angle_template`` (the polarization angle errors of the
+  detectors) and ``pysanepic.fwhm_template`` (their FWHM differences) are
+  sky templates: pass them in ``templates`` as they are;
+- pointing offsets and ellipticities of the beams turn with the detector, so
+  they are TOD templates, the derivatives of the sky model along the axes of
+  each detector at its pointing. :func:`.compute_sanepic_beam_templates` (or
+  :meth:`.Simulation.compute_sanepic_beam_templates`) computes them and
+  stores them as TOD components of the observations (``offset_x``,
+  ``offset_y``, ``ell_plus``, ``ell_cross``, each ``(n_detectors,
+  n_samples)``), and returns the ``pysanepic.Template`` objects that tell
+  the map-maker to fit them;
+- ``pysanepic.beam_parameters`` turns the fitted amplitudes into the offsets
+  and the axes of the beams.
+
+To use the beam templates in the map-maker:
+
+1. call :meth:`.Simulation.compute_sanepic_beam_templates` before
+   :meth:`.Simulation.make_sanepic_gls_map`, with the same
+   ``output_coordinate_system`` (and, with the low-level functions, the
+   same observations, ``pointings`` and ``hwp``);
+2. pass the dict it returns in ``templates``, with its keys unchanged: a
+   template without ``sky`` is fitted to the TOD component of the
+   observations with its name, so the keys are what links the two calls.
+   Add the other templates to the same dict;
+3. pass the same sky model as ``sky_model``: the templates are derivatives
+   of it, its TOD is subtracted from the data, and as alm it makes
+   pysanepic use the pointings as angles;
+4. keep the dict: ``pysanepic.beam_parameters(result, templates)`` reads
+   from it which amplitudes sum to zero.
+
+The sky model must be alm, smoothed with the mean beam of the detectors.
+
+.. code-block:: python
+
+  import pysanepic
+
+  # sky_alm: CMB + foregrounds through the mean beam, a SphericalHarmonics in Galactic coordinates
+  templates = sim.compute_sanepic_beam_templates(sky_model=sky_alm)  # 1: offsets, ellipticity
+  templates["pol_angle"] = pysanepic.pol_angle_template(sky_alm.values)  # sky templates
+  templates["fwhm"] = pysanepic.fwhm_template(sky_alm.values)
+  result = sim.make_sanepic_gls_map(
+      nside=nside,
+      params=params,
+      sky_model=sky_alm,     # 3: the same model
+      templates=templates,   # 2: the keys name the TOD components
+  )
+  result.templates["offset_x"]   # {detector name: offset [rad]}
+  result.templates["pol_angle"]  # {detector name: angle error - mean [rad]}
+  beams = pysanepic.beam_parameters(result, templates, sigma=sigma_of_the_mean_beam)  # 4
+  beams["det0"]  # offset_x, offset_y [rad], c_plus, c_cross, delta_sigma2 [rad^2], sigma_major, ...
+
+  for obs in sim.observations:   # free the memory of the components (4 TODs per detector)
+      for name in ("offset_x", "offset_y", "ell_plus", "ell_cross"):
+          delattr(obs, name)
+
+Only the offsets: ``compute_sanepic_beam_templates(sky_model=sky_alm,
+ellipticity=False)`` (2 TODs per detector). The templates can be combined
+with calibration and with the other templates (e.g. the bandpass ones):
+the amplitudes are then inside the gains, and ``template_covariance=True``
+shows how much they are correlated.
+
+The offsets are in the frame of the polarization angle of the detector, at
+ψ + ``pol_angle_rad``: a detector quaternion rotated by a small angle ρ
+about the x (y) axis of the focal plane moves the beam by ρ along the axis at
+ψ (ψ + 90°), so the fitted offsets are that displacement rotated by
+``-pol_angle_rad`` (checked in ``test/test_sanepic.py``). Without HWP the
+ellipticities sum to zero over the detectors (their common part leaks the
+temperature into Q/U exactly as a polarization map); with an HWP they are
+free. See the pysanepic documentation for what the amplitudes are and how
+they are computed.
+
+To keep the solar dipole in the maps, put only the orbital dipole in the
+component (an orbit with ``solar_velocity_km_s=0``) and the solar dipole in
+``sky_model`` as alm, so that its gradient within the pixels is modelled.
+
+The pointings are computed in ``output_coordinate_system`` (as in the other
+map-makers) and passed to pysanepic, which then does not rotate them, as
+HEALPix pixels at ``nside`` or as angles (θ, φ, ψ), with ``pointing_form``:
+``"pixels"``, ``"angles"`` or ``"auto"`` (default), which passes the angles
+only when ``sky_model`` or a template is given as alm, since they
+are interpolated at the exact pointing. The maps are the same; the pixels
+keep less memory per detector.
+
+The calibration keeps all the detectors in memory and each iteration is a
+full GLS solve. The HWP angle and
 the polarization efficiency of the detectors are taken into account:
 
 .. code-block:: python
@@ -974,6 +1186,141 @@ convergence of the PCG to the report. More details on the algorithm, and
 on how to use pysanepic without litebird_sim, are in the `pysanepic
 documentation <https://github.com/litebird/pysanepic#readme>`_ and its
 example notebooks.
+
+Example: a complete run
+^^^^^^^^^^^^^^^^^^^^^^^
+
+A run from the simulation to the maps, with the gains calibrated on the
+dipole, the sky model as alm, a bandpass template and the TOD of a
+thermometer as templates, and the covariance of their amplitudes. The
+pieces to adapt are marked in the comments: the sky (here random), the
+instrument and the scanning strategy (here 4 detectors at 1 Hz for 7 days,
+about 2 minutes on a laptop), and the systematics in the data (here a gain
+per detector and day and a thermal pickup, added by hand). With MPI, run the
+same script with ``mpirun``: every process calls
+:meth:`.Simulation.make_sanepic_gls_map` and gets the full maps.
+
+.. code-block:: python
+
+  import astropy.time
+  import healpy as hp
+  import numpy as np
+
+  import litebird_sim as lbs
+  from pysanepic import CalibrationParameters, GLSParameters, Template
+
+  nside, n_days = 64, 7
+  gal = lbs.CoordinateSystem.Galactic
+
+  # ---- the sky at the band centre, as alm (Galactic, K_CMB, mmax = lmax) ----
+  # here a random CMB-like sky and a "dust" with constant spectral index; in a
+  # real run: CMB + foregrounds from PySM, smoothed with the beam
+  lmax = 3 * nside - 1
+  np.random.seed(1)
+  cmb_alm = np.array([hp.synalm(1e-10 / (1 + np.arange(lmax + 1)) ** 2, lmax=lmax) for _ in range(3)])
+  fg_alm = np.array([hp.synalm(1e-9 / (1 + np.arange(lmax + 1)) ** 2.5, lmax=lmax) for _ in range(3)])
+  nu0, beta = 140.0, 1.5
+  dfg_dnu_alm = fg_alm * beta / nu0  # dF/dnu at nu0 (e.g. (F(nu0 + 1 GHz) - F(nu0 - 1 GHz)) / 2)
+  sky_alm = cmb_alm + fg_alm
+
+  # ---- the simulation: 4 detectors, one observation per day ----------------
+  sim = lbs.Simulation(
+      start_time=astropy.time.Time("2030-01-01T00:00:00"),
+      duration_s=n_days * 86400.0,
+      random_seed=12345,
+  )
+  sim.set_instrument(lbs.InstrumentInfo(name="instr", spin_boresight_angle_rad=np.radians(50)))
+  detectors = [
+      lbs.DetectorInfo(
+          name=f"det{i}",
+          sampling_rate_hz=1.0,
+          net_ukrts=50.0,
+          fknee_mhz=20.0,
+          alpha=1.0,
+          fmin_hz=1e-5,
+          pol_angle_rad=a,
+          bandcenter_ghz=nu0,
+      )
+      for i, a in enumerate(np.radians([0, 90, 45, 135]))
+  ]
+  sim.create_observations(
+      detectors=detectors,
+      num_of_obs_per_detector=n_days,  # one per day: the chunks of the map-maker
+      tods=[
+          lbs.TodDescription(name=c, dtype=np.float64, units=lbs.Units.K_CMB, description=c)
+          for c in ("tod", "dipole", "thermal")
+      ],
+  )
+  sim.set_scanning_strategy(
+      lbs.SpinningScanningStrategy(
+          spin_sun_angle_rad=np.radians(45),
+          precession_rate_hz=1 / (192.348 * 60),
+          spin_rate_hz=0.05 / 60,
+      ),
+      delta_time_s=60,
+  )
+  sim.prepare_pointings()
+
+  # ---- the data: d = g (sky + dipole) + thermal pickup + 1/f noise ----------
+  sim.fill_tods(maps=lbs.SphericalHarmonics(values=sky_alm, lmax=lmax, coordinates=gal))
+  sim.add_dipole()                    # into "tod"
+  sim.add_dipole(component="dipole")  # the calibrator, for the map-maker
+  rng = np.random.default_rng(7)
+  coupling = {d.name: 1e-3 * rng.normal() for d in detectors}
+  for obs in sim.observations:
+      for i, name in enumerate(obs.name):
+          obs.tod[i] *= 1 + 1e-2 * rng.normal()  # a gain per detector and day
+          # a thermometer reading (here a random drift) seen through a coupling
+          obs.thermal[i] = np.cumsum(rng.normal(size=obs.n_samples_process)) * 1e-3
+          obs.tod[i] += coupling[name] * obs.thermal[i]
+  sim.add_noise(noise_type="one_over_f", model="toast")
+
+  # ---- the GLS maps -----------------------------------------------------------
+  params = GLSParameters(chunk_s=86400.0, tol=1e-10)
+  galaxy = np.abs(hp.pix2vec(nside, np.arange(12 * nside**2))[2]) > np.sin(np.radians(10))  # 1 = used
+  result = sim.make_sanepic_gls_map(
+      nside=nside,
+      params=params,
+      noise_model="toast",  # the spectral shape of add_noise
+      calibration=CalibrationParameters(gain_period_s=86400.0, mask=galaxy),
+      dipole_component="dipole",
+      sky_model=lbs.SphericalHarmonics(values=sky_alm, lmax=lmax, coordinates=gal),
+      templates={
+          "fg_deriv1": Template(sky=dfg_dnu_alm, sum_zero=True),  # bandpass mismatch: band shifts [GHz]
+          "thermal": Template(),  # the TOD component obs.thermal, one coupling per detector
+      },
+      template_covariance=True,
+  )
+  result.maps          # (3, npix) I, Q, U in K, healpy.UNSEEN where not solved
+  result.gains         # one array per detector and observation of this process
+  result.templates     # {"fg_deriv1": {"det0": ..., ...}, "thermal": {"det0": ..., ...}}
+  sigma = np.sqrt(np.diag(result.template_covariance["matrix"]))
+  for (name, det), s in zip(result.template_covariance["labels"], sigma):
+      print(f"{name} {det}: {result.templates[name][det]:+.2e} +- {s:.1e}")
+
+
+Notes on the choices:
+
+- one :class:`.Observation` per day and ``chunk_s=86400.0``: the noise of
+  each observation is generated independently, so the chunks of
+  :math:`N^{-1}` follow them; the gains (``gain_period_s``) need not;
+- ``noise_model`` must be the spectral shape used by :meth:`.Simulation.add_noise`;
+- the dipole is in ``"tod"`` (the data) and in ``"dipole"`` (the calibrator,
+  subtracted from the calibrated TOD): its orbital part sets the absolute
+  calibration;
+- the sky model and the templates as alm need the angles of the pointings,
+  passed automatically (``pointing_form="auto"``); with the sky model, the
+  Galactic mask of the gains can be smaller than without, as the structure
+  below the pixel size is modelled;
+- a template without ``sky`` takes its TOD from the component with its name
+  (``obs.thermal``); one with ``sky`` is sampled at the pointing of each
+  detector. With ``sum_zero=True`` the bandpass amplitudes are the shifts of
+  the bands with respect to their mean;
+- ``template_covariance=True`` costs one more PCG solve per amplitude
+  (8 here): skip it in production runs with many detectors, or use it to
+  check which templates are degenerate (e.g. the first and second
+  derivatives of the foregrounds).
+
 
 
 High level interface and data-splits

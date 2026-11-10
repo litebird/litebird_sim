@@ -153,7 +153,6 @@ def test_hwp_sys_mpi():
     lbs.scan_map_in_observations(
         maps=input_maps,
         observations=[obs],
-        save_tod=True,
         mueller_phases=mueller_phases,
     )
 

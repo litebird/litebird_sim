@@ -16,7 +16,9 @@ from pathlib import Path
 from typing import Any
 
 import astropy.time
+import healpy as hp
 import numpy as np
+import pytest
 import numpy.testing as nptest
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
@@ -375,11 +377,12 @@ def setup_simulation(
 
 
 def test_map_maker_parts():
-    from litebird_sim.observation_utilities import _normalize_observations_and_pointings
+    from litebird_sim.observation_utilities import observation_pointings
     from litebird_sim.mapmaking.destriper import (
-        _store_pixel_idx_and_pol_angle_in_obs,
+        _compute_obs_mappings,
         _build_mask_detector_split,
         _build_mask_time_split,
+        _apply_flags_to_time_masks,
         _build_nobs_matrix,
         _sum_components_into_obs,
         _compute_binned_map,
@@ -395,23 +398,21 @@ def test_map_maker_parts():
 
     baseline_lengths_list = get_baseline_lengths_list(expected_solution)
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=sim.observations,
+    obs_pointings = observation_pointings(
+        sim.observations,
         pointings=[pointings],
-    )
-
-    hpx = Healpix_Base(nside=nside, scheme="RING")
-    _store_pixel_idx_and_pol_angle_in_obs(
-        hpx=hpx,
-        obs_list=obs_list,
-        ptg_list=ptg_list,
-        hwp=None,
         output_coordinate_system=CoordinateSystem.Ecliptic,
     )
+    obs_list = [cur_obs for cur_obs, _ in obs_pointings]
+
+    hpx = Healpix_Base(nside=nside, scheme="RING")
+    mapping_list = _compute_obs_mappings(nside, obs_pointings)
 
     detector_mask_list = _build_mask_detector_split("full", obs_list)
 
-    time_mask_list = _build_mask_time_split("full", obs_list)
+    time_mask_list = _apply_flags_to_time_masks(
+        _build_mask_time_split("full", obs_list), obs_list, None, None
+    )
 
     #################################################
     # Step 1: check that the N_obs matrix is correct
@@ -419,6 +420,7 @@ def test_map_maker_parts():
     nobs_matrix_cholesky = _build_nobs_matrix(
         hpx=hpx,
         obs_list=obs_list,
+        mapping_list=mapping_list,
         dm_list=detector_mask_list,
         tm_list=time_mask_list,
     )
@@ -466,6 +468,7 @@ def test_map_maker_parts():
 
     _compute_binned_map(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         output_sky_map=sky_map,
         output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
@@ -518,6 +521,7 @@ def test_map_maker_parts():
     # only contained zeroes)
     _compute_binned_map(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         output_sky_map=sky_map,
         output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
@@ -530,6 +534,7 @@ def test_map_maker_parts():
 
     _compute_baseline_sums(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         sky_map=sky_map,
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
@@ -561,6 +566,7 @@ def test_map_maker_parts():
     # Now do the same using `y` instead of `Fa`
     _compute_binned_map(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         output_sky_map=sky_map,
         output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
@@ -573,6 +579,7 @@ def test_map_maker_parts():
 
     _compute_baseline_sums(
         obs_list=obs_list,
+        mapping_list=mapping_list,
         sky_map=sky_map,
         baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
@@ -612,9 +619,8 @@ def _compare_analytical_vs_estimated_map(
                 rtol=1e-5,
             )
         else:
-            assert np.isnan(actual[0, cur_pix])
-            assert np.isnan(actual[1, cur_pix])
-            assert np.isnan(actual[2, cur_pix])
+            # As the other map-makers
+            assert np.all(actual[:, cur_pix] == hp.UNSEEN)
 
 
 def _make_zero_mean(x: npt.NDArray) -> npt.NDArray:
@@ -1165,10 +1171,10 @@ def test_destriper_removes_pure_offsets(tmp_path):
     samples_per_baseline = 100
     rng = np.random.default_rng(0)
     for obs in sim.observations:
-        num_of_baselines = -(-obs.n_samples // samples_per_baseline)
+        num_of_baselines = -(-obs.n_samples_process // samples_per_baseline)
         offsets = rng.normal(0, 1e-4, (obs.n_detectors, num_of_baselines))
         obs.tod[:] = np.repeat(offsets, samples_per_baseline, axis=1)[
-            :, : obs.n_samples
+            :, : obs.n_samples_process
         ]
 
     nside = 16
@@ -1195,3 +1201,93 @@ def test_destriper_removes_pure_offsets(tmp_path):
     )
     assert result.converged is True
     assert np.std(result.destriped_map[:, seen]) < 1e-4 * binned_rms
+
+
+def _scratch_simulation():
+    sim = lbs.Simulation(start_time=0.0, duration_s=200.0, random_seed=1)
+    sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.7, 1e-4, 1e-2))
+    sim.set_instrument(lbs.InstrumentInfo(name="i", spin_boresight_angle_rad=0.8))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(name=n, sampling_rate_hz=5.0, net_ukrts=50.0)
+            for n in ("a", "b")
+        ],
+        tods=[
+            lbs.TodDescription(
+                name="tod", units=lbs.Units.K_CMB, dtype=np.float64, description="sky"
+            ),
+            lbs.TodDescription(
+                name="noise",
+                units=lbs.Units.K_CMB,
+                dtype=np.float64,
+                description="noise",
+            ),
+        ],
+    )
+    sim.prepare_pointings()
+    rng = np.random.default_rng(1)
+    for cur_obs in sim.observations:
+        cur_obs.tod[:] = rng.normal(size=cur_obs.tod.shape)
+        cur_obs.noise[:] = rng.normal(size=cur_obs.noise.shape)
+    return sim
+
+
+def _destriper_fields(obs):
+    return {name for name in vars(obs) if name.startswith("destriper_")}
+
+
+def test_destriper_leaves_observations_unchanged():
+    sim = _scratch_simulation()
+    obs = sim.observations[0]
+    tod_before = obs.tod.copy()
+    params = lbs.DestriperParameters(samples_per_baseline=50, iter_max=3)
+
+    lbs.make_destriped_map(
+        nside=4,
+        observations=sim.observations,
+        params=params,
+        components=["tod", "noise"],
+    )
+    # Summing and subtracting the components again only changes the rounding
+    np.testing.assert_allclose(obs.tod, tod_before, rtol=0, atol=1e-12)
+    assert _destriper_fields(obs) == set()
+
+    # The TOD components are summed into `tod` before the splits are
+    # validated: an invalid split must not leave them summed
+    with pytest.raises(ValueError):
+        lbs.make_destriped_map(
+            nside=4,
+            observations=sim.observations,
+            params=params,
+            components=["tod", "noise"],
+            time_split="foo",
+        )
+    # Summing and subtracting the components again only changes the rounding
+    np.testing.assert_allclose(obs.tod, tod_before, rtol=0, atol=1e-12)
+    assert _destriper_fields(obs) == set()
+
+
+def test_destriper_keeps_fields_on_request():
+    sim = _scratch_simulation()
+    obs = sim.observations[0]
+    lbs.make_destriped_map(
+        nside=4,
+        observations=sim.observations,
+        params=lbs.DestriperParameters(samples_per_baseline=50, iter_max=3),
+        keep_weights=True,
+        keep_pixel_idx=True,
+    )
+    assert _destriper_fields(obs) == {"destriper_weights", "destriper_pixel_idx"}
+    assert obs.destriper_pixel_idx.shape == obs.tod.shape
+
+
+def test_invnpp_of_invalid_pixels_is_unseen():
+    nobs = NobsMatrix(
+        nobs_matrix=np.zeros((2, 6)),
+        valid_pixel=np.array([False, True]),
+        is_cholesky=True,
+    )
+    nobs.nobs_matrix[1] = [1.0, 0.0, 2.0, 0.0, 0.0, 4.0]
+    invnpp = nobs.get_invnpp()
+    assert np.all(invnpp[0] == hp.UNSEEN)
+    np.testing.assert_allclose(invnpp[1], np.diag([1.0, 0.25, 1 / 16]))

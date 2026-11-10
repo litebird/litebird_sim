@@ -3,7 +3,7 @@ name: Docs Tests
 on: [push]
 
 jobs:
-  tests:
+  doctests:
     runs-on: ubuntu-latest
 
     # Only run tests if there is no [skipci] or [skip ci] in the commit message
@@ -42,6 +42,4 @@ jobs:
           uv sync --locked ${EXTRAS}
 
       - name: Test code examples in the documentation
-        run: |
-          set -euo pipefail
-          uv run make -C docs/ doctest
+        run: ./bin/run_tests.sh --docs
