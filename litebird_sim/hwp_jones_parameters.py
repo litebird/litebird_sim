@@ -37,7 +37,9 @@ class HWPJonesParams:
         freq_sampling_offset: int = 0,
     ) -> "HWPJonesParams":
         """
-        Load Jones HWP parameters from a CSV stream.
+        Load the Jones HWP parameters from an open text stream (CSV format).
+
+        Expects 17 columns of floating point data as defined in LB-DFS-HWP-001.
 
         Keeps every `freq_sampling_frac`-th data row, starting at
         `freq_sampling_offset`. The first data row has index 0; headers,
@@ -143,20 +145,17 @@ class HWPJonesParams:
             )
 
     def clip_frequencies(
-        self,
-        bandcenter_ghz: float,
-        bandwidth_ghz: float,
+        self, bandcenter_ghz: float, bandwidth_ghz: float
     ) -> "HWPJonesParams":
-        """Return a copy containing frequencies within the requested band."""
-        if bandcenter_ghz <= 0.0:
-            raise ValueError("The bandcenter must be positive.")
-        if bandwidth_ghz <= 0.0:
-            raise ValueError("The bandwidth must be positive.")
+        """Return a copy of this object with the frequencies outside the range [ν₀ - δν/2, ν + δν/2]
+        masked out"""
+
+        assert bandcenter_ghz > 0.0, "The bandcenter must be positive."
+        assert bandwidth_ghz > 0.0, "The bandwidth must be positive."
 
         freq_min = bandcenter_ghz - bandwidth_ghz / 2
         freq_max = bandcenter_ghz + bandwidth_ghz / 2
         mask = (self.freq_ghz >= freq_min) & (self.freq_ghz <= freq_max)
 
-        return type(self)(
-            **{field.name: getattr(self, field.name)[mask] for field in fields(self)}
-        )
+        new_data = {f.name: getattr(self, f.name)[mask] for f in fields(self)}
+        return HWPJonesParams(**new_data)
