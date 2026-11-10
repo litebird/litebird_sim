@@ -132,7 +132,22 @@ class HWPJonesParams:
         freq_sampling_frac: int = 1,
         freq_sampling_offset: int = 0,
     ) -> "HWPJonesParams":
-        """Load sampled Jones HWP parameters from the IMo."""
+        """
+        Load the Jones HWP parameters from the IMo.
+
+        The data must conform LB-DFS-HWP-001. No validation is done here,
+        as it is assumed that the IMo was already validated!
+
+        Args:
+            imo: An instance to a :class:`.Imo` object
+            url: UUID or path for the specific Jones HWP parameters.
+            freq_sampling_frac: integer by which the sampling rate will be divided.
+            freq_sampling_offset: offset to change the starting frequency sample.
+
+        Returns:
+            An instance of HWPJonesParams populated with raw data.
+        """
+
         data_file = imo.query_data_file(url)
         if data_file is None:
             raise ValueError(f"Reference {url} does not point to a data file")
