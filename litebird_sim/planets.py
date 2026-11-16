@@ -9,7 +9,7 @@ the CMB monopole occulted by the planet already subtracted, which is what
 enters a differential TOD.
 """
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import NamedTuple
 
 import astropy.time
@@ -451,6 +451,23 @@ def add_planet_signal(
                 )
 
 
+def _planet_fields(bandpass_integration: bool) -> Callable[[Observation], list[str]]:
+    """The fields of the detectors read by :func:`add_planets_to_observations`"""
+
+    def fields(obs: Observation) -> list[str]:
+        result = ["fwhm_arcmin"]
+        band = getattr(obs, "band", None)
+        has_band = band is not None and all(b is not None for b in band)
+        if not bandpass_integration:
+            result.append("bandcenter_ghz")
+        elif not has_band:
+            # Top-hat bands, see _detector_bandpass
+            result += ["bandcenter_ghz", "bandwidth_ghz"]
+        return result
+
+    return fields
+
+
 def add_planets_to_observations(
     observations: Observation | list[Observation],
     pos_and_vel: SpacecraftPositionAndVelocity | None,
@@ -479,8 +496,8 @@ def add_planets_to_observations(
     """
     obs_list = [observations] if isinstance(observations, Observation) else observations
     planets = [planets] if isinstance(planets, str) else list(planets)
+    _check_detector_fields(obs_list, _planet_fields(bandpass_integration), component)
     check_observations_for_planets(obs_list)
-    _check_detector_fields(obs_list, ["fwhm_arcmin"], component)
 
     if pos_and_vel is None:
         if obs_list:

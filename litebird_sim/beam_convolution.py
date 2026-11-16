@@ -460,7 +460,8 @@ def add_convolved_sky_to_observations(
             )
 
     # The keys and the fields of all the observations, before modifying any TOD
-    _check_detector_fields(obs_list, ["mueller_hwp"], component)
+    # mueller_hwp is optional: None means no HWP
+    _check_detector_fields(obs_list, [], component)
     names_list = [
         (_detector_keys(o, sky_alms, "sky"), _detector_keys(o, beam_alms, "beam"))
         for o in obs_list
@@ -476,7 +477,7 @@ def add_convolved_sky_to_observations(
             sky_alms=sky_alms,
             beam_alms=beam_alms,
             hwp_angle=cur_ptg.hwp_angle,
-            mueller_hwp=cur_obs.mueller_hwp,
+            mueller_hwp=getattr(cur_obs, "mueller_hwp", None),
             input_sky_names=input_sky_names,
             input_beam_names=input_beam_names,
             convolution_params=convolution_params,

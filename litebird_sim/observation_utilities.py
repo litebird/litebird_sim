@@ -222,20 +222,48 @@ def _get_tod_component(obs: Observation, component: str) -> np.ndarray:
     return getattr(obs, component)
 
 
+def _is_unset(value) -> bool:
+    """True if `value`, a field of the detectors, is None or is None/NaN for
+    some detector (the value :class:`.Observation` gives to the detectors
+    that lack a field set for the others)"""
+    if value is None:
+        return True
+    try:
+        arr = np.asarray(value)
+    except ValueError:  # Ragged, e.g. matrices of different shapes
+        return False
+    if arr.dtype.kind in "fc":
+        return bool(np.isnan(arr).any())
+    if arr.dtype == object:
+        return any(
+            x is None or (isinstance(x, float) and np.isnan(x)) for x in arr.flat
+        )
+    return False
+
+
 def _check_detector_fields(
     observations: Observation | list[Observation],
-    fields: list[str],
+    fields: list[str] | Callable[[Observation], list[str]],
     component: str | None = None,
 ) -> None:
     """Raise a ValueError if an observation lacks some of `fields`, or the
     TOD `component` if given.
+
+    A field is missing if the observation has no such attribute, or if it is
+    None or NaN for some detector. `fields` can be a function returning the
+    fields needed by each observation.
 
     The effects call it before modifying any TOD, so that a missing field
     does not leave some observations (or some detectors) modified."""
     for obs_idx, cur_obs in enumerate(normalize_observations(observations)):
         if component is not None:
             _get_tod_component(cur_obs, component)
-        missing = [name for name in fields if not hasattr(cur_obs, name)]
+        cur_fields = fields(cur_obs) if callable(fields) else fields
+        missing = [
+            name
+            for name in cur_fields
+            if not hasattr(cur_obs, name) or _is_unset(getattr(cur_obs, name))
+        ]
         if missing:
             raise ValueError(
                 f"The detectors of observation {obs_idx} have no "

@@ -928,7 +928,7 @@ def add_dipole_to_observations(
     )
     obs_list = [cur_obs for cur_obs, _ in obs_pointings]
     _check_detector_fields(
-        obs_list, [] if frequency_ghz is not None else ["bandcenter_ghz"]
+        obs_list, [] if frequency_ghz is not None else ["bandcenter_ghz"], component
     )
 
     # The beams of all the observations, before modifying any TOD

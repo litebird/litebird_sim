@@ -248,7 +248,7 @@ def test_planets_without_observations(tmp_path):
 )
 def test_planets_with_observations_need_an_orbit(add_or_flag):
     obs = lbs.Observation(
-        detectors=[{"fwhm_arcmin": 30.0}],
+        detectors=[{"fwhm_arcmin": 30.0, "bandcenter_ghz": 140.0}],
         n_samples_observation=2,
         start_time_observation=START_TIME,
         sampling_rate_hz=1.0,
