@@ -307,3 +307,30 @@ def test_scan_map_checks_the_fields_of_each_hwp():
         lbs.scan_map_in_observations(observations, maps=sky, pointings=pointings)
     for obs, tod in zip(observations, tods):
         assert np.all(obs.tod == tod)
+
+
+def test_convolution_needs_mueller_hwp_only_for_a_non_ideal_hwp():
+    # No HWP in the first observation (mueller_hwp is None), a non-ideal one
+    # without Mueller matrix in the second: no TOD is modified
+    observations = [_observation(), _observation()]
+    observations[1].hwp = lbs.NonIdealHWP(
+        ang_speed_radpsec=1.0,
+        harmonic_expansion=False,
+        calculus=lbs.HWPFormalism.MUELLER,
+    )
+    observations[1].has_hwp = True
+    observations[1].hwp_angle = np.linspace(0.0, 2 * np.pi, N_SAMPLES)
+    pointings = [np.full((1, N_SAMPLES, 3), 0.5) for _ in observations]
+    beam = lbs.gauss_beam_to_alm(lmax=8, mmax=2, fwhm_rad=0.1)
+    with pytest.raises(ValueError, match="observation 1 have no 'mueller_hwp'"):
+        lbs.add_convolved_sky_to_observations(
+            observations,
+            sky_alms=_sky(),
+            beam_alms=beam,
+            pointings=pointings,
+            convolution_params=lbs.BeamConvolutionParameters(
+                lmax=8, mmax=2, strict_typing=False
+            ),
+        )
+    for obs in observations:
+        assert np.all(obs.tod == 0.0)
