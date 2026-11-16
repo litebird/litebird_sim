@@ -524,7 +524,7 @@ def scan_map_in_observations(
     def required_fields(cur_obs: Observation) -> list[str]:
         cur_hwp = hwp if hwp is not None else cur_obs.hwp
         if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
-            return _harmonics_fields(cur_hwp)
+            return _harmonics_fields(cur_hwp, integrate_in_band)
         fields = ["pol_angle_rad", "pol_efficiency"]
         if isinstance(cur_hwp, NonIdealHWP):
             fields.append("mueller_hwp")

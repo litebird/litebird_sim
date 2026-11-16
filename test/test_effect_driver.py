@@ -7,6 +7,7 @@ from astropy.time import Time
 
 import litebird_sim as lbs
 from litebird_sim.hwp_diff_emiss import add_2f_to_observations
+from litebird_sim.hwp_harmonics.hwp_harmonics import _harmonics_fields
 from litebird_sim.observation_utilities import _check_detector_fields, _detector_keys
 
 N_SAMPLES = 20
@@ -334,3 +335,16 @@ def test_convolution_needs_mueller_hwp_only_for_a_non_ideal_hwp():
         )
     for obs in observations:
         assert np.all(obs.tod == 0.0)
+
+
+@pytest.mark.parametrize("calculus", ["MUELLER", "JONES"])
+def test_harmonics_need_the_hwp_matrices_only_without_band_integration(calculus):
+    # With integrate_in_band, the matrices come from hwp.jones_parameters
+    hwp = lbs.NonIdealHWP(
+        ang_speed_radpsec=1.0,
+        harmonic_expansion=True,
+        calculus=lbs.HWPFormalism[calculus],
+    )
+    matrix = "mueller_hwp" if calculus == "MUELLER" else "jones_hwp"
+    assert matrix in _harmonics_fields(hwp, integrate_in_band=False)
+    assert matrix not in _harmonics_fields(hwp, integrate_in_band=True)
