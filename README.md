@@ -7,8 +7,8 @@
 | litebird\_sim/\_\_init\_\_.py                    |       45 |        0 |    100% |           |
 | litebird\_sim/bandpass\_template\_module.py      |       74 |       40 |     46% |22-29, 43-47, 66-93, 106, 149-157, 173-174, 179-180, 203, 213-220, 228 |
 | litebird\_sim/bandpasses.py                      |      126 |       23 |     82% |108, 124, 136-137, 239-242, 250-251, 260-261, 272, 318-319, 323-336, 351 |
-| litebird\_sim/beam\_convolution.py               |      117 |       10 |     91% |137-141, 188, 445-447, 452-454, 458 |
-| litebird\_sim/beam\_synthesis.py                 |      107 |        8 |     93% |255-259, 304, 311-312, 325 |
+| litebird\_sim/beam\_convolution.py               |      117 |       10 |     91% |137-141, 188, 449-451, 456-458, 462 |
+| litebird\_sim/beam\_synthesis.py                 |      111 |        8 |     93% |277-281, 325, 332-333, 346 |
 | litebird\_sim/compress.py                        |       24 |        8 |     67% | 17, 27-33 |
 | litebird\_sim/constants.py                       |       16 |        0 |    100% |           |
 | litebird\_sim/coordinates.py                     |       67 |       22 |     67% |116-120, 152-161, 189-199, 219-237 |
@@ -23,7 +23,7 @@
 | litebird\_sim/hwp\_diff\_emiss.py                |       31 |        3 |     90% | 17, 24-25 |
 | litebird\_sim/hwp\_harmonics/\_\_init\_\_.py     |        0 |        0 |    100% |           |
 | litebird\_sim/hwp\_harmonics/common.py           |       19 |       10 |     47% |7-9, 16-20, 27-31, 54-63 |
-| litebird\_sim/hwp\_harmonics/hwp\_harmonics.py   |      181 |       61 |     66% |48, 52-55, 60-69, 105, 126-130, 238-248, 264, 276-297, 324, 336-345, 357-361, 394-396, 418-420, 431-446, 452, 549, 554 |
+| litebird\_sim/hwp\_harmonics/hwp\_harmonics.py   |      183 |       61 |     67% |48, 52-55, 60-69, 105, 126-130, 239-249, 265, 277-298, 326, 338-347, 359-363, 399-401, 423-425, 436-451, 457, 554, 559 |
 | litebird\_sim/hwp\_harmonics/jones\_methods.py   |       67 |       52 |     22% |14-46, 52-61, 68-75, 106-135, 169-211 |
 | litebird\_sim/hwp\_harmonics/mueller\_methods.py |       22 |       12 |     45% | 23, 61-99 |
 | litebird\_sim/hwp\_jones\_parameters.py          |       32 |        7 |     78% |50, 74-77, 82-83 |
@@ -68,7 +68,7 @@
 | litebird\_sim/units.py                           |       51 |       10 |     80% |56, 61, 73, 99, 133, 136, 158-169 |
 | litebird\_sim/utilities.py                       |       44 |        9 |     80% |11, 23, 81-87 |
 | litebird\_sim/version.py                         |        2 |        0 |    100% |           |
-| **TOTAL**                                        | **9843** | **2645** | **73%** |           |
+| **TOTAL**                                        | **9849** | **2645** | **73%** |           |
 
 
 ## Setup coverage badge
