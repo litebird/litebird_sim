@@ -7,7 +7,7 @@
 | litebird\_sim/\_\_init\_\_.py                    |       45 |        0 |    100% |           |
 | litebird\_sim/bandpass\_template\_module.py      |       74 |       40 |     46% |22-29, 43-47, 66-93, 106, 149-157, 173-174, 179-180, 203, 213-220, 228 |
 | litebird\_sim/bandpasses.py                      |      126 |       23 |     82% |108, 124, 136-137, 239-242, 250-251, 260-261, 272, 318-319, 323-336, 351 |
-| litebird\_sim/beam\_convolution.py               |      113 |       10 |     91% |136-140, 187, 444-446, 451-453, 457 |
+| litebird\_sim/beam\_convolution.py               |      117 |       10 |     91% |137-141, 188, 445-447, 452-454, 458 |
 | litebird\_sim/beam\_synthesis.py                 |      107 |        8 |     93% |255-259, 304, 311-312, 325 |
 | litebird\_sim/compress.py                        |       24 |        8 |     67% | 17, 27-33 |
 | litebird\_sim/constants.py                       |       16 |        0 |    100% |           |
@@ -23,7 +23,7 @@
 | litebird\_sim/hwp\_diff\_emiss.py                |       31 |        3 |     90% | 17, 24-25 |
 | litebird\_sim/hwp\_harmonics/\_\_init\_\_.py     |        0 |        0 |    100% |           |
 | litebird\_sim/hwp\_harmonics/common.py           |       19 |       10 |     47% |7-9, 16-20, 27-31, 54-63 |
-| litebird\_sim/hwp\_harmonics/hwp\_harmonics.py   |      178 |       61 |     66% |48, 52-55, 60-69, 105, 126-130, 231-241, 257, 269-290, 316, 328-337, 349-353, 386-388, 410-412, 423-438, 444, 541, 546 |
+| litebird\_sim/hwp\_harmonics/hwp\_harmonics.py   |      181 |       61 |     66% |48, 52-55, 60-69, 105, 126-130, 238-248, 264, 276-297, 324, 336-345, 357-361, 394-396, 418-420, 431-446, 452, 549, 554 |
 | litebird\_sim/hwp\_harmonics/jones\_methods.py   |       67 |       52 |     22% |14-46, 52-61, 68-75, 106-135, 169-211 |
 | litebird\_sim/hwp\_harmonics/mueller\_methods.py |       22 |       12 |     45% | 23, 61-99 |
 | litebird\_sim/hwp\_jones\_parameters.py          |       32 |        7 |     78% |50, 74-77, 82-83 |
@@ -50,15 +50,15 @@
 | litebird\_sim/mueller\_convolver.py              |      144 |        5 |     97% |207-208, 321, 376, 390 |
 | litebird\_sim/noise.py                           |      183 |       29 |     84% |19-25, 34-40, 70-83, 272-286, 314, 442-444, 716-734, 767 |
 | litebird\_sim/non\_linearity.py                  |       45 |       11 |     76% | 34-57, 96 |
-| litebird\_sim/observation\_utilities.py          |      253 |       28 |     89% |108, 672, 768-771, 775, 782-797, 852, 860-873, 917-921, 929, 939-948 |
+| litebird\_sim/observation\_utilities.py          |      266 |       30 |     89% |108, 233-234, 700, 796-799, 803, 810-825, 880, 888-901, 945-949, 957, 967-976 |
 | litebird\_sim/observations.py                    |      447 |      154 |     66% |274, 299, 325-328, 339-340, 369-370, 414, 446, 502-503, 507, 591-609, 614, 616, 660, 696-697, 713-869, 883-910, 933-935, 970-995, 1322, 1333, 1418, 1436, 1482, 1560 |
-| litebird\_sim/planets.py                         |      154 |       15 |     90% |251-254, 287, 321, 341, 440-447 |
+| litebird\_sim/planets.py                         |      165 |       15 |     91% |251-254, 287, 321, 341, 440-447 |
 | litebird\_sim/plot\_fp.py                        |      185 |      162 |     12% |22-38, 50-66, 74-97, 105-129, 143-158, 166-197, 200-211, 219-222, 225-339, 345-346 |
 | litebird\_sim/pointing\_sys.py                   |      182 |       24 |     87% |38, 50, 89, 92-97, 111, 114-118, 131-133, 138-143, 560 |
 | litebird\_sim/pointings.py                       |      100 |        4 |     96% |57-58, 298, 398 |
 | litebird\_sim/profiler.py                        |       38 |        1 |     97% |        66 |
 | litebird\_sim/quaternions.py                     |       21 |        0 |    100% |           |
-| litebird\_sim/scan\_map.py                       |      122 |       35 |     71% |38, 45-47, 78-113, 238, 249, 256-257, 295-297, 315-317, 321, 369, 507-513, 516 |
+| litebird\_sim/scan\_map.py                       |      124 |       35 |     72% |38, 45-47, 78-113, 238, 249, 256-257, 295-297, 315-317, 321, 369, 507-513, 516 |
 | litebird\_sim/scanning.py                        |      211 |       40 |     81% |44, 121-127, 173-201, 221-224, 299-304, 336-337, 574, 649, 785, 823-833, 898, 911, 1013, 1058 |
 | litebird\_sim/seeding.py                         |      173 |       28 |     84% |43-57, 97, 111, 142, 227, 231, 234, 241, 250, 252, 259, 265, 268, 275-276, 279, 285, 331 |
 | litebird\_sim/shared\_memory.py                  |       67 |        4 |     94% |37, 66, 81, 100 |
@@ -68,7 +68,7 @@
 | litebird\_sim/units.py                           |       51 |       10 |     80% |56, 61, 73, 99, 133, 136, 158-169 |
 | litebird\_sim/utilities.py                       |       44 |        9 |     80% |11, 23, 81-87 |
 | litebird\_sim/version.py                         |        2 |        0 |    100% |           |
-| **TOTAL**                                        | **9810** | **2643** | **73%** |           |
+| **TOTAL**                                        | **9843** | **2645** | **73%** |           |
 
 
 ## Setup coverage badge
