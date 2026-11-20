@@ -139,6 +139,7 @@ def _harmonics_fields(hwp: NonIdealHWP, integrate_in_band: bool) -> list[str]:
         "g_one_over_k",
         "amplitude_2f_k",
         "pol_angle_rad",
+        "pol_efficiency",
         "pointing_theta_phi_psi_deg",
         "bandcenter_ghz",
         "bandwidth_ghz",
@@ -313,6 +314,7 @@ def fill_tod_with_hwp_harmonics(
         g_one_over_k = getattr(cur_obs, "g_one_over_k")
         amplitude_2f_k = getattr(cur_obs, "amplitude_2f_k")
         pol_angle_rad = getattr(cur_obs, "pol_angle_rad")
+        pol_efficiency = getattr(cur_obs, "pol_efficiency")
         pointing_theta_phi_psi_deg = getattr(cur_obs, "pointing_theta_phi_psi_deg")
         bandcenter_ghz = getattr(cur_obs, "bandcenter_ghz")
         bandwidth_ghz = getattr(cur_obs, "bandwidth_ghz")
@@ -373,8 +375,11 @@ def fill_tod_with_hwp_harmonics(
 
             phi = np.deg2rad(pointing_theta_phi_psi_deg[idet][1])
 
-            cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
-            sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
+            # Polarizer row (1, γ cos(2ξ-2φ), γ sin(2ξ-2φ)) of the detector:
+            # the polarization efficiency γ scales its Q and U entries
+            gamma = pol_efficiency[idet]
+            cos2Xi2Phi = gamma * np.cos(2 * xi - 2 * phi)
+            sin2Xi2Phi = gamma * np.sin(2 * xi - 2 * phi)
 
             # ----------------------------------------------------------
             # REAL SPACE (HealpixMap)

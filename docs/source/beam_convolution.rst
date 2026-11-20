@@ -241,7 +241,8 @@ The parameters are:
 - `ellipticity`: Ellipticity of the beam defined as fwhm_max/fwhm_min (1.0 for circular).
 - `psi_ell_rad`: Orientation of the beam’s major axis with respect to the x-axis (radians).
 - `psi_pol_rad`: Polarization reference angle with respect to the x-axis (radians). If None, only intensity is computed.
-- `cross_polar_leakage`: Cross-polarization leakage factor.
+- `cross_polar_leakage`: Deprecated, use `pol_efficiency`. Cross-polar leakage ε, scaling I by (1+ε) and Q, U by (1−ε).
+- `pol_efficiency`: Polarization efficiency γ of the detector (see :attr:`.DetectorInfo.pol_efficiency`). It scales Q and U and leaves I unchanged; a scalar cross-polar leakage ε corresponds to γ = (1−ε)/(1+ε).
 
 The function returns a :class:`SphericalHarmonics` object with the intensity and (if requested) polarized 
 components of the beam in harmonic space.
@@ -257,6 +258,9 @@ The parameters are:
 - `store_in_observation`: If True, the result is stored in the observation.blms attribute. Default False
 
 The function :func:`.generate_gauss_beam_alms` returns a dictionary mapping each detector name to its corresponding :class:`SphericalHarmonics` object.
+The blms of the detectors include their polarization efficiency γ (``pol_efficiency``), which the beam convolution does
+not apply on its own: this way the convolved TOD matches that of :func:`.scan_map_in_observations`. If you build the
+blms yourself, include γ in their polarized part; beams from GRASP files already contain the cross-polar response.
 This is simple example of usage::
 
   blms = lbs.generate_gauss_beam_alms(

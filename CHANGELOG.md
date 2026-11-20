@@ -1,5 +1,7 @@
 # HEAD
 
+-   The polarization efficiency γ (`pol_efficiency`) of the detectors, i.e., a scalar cross-polar leakage, is applied by all the TOD paths: `generate_gauss_beam_alms` puts it in the polarized blms of the detectors (so the beam convolution matches `scan_map_in_observations`) and `fill_tod_with_hwp_harmonics` in the polarizer of the detector. `gauss_beam_to_alm` takes `pol_efficiency`; `cross_polar_leakage` is deprecated. Reference issue: [#675](https://github.com/litebird/litebird_sim/issues/675).
+
 -   The check of the fields of the detectors treats a field that is `None` or `NaN` for some detector as missing, and runs before any other check: the planets check `bandcenter_ghz` (and `bandwidth_ghz` for top-hat bands) as well as `fwhm_arcmin`, the dipole checks `component`, and `scan_map_in_observations` and `add_convolved_sky_to_observations` ask each observation only for the fields of its own HWP (`mueller_hwp` only for a `NonIdealHWP`).
 
 -   `Simulation.add_dipole` takes `apply_convolution` and `beam_alms` (the dipole convolved with the beam). The unused `band_filenames` (`Simulation.fill_tods`) and `input_sky_alms_in_galactic` (`Simulation.convolve_sky`) are deprecated; `save_tod`, which had no effect, is removed from `scan_map_in_observations` and `fill_tod_with_hwp_harmonics`. Reference PR: [#668](https://github.com/litebird/litebird_sim/pull/668).

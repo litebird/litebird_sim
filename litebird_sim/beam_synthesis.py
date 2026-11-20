@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from scipy.special import iv as bessel_i
 
@@ -15,6 +17,7 @@ def gauss_beam_to_alm(
     psi_ell_rad: float = 0.0,
     psi_pol_rad: float = 0.0,
     cross_polar_leakage: float = 0.0,
+    pol_efficiency: float = 1.0,
 ) -> SphericalHarmonics:
     """
     Compute spherical harmonics coefficients a_ℓm representing a Gaussian beam.
@@ -40,7 +43,14 @@ def gauss_beam_to_alm(
         Polarization angle of the beam wrt the x-axis.
         If None, only the intensity (I) is computed (nstokes=1).
     cross_polar_leakage : float, optional, default=0.0
-        Cross-polar leakage factor (pure number).
+        Deprecated, use `pol_efficiency`. Cross-polar leakage ε (pure number):
+        it scales I by (1+ε) and Q, U by (1-ε), i.e., γ = (1-ε)/(1+ε) times a
+        gain (1+ε).
+    pol_efficiency : float, optional, default=1.0
+        Polarization efficiency γ of the detector (Eq. 15 of astro-ph/0606606),
+        the same as :attr:`.DetectorInfo.pol_efficiency`: it scales the Q and U
+        components of the beam and leaves I unchanged. It models a scalar
+        cross-polar leakage ε, with γ = (1-ε)/(1+ε).
 
     Returns
     -------
@@ -183,9 +193,19 @@ def gauss_beam_to_alm(
 
     # Adjust for cross-polar leakage
     if cross_polar_leakage != 0.0:
+        warnings.warn(
+            "`cross_polar_leakage` is deprecated, use `pol_efficiency` "
+            "(γ = (1-ε)/(1+ε), with I unchanged) instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         alm.values[0, :] *= 1.0 + cross_polar_leakage
         if num_stokes > 1:
             alm.values[1:, :] *= 1.0 - cross_polar_leakage
+
+    # Polarization efficiency of the detector
+    if num_stokes > 1 and pol_efficiency != 1.0:
+        alm.values[1:, :] *= pol_efficiency
 
     # --- Add Challinor spin-2 normalization to match gauss_bl() ---
     # gauss_bl() uses B_l^{E,B} = exp(-0.5*l(l+1)*sigma^2) * exp(2*sigma^2)
@@ -212,7 +232,9 @@ def generate_gauss_beam_alms(
 
     This function computes the blms for a 2D Gaussian beam, accounting for
     detector-specific parameters such as beam width (FWHM), ellipticity,
-    and polarization orientation.
+    polarization orientation and polarization efficiency γ. The blms of the
+    detectors carry γ, so that the beam convolution matches
+    :func:`.scan_map_in_observations`; the blms of the channels have γ = 1.
 
     Parameters
     ----------
@@ -248,7 +270,7 @@ def generate_gauss_beam_alms(
                 ellipticity=observation.ellipticity[detector_idx],
                 psi_ell_rad=observation.psi_rad[detector_idx],
                 psi_pol_rad=observation.pol_angle_rad[detector_idx],
-                cross_polar_leakage=0.0,
+                pol_efficiency=observation.pol_efficiency[detector_idx],
             )
     else:
         # Use explicitly provided frequency channels
@@ -263,7 +285,6 @@ def generate_gauss_beam_alms(
                 ellipticity=channel.ellipticity,
                 psi_ell_rad=channel.psi_rad,
                 psi_pol_rad=0.0,  # Channels usually treated as unrotated/unpolarized basis here
-                cross_polar_leakage=0.0,
             )
 
     if store_in_observation:

@@ -15,7 +15,8 @@ from litebird_sim.scan_map import scan_map_in_observations
         lbs.HWPFormalism.JONES,
     ],
 )
-def test_hwp_harmonics(calculus):
+@pytest.mark.parametrize("pol_efficiency", [1.0, 0.7])
+def test_hwp_harmonics(calculus, pol_efficiency):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -54,6 +55,7 @@ def test_hwp_harmonics(calculus):
                     0.9985177324254199,
                 ],
                 "pointing_theta_phi_psi_deg": [0, 0, 0],
+                "pol_efficiency": pol_efficiency,
             }
         )
 
