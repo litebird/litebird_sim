@@ -420,6 +420,10 @@ def add_convolved_sky_to_observations(
     - If `pointings` is not provided, it is inferred from the `Observation` objects. If the pointing is passed
         or already precomputed this parameter is ineffective. Default is `np.float32`.
     - The function determines the correct sky and beam harmonics from the detector names or channels.
+    - The polarization efficiency γ (``pol_efficiency``) of the detectors is not applied here:
+      it must be in the polarized part of `beam_alms`, as in the blms of the detectors made by
+      :func:`.generate_gauss_beam_alms`. Beams from GRASP files already contain the cross-polar
+      response of the detector.
     - Calls `add_convolved_sky` to process the TOD for all detectors.
     """
 

@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import numpy as np
+import pytest
 import healpy as hp
 
 # Assuming gauss_beam_to_alm is exposed in the top-level package or imported correctly
@@ -20,7 +21,6 @@ def test_gaussbeam_circular():
         ellipticity=1.0,
         psi_ell_rad=0.1,
         psi_pol_rad=0.3,
-        cross_polar_leakage=1e-9,
     )
 
     # Check shape against (nstokes, nalm)
@@ -83,7 +83,6 @@ def test_gaussbeam_elliptical():
         ellipticity=1.6,
         psi_ell_rad=0.1,
         psi_pol_rad=0.3,
-        cross_polar_leakage=1e-9,
     )
 
     assert alm.values.shape == (3, 20)
@@ -166,3 +165,26 @@ def test_gaussbeam_elliptical():
     np.testing.assert_allclose(alm.values[0, :], expected_alm[0, :])
     np.testing.assert_allclose(alm.values[1, :], expected_alm[1, :])
     np.testing.assert_allclose(alm.values[2, :], expected_alm[2, :])
+
+
+def test_gaussbeam_pol_efficiency():
+    kwargs = dict(lmax=5, mmax=4, fwhm_rad=0.5, ellipticity=1.3, psi_pol_rad=0.3)
+    ref = gauss_beam_to_alm(**kwargs)
+    alm = gauss_beam_to_alm(pol_efficiency=0.7, **kwargs)
+
+    # γ scales Q and U only
+    np.testing.assert_allclose(alm.values[0, :], ref.values[0, :])
+    np.testing.assert_allclose(alm.values[1:, :], 0.7 * ref.values[1:, :])
+
+
+def test_gaussbeam_cross_polar_leakage_deprecated():
+    kwargs = dict(lmax=5, mmax=4, fwhm_rad=0.5, psi_pol_rad=0.3)
+    eps = 0.1
+    ref = gauss_beam_to_alm(**kwargs)
+    with pytest.warns(DeprecationWarning, match="pol_efficiency"):
+        alm = gauss_beam_to_alm(cross_polar_leakage=eps, **kwargs)
+
+    # Same γ = (1-ε)/(1+ε) as pol_efficiency, times a gain (1+ε)
+    gamma = gauss_beam_to_alm(pol_efficiency=(1 - eps) / (1 + eps), **kwargs)
+    np.testing.assert_allclose(alm.values, (1 + eps) * gamma.values)
+    np.testing.assert_allclose(alm.values[0, :], (1 + eps) * ref.values[0, :])
