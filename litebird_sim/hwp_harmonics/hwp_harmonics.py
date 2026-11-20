@@ -130,17 +130,24 @@ def set_band_params_for_one_detector(
         return (det_params, bpi)
 
 
-def _harmonics_fields(hwp: NonIdealHWP) -> list[str]:
-    """The fields of the detectors read by :func:`.fill_tod_with_hwp_harmonics`"""
-    return [
+def _harmonics_fields(hwp: NonIdealHWP, integrate_in_band: bool) -> list[str]:
+    """The fields of the detectors read by :func:`.fill_tod_with_hwp_harmonics`
+
+    With `integrate_in_band`, the matrices of the HWP come from
+    ``hwp.jones_parameters`` instead of the detectors."""
+    fields = [
         "g_one_over_k",
         "amplitude_2f_k",
         "pol_angle_rad",
         "pointing_theta_phi_psi_deg",
         "bandcenter_ghz",
         "bandwidth_ghz",
-        "mueller_hwp" if hwp.calculus is HWPFormalism.MUELLER else "jones_hwp",
     ]
+    if not integrate_in_band:
+        fields.append(
+            "mueller_hwp" if hwp.calculus is HWPFormalism.MUELLER else "jones_hwp"
+        )
+    return fields
 
 
 def fill_tod_with_hwp_harmonics(
@@ -296,7 +303,8 @@ def fill_tod_with_hwp_harmonics(
         )
 
     _check_detector_fields(
-        [cur_obs for cur_obs, _ in obs_pointings], _harmonics_fields(hwp)
+        [cur_obs for cur_obs, _ in obs_pointings],
+        _harmonics_fields(hwp, integrate_in_band),
     )
 
     for idx_obs, (cur_obs, cur_ptg) in enumerate(obs_pointings):

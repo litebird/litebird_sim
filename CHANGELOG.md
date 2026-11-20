@@ -1,5 +1,7 @@
 # HEAD
 
+-   The check of the fields of the detectors treats a field that is `None` or `NaN` for some detector as missing, and runs before any other check: the planets check `bandcenter_ghz` (and `bandwidth_ghz` for top-hat bands) as well as `fwhm_arcmin`, the dipole checks `component`, and `scan_map_in_observations` and `add_convolved_sky_to_observations` ask each observation only for the fields of its own HWP (`mueller_hwp` only for a `NonIdealHWP`).
+
 -   `Simulation.add_dipole` takes `apply_convolution` and `beam_alms` (the dipole convolved with the beam). The unused `band_filenames` (`Simulation.fill_tods`) and `input_sky_alms_in_galactic` (`Simulation.convolve_sky`) are deprecated; `save_tod`, which had no effect, is removed from `scan_map_in_observations` and `fill_tod_with_hwp_harmonics`. Reference PR: [#668](https://github.com/litebird/litebird_sim/pull/668).
 
 -   `make_sanepic_gls_map` with `pointing_form="auto"` passes the angles to pysanepic also when `params.subpixel_order > 0` (before, the sub-pixel terms without a model as alm raised `ValueError`). The docs recommend `pysanepic>=0.6.5` and describe its noise-weighted binned sky model (`GLSParameters.binned_weights`).

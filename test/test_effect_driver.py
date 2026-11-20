@@ -7,7 +7,8 @@ from astropy.time import Time
 
 import litebird_sim as lbs
 from litebird_sim.hwp_diff_emiss import add_2f_to_observations
-from litebird_sim.observation_utilities import _detector_keys
+from litebird_sim.hwp_harmonics.hwp_harmonics import _harmonics_fields
+from litebird_sim.observation_utilities import _check_detector_fields, _detector_keys
 
 N_SAMPLES = 20
 
@@ -206,3 +207,144 @@ def test_chain_of_effects_on_another_component():
     for obs in obs_list:
         assert np.all(obs.tod == 0.0)
         assert np.all(np.isfinite(obs.extra)) and np.any(obs.extra != 0.0)
+
+
+def _two_detector_observation(missing_in_second: str):
+    # The second detector lacks the field: the observation stores NaN or None
+    second = {k: v for k, v in FULL_DETECTOR.items() if k != missing_in_second}
+    return lbs.Observation(
+        detectors=[FULL_DETECTOR, {**second, "name": "d1"}],
+        n_samples_observation=N_SAMPLES,
+        start_time_observation=0.0,
+        sampling_rate_hz=1.0,
+    )
+
+
+@pytest.mark.parametrize("field", ["pol_angle_rad", "wafer"])
+def test_field_unset_for_some_detectors_is_missing(field):
+    observations = [_observation(), _two_detector_observation(field)]
+    with pytest.raises(ValueError, match=f"observation 1 have no '{field}'"):
+        _check_detector_fields(observations, [field])
+
+
+def test_field_set_to_none_is_missing():
+    obs = _observation()
+    obs.pointing_theta_phi_psi_deg = None
+    with pytest.raises(ValueError, match="have no 'pointing_theta_phi_psi_deg'"):
+        _check_detector_fields(obs, ["pointing_theta_phi_psi_deg"])
+
+
+class _ConstantVelocity:
+    # Stand-in for SpacecraftPositionAndVelocity: 300 km/s along x
+    def compute_velocities(self, time0, delta_time_s, num_of_samples):
+        velocity = np.zeros((num_of_samples, 3))
+        velocity[:, 0] = 300.0
+        return velocity
+
+
+def test_dipole_checks_the_component_before_any_tod():
+    observations = [
+        lbs.Observation(
+            detectors=[FULL_DETECTOR],
+            n_samples_observation=N_SAMPLES,
+            start_time_observation=Time("2025-01-01T00:00:00"),
+            sampling_rate_hz=1.0,
+        )
+        for _ in range(2)
+    ]
+    observations[0].extra = np.zeros_like(observations[0].tod)
+    pointings = [np.full((1, N_SAMPLES, 3), 0.5) for _ in observations]
+    with pytest.raises(ValueError, match="'extra' is not an attribute"):
+        lbs.add_dipole_to_observations(
+            observations,
+            pos_and_vel=_ConstantVelocity(),
+            pointings=pointings,
+            component="extra",
+        )
+    assert np.all(observations[0].extra == 0.0)
+
+
+@pytest.mark.parametrize("field", ["fwhm_arcmin", "bandcenter_ghz"])
+def test_planets_check_the_fields_first(field):
+    det = {**FULL_DETECTOR, "fwhm_arcmin": 30.0}
+    del det[field]
+    obs = lbs.Observation(
+        detectors=[det],
+        n_samples_observation=N_SAMPLES,
+        start_time_observation=Time("2025-01-01T00:00:00"),
+        sampling_rate_hz=1.0,
+    )
+    with pytest.raises(ValueError, match=f"have no '{field}'"):
+        lbs.add_planets_to_observations(obs, pos_and_vel=None)
+
+
+def test_scan_map_checks_the_fields_of_each_hwp():
+    # No HWP in the first observation (mueller_hwp is None), a non-ideal one
+    # in the second: each observation needs only the fields of its own HWP
+    nside = 2
+    sky = lbs.HealpixMap(
+        values=np.ones((3, 12 * nside**2)),
+        nside=nside,
+        coordinates=lbs.CoordinateSystem.Ecliptic,
+    )
+    observations = [_observation(), _observation()]
+    observations[1].hwp = lbs.NonIdealHWP(
+        ang_speed_radpsec=1.0,
+        harmonic_expansion=False,
+        calculus=lbs.HWPFormalism.MUELLER,
+    )
+    observations[1].has_hwp = True
+    observations[1].hwp_angle = np.linspace(0.0, 2 * np.pi, N_SAMPLES)
+    observations[1].mueller_hwp = np.array([np.diag([1.0, 1.0, -1.0, -1.0])])
+    pointings = [np.full((1, N_SAMPLES, 3), 0.5) for _ in observations]
+    lbs.scan_map_in_observations(observations, maps=sky, pointings=pointings)
+    for obs in observations:
+        assert np.all(np.isfinite(obs.tod)) and np.any(obs.tod != 0.0)
+
+    # Without the Mueller matrix, no TOD is modified
+    observations[1].mueller_hwp = np.array([None])
+    tods = [obs.tod.copy() for obs in observations]
+    with pytest.raises(ValueError, match="observation 1 have no 'mueller_hwp'"):
+        lbs.scan_map_in_observations(observations, maps=sky, pointings=pointings)
+    for obs, tod in zip(observations, tods):
+        assert np.all(obs.tod == tod)
+
+
+def test_convolution_needs_mueller_hwp_only_for_a_non_ideal_hwp():
+    # No HWP in the first observation (mueller_hwp is None), a non-ideal one
+    # without Mueller matrix in the second: no TOD is modified
+    observations = [_observation(), _observation()]
+    observations[1].hwp = lbs.NonIdealHWP(
+        ang_speed_radpsec=1.0,
+        harmonic_expansion=False,
+        calculus=lbs.HWPFormalism.MUELLER,
+    )
+    observations[1].has_hwp = True
+    observations[1].hwp_angle = np.linspace(0.0, 2 * np.pi, N_SAMPLES)
+    pointings = [np.full((1, N_SAMPLES, 3), 0.5) for _ in observations]
+    beam = lbs.gauss_beam_to_alm(lmax=8, mmax=2, fwhm_rad=0.1)
+    with pytest.raises(ValueError, match="observation 1 have no 'mueller_hwp'"):
+        lbs.add_convolved_sky_to_observations(
+            observations,
+            sky_alms=_sky(),
+            beam_alms=beam,
+            pointings=pointings,
+            convolution_params=lbs.BeamConvolutionParameters(
+                lmax=8, mmax=2, strict_typing=False
+            ),
+        )
+    for obs in observations:
+        assert np.all(obs.tod == 0.0)
+
+
+@pytest.mark.parametrize("calculus", ["MUELLER", "JONES"])
+def test_harmonics_need_the_hwp_matrices_only_without_band_integration(calculus):
+    # With integrate_in_band, the matrices come from hwp.jones_parameters
+    hwp = lbs.NonIdealHWP(
+        ang_speed_radpsec=1.0,
+        harmonic_expansion=True,
+        calculus=lbs.HWPFormalism[calculus],
+    )
+    matrix = "mueller_hwp" if calculus == "MUELLER" else "jones_hwp"
+    assert matrix in _harmonics_fields(hwp, integrate_in_band=False)
+    assert matrix not in _harmonics_fields(hwp, integrate_in_band=True)

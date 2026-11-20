@@ -520,14 +520,17 @@ def scan_map_in_observations(
     # The keys of the maps and the fields of all the observations, before
     # modifying any TOD
     input_names_list = [_detector_keys(cur_obs, maps, "sky") for cur_obs in obs_list]
-    required_fields = set()
-    for cur_obs in obs_list:
+
+    def required_fields(cur_obs: Observation) -> list[str]:
         cur_hwp = hwp if hwp is not None else cur_obs.hwp
         if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
-            required_fields.update(_harmonics_fields(cur_hwp))
-        else:
-            required_fields.update(["pol_angle_rad", "pol_efficiency", "mueller_hwp"])
-    _check_detector_fields(obs_list, sorted(required_fields), component)
+            return _harmonics_fields(cur_hwp, integrate_in_band)
+        fields = ["pol_angle_rad", "pol_efficiency"]
+        if isinstance(cur_hwp, NonIdealHWP):
+            fields.append("mueller_hwp")
+        return fields
+
+    _check_detector_fields(obs_list, required_fields, component)
 
     for (cur_obs, cur_ptg), input_names in zip(obs_pointings, input_names_list):
         # HWP handling: external HWP overrides, otherwise use obs.hwp

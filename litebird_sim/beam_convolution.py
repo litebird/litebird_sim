@@ -7,6 +7,7 @@ from ducc0.totalconvolve import Interpolator, Interpolator_f
 
 from .coordinates import CoordinateSystem
 from .hwp import HWP
+from .hwp_non_ideal import NonIdealHWP
 from .mueller_convolver import MuellerConvolver
 from .observations import Observation
 from .observation_utilities import (
@@ -460,7 +461,12 @@ def add_convolved_sky_to_observations(
             )
 
     # The keys and the fields of all the observations, before modifying any TOD
-    _check_detector_fields(obs_list, ["mueller_hwp"], component)
+    # mueller_hwp is needed only for a non-ideal HWP: None means no HWP
+    def required_fields(cur_obs: Observation) -> list[str]:
+        cur_hwp = hwp if hwp is not None else cur_obs.hwp
+        return ["mueller_hwp"] if isinstance(cur_hwp, NonIdealHWP) else []
+
+    _check_detector_fields(obs_list, required_fields, component)
     names_list = [
         (_detector_keys(o, sky_alms, "sky"), _detector_keys(o, beam_alms, "beam"))
         for o in obs_list
@@ -476,7 +482,7 @@ def add_convolved_sky_to_observations(
             sky_alms=sky_alms,
             beam_alms=beam_alms,
             hwp_angle=cur_ptg.hwp_angle,
-            mueller_hwp=cur_obs.mueller_hwp,
+            mueller_hwp=getattr(cur_obs, "mueller_hwp", None),
             input_sky_names=input_sky_names,
             input_beam_names=input_beam_names,
             convolution_params=convolution_params,
