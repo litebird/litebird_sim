@@ -5,7 +5,7 @@ from numba import njit, prange
 
 from .hwp import HWP
 from .observations import Observation
-from .observation_utilities import _get_hwp_angle
+from .observation_utilities import ObservationPointings
 from .observation_utilities import for_each_observation
 from .utilities import cos_sin
 
@@ -86,23 +86,31 @@ def add_2f_to_observations(
             add_2f_to_observations(sim.observations, component="hwp_2f_tod")
     """
     # iterate through each observation
-    for cur_obs, tod, _ in for_each_observation(observations, component):
-        if amplitude_2f_k is None:
-            amplitude_2f_k = getattr(cur_obs, "amplitude_2f_k", None)
-        assert amplitude_2f_k is not None, (
+    for cur_obs, tod, _ in for_each_observation(
+        observations,
+        component,
+        required_fields=["pol_angle_rad"]
+        + (["amplitude_2f_k"] if amplitude_2f_k is None else []),
+    ):
+        cur_amplitude_2f_k = (
+            amplitude_2f_k
+            if amplitude_2f_k is not None
+            else getattr(cur_obs, "amplitude_2f_k", None)
+        )
+        assert cur_amplitude_2f_k is not None, (
             "The amplitude_2f_k parameter must be provided either "
             "as an argument to add_2f_to_observations or as an "
             "attribute of the Observation instance."
         )
 
-        # Determine the HWP angle to use:
-        # - If an external HWP object is provided, compute the angle from it
-        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        # The HWP passed here has the precedence over the one of the observation
+        hwp_angle = ObservationPointings(
+            cur_obs, hwp=hwp, pointings_dtype=pointings_dtype
+        ).hwp_angle
 
         add_2f(
             tod=tod,
             hwp_angle=hwp_angle,
             pol_angle_rad=cur_obs.pol_angle_rad,
-            amplitude_2f_k=amplitude_2f_k,
+            amplitude_2f_k=cur_amplitude_2f_k,
         )

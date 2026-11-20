@@ -255,7 +255,7 @@ def test_distribute_observation(tmp_path):
         assert len(obs_list) == 5
         assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
         assert (
-            sum([o.n_samples for o in obs_list])
+            sum([o.n_samples_process for o in obs_list])
             == sim.duration_s * det.sampling_rate_hz
         )
 
@@ -305,7 +305,7 @@ def test_distribute_observation_many_tods(tmp_path):
         == 10
     )
     assert (
-        sum([o.n_samples for o in sim.observations])
+        sum([o.n_samples_process for o in sim.observations])
         == sim.duration_s * det.sampling_rate_hz
     )
 
@@ -322,7 +322,10 @@ def test_distribute_observation_astropy(tmp_path):
 
     assert len(obs_list) == 5
     assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
-    assert sum([o.n_samples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
+    assert (
+        sum([o.n_samples_process for o in obs_list])
+        == sim.duration_s * det.sampling_rate_hz
+    )
 
 
 def test_describe_distribution(tmp_path):
@@ -491,8 +494,8 @@ def test_smart_pointings_consistency_with_hwp(tmp_path):
 
         for det_idx in range(obs.n_detectors):
             (pointings, hwp_angle) = obs.get_pointings(det_idx)
-            assert pointings.shape == (obs.n_samples, 3)
-            assert hwp_angle.shape == (obs.n_samples,)
+            assert pointings.shape == (obs.n_samples_process, 3)
+            assert hwp_angle.shape == (obs.n_samples_process,)
 
 
 def test_smart_pointings_skip_hwp_angle(tmp_path):
@@ -549,7 +552,7 @@ def test_smart_pointings_consistency_without_hwp(tmp_path):
 
         for det_idx in range(obs.n_detectors):
             (pointings, hwp_angle) = obs.get_pointings(det_idx)
-            assert pointings.shape == (obs.n_samples, 3)
+            assert pointings.shape == (obs.n_samples_process, 3)
             assert hwp_angle is None
 
 
@@ -608,7 +611,7 @@ def test_smart_pointings_preallocation_with_hwp(tmp_path):
     )
 
     # Allocate one buffer for the pointings and one buffer for the HWP angle
-    n_samples = sim.observations[0].n_samples
+    n_samples = sim.observations[0].n_samples_process
     pointings_buf = np.empty(shape=(n_samples, 3))
     hwp_angle_buf = np.empty(shape=(n_samples, 1))
 
@@ -641,7 +644,7 @@ def test_smart_pointings_store_matrices_without_hwp(dtype, tmp_path):
         assert cur_obs.pointing_matrix.dtype == dtype
         assert cur_obs.pointing_matrix.shape == (
             cur_obs.n_detectors,
-            cur_obs.n_samples,
+            cur_obs.n_samples_process,
             3,
         )
         assert cur_obs.hwp_angle is None
@@ -662,13 +665,13 @@ def test_smart_pointings_store_matrices_with_hwp(dtype, tmp_path):
         assert cur_obs.pointing_matrix.dtype == dtype
         assert cur_obs.pointing_matrix.shape == (
             cur_obs.n_detectors,
-            cur_obs.n_samples,
+            cur_obs.n_samples_process,
             3,
         )
 
         assert cur_obs.hwp_angle is not None
         assert cur_obs.hwp_angle.dtype == dtype
-        assert cur_obs.hwp_angle.shape == (cur_obs.n_samples,)
+        assert cur_obs.hwp_angle.shape == (cur_obs.n_samples_process,)
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -684,10 +687,10 @@ def test_compute_pointings_for_one_detector(dtype, tmp_path):
         pointings, hwp_angle = cur_obs.get_pointings(0, pointings_dtype=dtype)
 
         assert pointings.dtype == dtype
-        assert pointings.shape == (cur_obs.n_samples, 3)
+        assert pointings.shape == (cur_obs.n_samples_process, 3)
 
         assert hwp_angle.dtype == dtype
-        assert hwp_angle.shape == (cur_obs.n_samples,)
+        assert hwp_angle.shape == (cur_obs.n_samples_process,)
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -706,10 +709,10 @@ def test_store_pointings_for_two_detectors(dtype, tmp_path):
             )
 
             assert pointings.dtype == dtype
-            assert pointings.shape == (2, cur_obs.n_samples, 3)
+            assert pointings.shape == (2, cur_obs.n_samples_process, 3)
 
             assert hwp_angle.dtype == dtype
-            assert hwp_angle.shape == (cur_obs.n_samples,)
+            assert hwp_angle.shape == (cur_obs.n_samples_process,)
 
             for rel_det_idx, abs_det_idx in enumerate(cur_pair):
                 cur_pointings, _ = cur_obs.get_pointings(abs_det_idx)
@@ -733,10 +736,10 @@ def test_smart_pointings_for_all_detectors(dtype, tmp_path):
         pointings, hwp_angle = cur_obs.get_pointings("all", pointings_dtype=dtype)
 
         assert pointings.dtype == dtype
-        assert pointings.shape == (4, cur_obs.n_samples, 3)
+        assert pointings.shape == (4, cur_obs.n_samples_process, 3)
 
         assert hwp_angle.dtype == dtype
-        assert hwp_angle.shape == (cur_obs.n_samples,)
+        assert hwp_angle.shape == (cur_obs.n_samples_process,)
 
         for det_idx in range(4):
             cur_pointings, _ = cur_obs.get_pointings(det_idx, pointings_dtype=dtype)
@@ -961,3 +964,57 @@ def test_center_pointings(tmp_path, dtype):
             pointing_matrix,
             aux_pointings,
         )
+
+
+def test_ducc_wrappers_do_not_use_numba_threads(monkeypatch):
+    # `fill_tods` and `convolve_sky` call ducc0: when `nthreads` is not given
+    # they must use the ducc0/OMP budget, not `Simulation.numba_threads`
+    import litebird_sim.simulations as simulations
+
+    received = {}
+
+    def fake(name):
+        def _f(**kwargs):
+            received[name] = kwargs["nthreads"]
+
+        return _f
+
+    monkeypatch.setattr(simulations, "scan_map_in_observations", fake("fill"))
+    monkeypatch.setattr(
+        simulations, "add_convolved_sky_to_observations", fake("convolve")
+    )
+
+    sim = lbs.Simulation(
+        start_time=0.0, duration_s=10.0, random_seed=1, numba_threads=3
+    )
+    sim.fill_tods(maps={}, append_to_report=False)
+    sim.convolve_sky(sky_alms={}, beam_alms={}, append_to_report=False)
+    assert received == {"fill": None, "convolve": None}
+
+    sim.fill_tods(maps={}, append_to_report=False, nthreads=5)
+    sim.convolve_sky(sky_alms={}, beam_alms={}, append_to_report=False, nthreads=5)
+    assert received == {"fill": 5, "convolve": 5}
+
+
+def test_append_template_to_report(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path, start_time=0.0, duration_s=1.0, random_seed=1
+    )
+    before = sim.report
+    sim._append_template_to_report("report_noise.md", noise_type="white")
+    added = sim.report[len(before) :]
+    assert "## Noise generation" in added
+    assert "Noise white has been generated" in added
+
+
+def test_report_only_when_requested(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path, start_time=0.0, duration_s=10.0, random_seed=1
+    )
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="d", sampling_rate_hz=1.0, net_ukrts=1.0)]
+    )
+    sim.add_noise(noise_type="white", append_to_report=False)
+    assert "Noise generation" not in sim.report
+    sim.add_noise(noise_type="white")
+    assert "Noise white has been generated" in sim.report

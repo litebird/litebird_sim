@@ -3,6 +3,7 @@
 import astropy.time as astrotime
 import numpy as np
 import numpy.testing as nptest
+import pytest
 
 import litebird_sim as lbs
 
@@ -11,13 +12,16 @@ def test_observation_time():
     ref_time = astrotime.Time("2020-02-20", format="iso")
 
     obs_no_mjd = lbs.Observation(
-        detectors=1, start_time_global=0.0, sampling_rate_hz=5.0, n_samples_global=5
+        detectors=1,
+        start_time_observation=0.0,
+        sampling_rate_hz=5.0,
+        n_samples_observation=5,
     )
     obs_mjd_astropy = lbs.Observation(
         detectors=1,
-        start_time_global=ref_time,
+        start_time_observation=ref_time,
         sampling_rate_hz=5.0,
-        n_samples_global=5,
+        n_samples_observation=5,
     )
 
     assert isinstance(obs_no_mjd.get_delta_time(), float)
@@ -51,8 +55,82 @@ def test_observation_time():
 
 def test_observation_tod_array():
     obs = lbs.Observation(
-        detectors=3, n_samples_global=10, start_time_global=0.0, sampling_rate_hz=1.0
+        detectors=3,
+        n_samples_observation=10,
+        start_time_observation=0.0,
+        sampling_rate_hz=1.0,
     )
 
     assert obs.tod.shape == (3, 10)
     assert obs.tod.dtype == np.float32
+
+
+@pytest.mark.parametrize(
+    "attribute, value, missing",
+    [
+        pytest.param("gain", 2.0, np.nan, id="numeric"),
+        pytest.param("label", "calibrated", None, id="string"),
+        pytest.param(
+            "coefficients",
+            np.array([1.0, 2.0]),
+            np.array([np.nan, np.nan]),
+            id="array",
+        ),
+    ],
+)
+def test_observation_detector_attribute_missing_from_first_detectors(
+    attribute, value, missing
+):
+    obs = lbs.Observation(
+        detectors=[
+            {"name": "A"},
+            {"name": "B"},
+            {"name": "C", attribute: value},
+            {"name": "D"},
+        ],
+        n_samples_observation=1,
+        start_time_observation=0.0,
+        sampling_rate_hz=1.0,
+    )
+
+    nptest.assert_array_equal(obs.name, ["A", "B", "C", "D"])
+    nptest.assert_array_equal(
+        getattr(obs, attribute), [missing, missing, value, missing]
+    )
+
+
+def test_deprecated_observation_names():
+    with pytest.warns(DeprecationWarning, match="n_samples_global"):
+        obs = lbs.Observation(
+            detectors=1,
+            n_samples_global=10,
+            start_time_global=2.0,
+            sampling_rate_hz=5.0,
+        )
+    assert obs.n_samples_observation == 10
+    assert obs.start_time_observation == 2.0
+
+    for old_name, new_name in [
+        ("start_time", "start_time_process"),
+        ("start_time_global", "start_time_observation"),
+        ("end_time_global", "end_time_observation"),
+        ("n_samples", "n_samples_process"),
+        ("n_samples_global", "n_samples_observation"),
+        ("start_sample", "start_sample_observation"),
+    ]:
+        with pytest.warns(DeprecationWarning, match=new_name):
+            assert getattr(obs, old_name) == getattr(obs, new_name)
+
+    # Unknown attributes must still be missing, as code relies on `hasattr`
+    assert not hasattr(obs, "hwp_angle")
+
+    with pytest.raises(TypeError):
+        lbs.Observation(
+            detectors=1,
+            n_samples_observation=10,
+            n_samples_global=10,
+            start_time_observation=0.0,
+            sampling_rate_hz=5.0,
+        )
+    with pytest.raises(TypeError):
+        lbs.Observation(detectors=1, start_time_observation=0.0, sampling_rate_hz=5.0)

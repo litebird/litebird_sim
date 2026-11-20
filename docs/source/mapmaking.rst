@@ -320,7 +320,16 @@ Once the call to :func:`.make_binned_map` ends, the field ``invnpp``
 of the :class:`.BinnerResult` object returned by the function
 contains an array with shape :math:`(N_p, 3, 3)`, where each
 3×3 block is the inverse of the sub-matrix :math:`M_i` for the
-*i*-th pixel.
+*i*-th pixel, i.e., the noise covariance of I, Q, U in that pixel, in
+the units of the TOD squared.
+
+.. note::
+
+   Despite the name, which comes from Madam, ``invnpp`` (and the
+   columns written with ``include_inv_covariance``) is the covariance
+   :math:`M_i^{-1}`, not its inverse :math:`M_i`. It includes only the
+   correlations among I, Q, U within each pixel, not those between
+   pixels.
 
 
 Data splits
@@ -357,6 +366,35 @@ split is compatible with the observation duration and the detector
 list. Thus, for example, if the observation lasts one year, the split ``year2``
 will raise an ``AssertionError``. Similarly, if some detector in the L00 wafer
 does the observation, ``waferL03`` will also raise an ``AssertionError``.
+The map-makers run the same checks every time they build the masks of the
+splits, also when they are called directly instead of through
+:class:`.Simulation`. The splits for ``yearX`` and ``surveyX`` require the
+observation to last at least X years or X half-years.
+
+
+.. _mapmaking-flags:
+
+Flags
+^^^^^
+
+The parameter `flags` of :func:`.make_binned_map` lists the attributes of
+the :class:`.Observation` objects holding the flags (see
+:ref:`observations`), either per detector, like ``"local_flags"``, or
+common to all the detectors, like ``"global_flags"``. Flagged samples are
+excluded from the map, together with those outside the time split. By
+default, any nonzero flag excludes a sample; with `flag_mask`, only the
+bits it contains do::
+
+    # Exclude only the samples near planets
+    result = lbs.make_binned_map(
+        nside=nside,
+        observations=sim.observations,
+        flags=["local_flags", "global_flags"],
+        flag_mask=lbs.FLAG_PLANET,
+    )
+
+Flags that have never been written (``None``) mean that all the samples
+are good. By default, `flags` is ``None`` and no sample is excluded.
 
 
 .. _mapmaking-pair-differencing:
@@ -388,6 +426,10 @@ the sum of the detector variances:
 
 The normal matrix and right-hand side use :math:`1/w_{\mathrm{pair}}`.
 
+The parameters `flags` and `flag_mask` work as in :func:`.make_binned_map`
+(see :ref:`mapmaking-flags`): a sample enters the difference of a pair only
+if it is flagged in neither detector.
+
 This is the low-level usage::
 
   result = lbs.make_pair_differenced_map(nside=128, observations=observations)
@@ -397,7 +439,9 @@ This is the low-level usage::
 The :class:`.PairDifferencingResult` output contains:
 
 - ``binned_map`` with shape ``(2, N_pix)`` (Q/U only),
-- ``invnpp`` with shape ``(N_pix, 2, 2)``.
+- ``invnpp`` with shape ``(N_pix, 2, 2)``: the noise covariance of Q and
+  U in each pixel (like the ``invnpp`` of the binner, it is a covariance,
+  not its inverse).
 
 The corresponding high-level interface is :meth:`Simulation.make_pair_differenced_map`::
 
@@ -743,7 +787,13 @@ Given that it is often useful to have access to matrix :math:`M^{-1}`,
 the method :meth:`.NobsMatrix.get_invnpp` computes this inverse as
 a 3D array with shape :math:`(N_pix, 3, 3)`, where the first index
 runs over all the pixels and the last two dimensions are used to
-store the value of :math:`M_i^{-1}`.
+store the value of :math:`M_i^{-1}`, the noise covariance of the binned
+I, Q, U in the pixel. It does not include the uncertainty of the baselines.
+
+The pixels where :math:`M_i` cannot be inverted (too few hits or angles)
+are set to ``UNSEEN`` (:data:`healpy.UNSEEN`) in the binned and destriped
+maps and in the result of :meth:`.NobsMatrix.get_invnpp`, as in the maps
+of the binner and of the pair-differencing.
 
 
 Data splits
@@ -758,6 +808,10 @@ details.
 The difference is that each split is applied to the TOD before the
 destriper runs. Therefore, the destriper will only use the samples
 within the split to compute the baselines.
+
+The parameters `flags` and `flag_mask` work as in :func:`.make_binned_map`:
+flagged samples are excluded both from the maps and from the estimation
+of the baselines.
 
 
 BrahMap GLS mapmaker
@@ -826,7 +880,8 @@ generated with ``engine="ducc"``. With
 Flagged samples are excluded with ``flags``, the names of the
 :class:`.Observation` attributes that hold them (per detector, like
 ``"local_flags"``, or common to all detectors, like ``"global_flags"``;
-nonzero means excluded). pysanepic fits them with unknowns of their own, so
+nonzero means excluded, or only the bits in ``flag_mask``, as in
+:func:`.make_binned_map`). pysanepic fits them with unknowns of their own, so
 that the maps are the exact GLS solution without them; long gaps split the
 chunks (``flag_method`` and ``split_gap_s`` in ``GLSParameters``).
 
@@ -844,6 +899,19 @@ later):
 
 With ``fit="toast"`` or ``fit="keshner"`` the spectra are fitted with a 1/f
 model instead of being tabulated.
+
+The residual is that of the whole TOD model fitted by the map-maker (with
+pysanepic newer than 0.6.4): the maps and their sub-pixel gradient, the gains
+and the dipole with ``calibration``, and the fitted templates. Call it with
+the observations, ``components``, ``flags`` and ``correlation`` of the
+map-making call, and, with calibration, the same ``dipole_component``:
+
+.. code-block:: python
+
+  first = sim.make_sanepic_gls_map(
+      nside=nside, params=params, calibration=cal, dipole_component="dipole"
+  )
+  noise = sim.estimate_sanepic_noise(first, dipole_component="dipole")
 
 Noise correlated between detectors, simulated with the common-mode model of
 :func:`.add_noise_to_observations` (``noise_type="correlated"``), is modelled
@@ -915,6 +983,14 @@ period. See the pysanepic documentation for the masks and the details.
   result.gains       # one array per detector and observation of this process
   result.templates   # {"fg_deriv1": {detector name: shift of its band [GHz]}, "thermal": {...}}
   result.template_covariance  # {"labels": [(template, detector), ...], "matrix": ...}
+
+From pysanepic 0.6.5 the binned map of ``sky_model`` put back in the maps
+weights the detectors by their white-noise level
+(``GLSParameters.binned_weights="noise"``; ``"equal"`` is the behavior of
+0.6.4): the maps change only with ``sky_model`` and detectors of different
+NETs. ``GLSParameters(subpixel_order=1)`` (or 2, pysanepic 0.6.4 or later)
+also fits the gradient (and Hessian) of I within each pixel; it needs the
+angles of the samples, which ``pointing_form="auto"`` passes.
 
 With ``sum_zero=True`` the amplitudes of a sky template sum to zero over the
 detectors (needed for templates as maps, whose common part is the map); as
@@ -1195,7 +1271,7 @@ same script with ``mpirun``: every process calls
       for i, name in enumerate(obs.name):
           obs.tod[i] *= 1 + 1e-2 * rng.normal()  # a gain per detector and day
           # a thermometer reading (here a random drift) seen through a coupling
-          obs.thermal[i] = np.cumsum(rng.normal(size=obs.n_samples)) * 1e-3
+          obs.thermal[i] = np.cumsum(rng.normal(size=obs.n_samples_process)) * 1e-3
           obs.tod[i] += coupling[name] * obs.thermal[i]
   sim.add_noise(noise_type="one_over_f", model="toast")
 

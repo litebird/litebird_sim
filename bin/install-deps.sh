@@ -57,9 +57,23 @@ Darwin)
         none)
             echo "Skipping MPI installation"
             ;;
+        mpich)
+            if ! command -v mpiexec >/dev/null 2>&1 || ! brew list mpich >/dev/null 2>&1; then
+                echo "Installing MPICH..."
+                if brew list open-mpi >/dev/null 2>&1; then
+                    brew unlink open-mpi
+                fi
+                brew install mpich
+            else
+                echo "MPICH already installed"
+            fi
+            ;;
         openmpi)
             if ! command -v mpiexec >/dev/null 2>&1 || ! brew list openmpi >/dev/null 2>&1; then
                 echo "Installing OpenMPI..."
+                if brew list mpich >/dev/null 2>&1; then
+                    brew unlink mpich
+                fi
                 brew install openmpi
             else
                 echo "OpenMPI already installed"
@@ -67,7 +81,7 @@ Darwin)
             ;;
         *)
             echo "Error: Unknown MPI implementation for macOS: '$MPI_IMPL'"
-            echo "Valid options: none, openmpi"
+            echo "Valid options: none, mpich, openmpi"
             exit 1
             ;;
     esac

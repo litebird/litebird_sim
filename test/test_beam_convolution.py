@@ -156,7 +156,8 @@ def test_beam_convolution_scalar_name_broadcast():
     np.testing.assert_allclose(tod_scalar, tod_direct, rtol=1e-12, atol=1e-12)
 
 
-def test_beam_convolution():
+@pytest.mark.parametrize("pol_efficiency", [1.0, 0.7])
+def test_beam_convolution(pol_efficiency):
     start_time = 0
     time_span_s = 3600
     nside_in = 256
@@ -202,6 +203,7 @@ def test_beam_convolution():
         bandcenter_ghz=100.0,
         quat=[0.0, 0.0, 0.0, 1.0],
         pol_angle_rad=0.0,
+        pol_efficiency=pol_efficiency,
     )
 
     detB = lbs.DetectorInfo(
@@ -212,6 +214,7 @@ def test_beam_convolution():
         bandcenter_ghz=100.0,
         quat=[0.0, 0.0, 0.0, 1.0],
         pol_angle_rad=np.pi / 2.0,
+        pol_efficiency=pol_efficiency,
     )
 
     np.random.seed(seed=123_456_789)
@@ -267,11 +270,9 @@ def test_beam_convolution():
         obs1.tod,
         obs2.tod,
         rtol=tolerance,
-        atol=0.1,
+        # The TOD has rms ≈ 0.05: a γ missing in the blms gives errors ≈ 0.04
+        atol=0.02,
     )
-
-
-test_beam_convolution()
 
 
 def test_beam_convolution_does_not_modify_pointings():

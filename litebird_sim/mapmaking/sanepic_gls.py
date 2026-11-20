@@ -17,21 +17,17 @@ from ducc0.healpix import Healpix_Base
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
-from litebird_sim.mpi import MPI_COMM_WORLD, MPI_ENABLED
 from litebird_sim.noise import (
     _build_detector_groups,
     _normalize_rho,
     _validate_grouping,
 )
-from litebird_sim.observation_utilities import (
-    _get_hwp_angle,
-    _get_pointings_array,
-    _normalize_observations_and_pointings,
-)
+from litebird_sim.observation_utilities import observation_pointings
 
 from litebird_sim.utilities import resolve_nthreads
 
 from .common import get_pol_efficiency
+from .reduction import reduction_for_observations
 
 if TYPE_CHECKING:
     import pysanepic
@@ -47,15 +43,21 @@ def _sum_components(obs, components, det_idx):
     return tod
 
 
-def _detector_flags(obs, names, det_idx):
+def _detector_flags(obs, names, det_idx, flag_mask=None):
     """Boolean flags of one detector, True where any of the `names` attributes
-    (per detector or common to all) is nonzero; None without names."""
+    (per detector or common to all) has any of the bits in `flag_mask` (any
+    nonzero value if `flag_mask` is None); None without names. Attributes
+    set to None (flags never written) mean that all the samples are good."""
     if not names:
         return None
-    out = np.zeros(obs.n_samples, dtype=bool)
+    out = np.zeros(obs.n_samples_process, dtype=bool)
     for name in names:
-        f = np.asarray(getattr(obs, name))
-        out |= (f[det_idx] if f.ndim == 2 else f) != 0
+        f = getattr(obs, name)
+        if f is None:
+            continue
+        f = np.asarray(f)
+        f = f[det_idx] if f.ndim == 2 else f
+        out |= (f if flag_mask is None else f & flag_mask) != 0
     return out
 
 
@@ -70,6 +72,17 @@ def _sky_array(x):
             raise ValueError("pysanepic needs alm at one frequency")
         return np.asarray(x.values)
     return np.asarray(x)
+
+
+def _sanepic_comm(obs_list, comm):
+    """The communicator to pass to pysanepic: `comm` if given, otherwise the one
+    of the observations (see :func:`.reduction_for_observations`); ``None`` for
+    a serial run"""
+    if comm is None:
+        comm = reduction_for_observations(obs_list).comm
+    if comm is not None and comm.size == 1:
+        return None
+    return comm
 
 
 def _import_pysanepic(feature: str = "OneOverFNoise", version: str = "0.3.0"):
@@ -90,18 +103,16 @@ def _import_pysanepic(feature: str = "OneOverFNoise", version: str = "0.3.0"):
 
 def _detector_data(
     pysanepic,
-    obs_list,
-    ptg_list,
-    hwp,
+    obs_pointings,
     nside,
     components,
     output_coordinate_system,
-    pointings_dtype,
     nthreads,
     noise_model,
     flag_names,
     noise,
     correlation=None,
+    flag_mask=None,
     dipole_component=None,
     angles=False,
     tod_templates=(),
@@ -122,8 +133,9 @@ def _detector_data(
     hpx = Healpix_Base(nside, "RING")
     # DetectorData.name, used to average noise spectra, is in pysanepic >= 0.4.0
     named = "name" in {f.name for f in dataclasses.fields(pysanepic.DetectorData)}
-    for obs, cur_ptg in zip(obs_list, ptg_list):
-        hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
+    for obs, cur_ptg in obs_pointings:
+        # The pointings of cur_ptg are in output_coordinate_system
+        hwp_angle = cur_ptg.hwp_angle
         gamma = get_pol_efficiency(obs)
         net = np.broadcast_to(obs.net_ukrts, (obs.n_detectors,))
         if correlation is not None:
@@ -136,17 +148,15 @@ def _detector_data(
                 noise,
                 _detector_data(
                     pysanepic,
-                    [obs],
-                    [cur_ptg],
-                    hwp,
+                    [(obs, cur_ptg)],
                     nside,
                     components,
                     output_coordinate_system,
-                    pointings_dtype,
                     nthreads,
                     noise_model,
                     flag_names,
                     noise,
+                    flag_mask=flag_mask,
                     dipole_component=dipole_component,
                     angles=angles,
                     tod_templates=tod_templates,
@@ -155,14 +165,7 @@ def _detector_data(
             continue
         for det_idx in range(obs.n_detectors):
             name = str(obs.name[det_idx])
-            ptg_det, hwp_angle = _get_pointings_array(
-                detector_idx=det_idx,
-                pointings=cur_ptg,
-                hwp_angle=hwp_angle,
-                output_coordinate_system=output_coordinate_system,
-                pointings_dtype=pointings_dtype,
-                nthreads=nthreads,
-            )
+            ptg_det = cur_ptg.detector(det_idx)
             if angles:
                 pointing = pysanepic.Pointing(
                     theta=ptg_det[:, 0].copy(),
@@ -203,7 +206,7 @@ def _detector_data(
                 noise=det_noise,
                 pol_angle_rad=obs.pol_angle_rad[det_idx],
                 pol_efficiency=gamma[det_idx],
-                flags=_detector_flags(obs, flag_names, det_idx),
+                flags=_detector_flags(obs, flag_names, det_idx, flag_mask),
                 **extra,
             )
 
@@ -290,6 +293,9 @@ def make_sanepic_gls_map(
     template_covariance: bool = False,
     pointing_form: str = "auto",
     verbose: bool = False,
+    flag_mask: int | None = None,
+    *,
+    comm=None,
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -334,6 +340,9 @@ def make_sanepic_gls_map(
         samples with a nonzero flag in any of them are excluded from the maps
         (see ``flag_method`` and ``split_gap_s`` in ``pysanepic.GLSParameters``).
         By default no sample is excluded.
+    flag_mask : int, optional
+        Bits of the flags that exclude a sample (e.g. ``FLAG_PLANET``); by
+        default any nonzero flag excludes it.
     noise : dict, optional
         Noise of the detectors, ``{detector name: pysanepic noise object}``,
         e.g. the spectra estimated by :func:`.estimate_sanepic_noise`; the
@@ -399,12 +408,20 @@ def make_sanepic_gls_map(
         computed here as in the other map-makers), ``"angles"`` (θ, φ, ψ,
         pixelized by pysanepic) or ``"auto"`` (default): angles if
         `sky_model` or some template is given as alm, which are
-        interpolated at the pointing and need the angles, pixels otherwise.
+        interpolated at the pointing and need the angles, or with
+        ``params.subpixel_order`` > 0 (pysanepic 0.6.4 or later), which
+        needs the position of the samples within the pixels; pixels
+        otherwise.
         The maps are the same; pixels keep less memory per detector.
     verbose : bool, optional
         Print the progress of pysanepic on the first MPI process: the PCG
         iterations and, with calibration, the largest gain correction of
         each iteration. False by default.
+    comm : mpi4py communicator, optional
+        The processes that share the observations; every one of them must
+        call this function. By default it is inferred from the observations
+        (see :func:`.reduction_for_observations`); pass it if some processes
+        have no local observations. :class:`.Simulation` passes its own.
 
     Returns
     -------
@@ -455,7 +472,10 @@ def make_sanepic_gls_map(
             "they are interpolated at the pointing and need the angles "
             "(use 'angles' or 'auto', or pass them as maps)"
         )
-    angles = pointing_form == "angles" or (pointing_form == "auto" and alm)
+    subpixel = getattr(params, "subpixel_order", 0) > 0
+    angles = pointing_form == "angles" or (
+        pointing_form == "auto" and (alm or subpixel)
+    )
     if noise_model not in ("toast", "keshner"):
         raise ValueError(
             f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
@@ -463,10 +483,16 @@ def make_sanepic_gls_map(
     flag_names = [flags] if isinstance(flags, str) else list(flags or [])
     if isinstance(components, str):
         components = [components]
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
-    )
     nthreads = resolve_nthreads(nthreads)
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
+    )
+    obs_list = [obs for obs, _ in obs_pointings]
     for k in tod_templates:
         if any(not hasattr(obs, k) for obs in obs_list):
             raise ValueError(
@@ -476,24 +502,22 @@ def make_sanepic_gls_map(
             )
     data = _detector_data(
         pysanepic,
-        obs_list,
-        ptg_list,
-        hwp,
+        obs_pointings,
         nside,
         components,
         output_coordinate_system,
-        pointings_dtype,
         nthreads,
         noise_model,
         flag_names,
         noise,
         correlation,
+        flag_mask=flag_mask,
         dipole_component=dipole_component if calibration is not None else None,
         angles=angles,
         tod_templates=tod_templates,
     )
 
-    comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
+    comm = _sanepic_comm(obs_list, comm)
     return pysanepic.make_maps(
         data,
         nside,
@@ -517,6 +541,8 @@ def compute_sanepic_beam_templates(
     dtype=np.float64,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
+    *,
+    comm=None,
 ) -> dict:
     """
     Beam templates for :func:`.make_sanepic_gls_map`: pointing offsets and
@@ -572,7 +598,11 @@ def compute_sanepic_beam_templates(
         dtype used to compute pointings on the fly, by default `np.float64`
     nthreads : int, optional
         Threads per process; by default resolved with :func:`.resolve_nthreads`
-
+    comm : mpi4py communicator, optional
+        The processes that share the observations; every one of them must
+        call this function. By default it is inferred from the observations
+        (see :func:`.reduction_for_observations`); pass it if some processes
+        have no local observations. :class:`.Simulation` passes its own.
     Returns
     -------
     dict
@@ -588,34 +618,33 @@ def compute_sanepic_beam_templates(
         raise ValueError("compute_sanepic_beam_templates: sky_model must be alm")
     coordinates = _COORDINATES[output_coordinate_system]
     nthreads = resolve_nthreads(nthreads)
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
     )
+    obs_list = [obs for obs, _ in obs_pointings]
     noise = pysanepic.OneOverFNoise(net_ukrts=1.0)  # not used
     has_hwp = set()
-    for obs, cur_ptg in zip(obs_list, ptg_list):
-        hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
+    for obs, cur_ptg in obs_pointings:
+        hwp_angle = cur_ptg.hwp_angle
         has_hwp.add(hwp_angle is not None)
         gamma = get_pol_efficiency(obs)
         out = {}
         for det_idx in range(obs.n_detectors):
-            ptg_det, hwp_det = _get_pointings_array(
-                detector_idx=det_idx,
-                pointings=cur_ptg,
-                hwp_angle=hwp_angle,
-                output_coordinate_system=output_coordinate_system,
-                pointings_dtype=pointings_dtype,
-                nthreads=nthreads,
-            )
+            ptg_det = cur_ptg.detector(det_idx)
             d = pysanepic.DetectorData(
-                tod=np.broadcast_to(0.0, (obs.n_samples,)),
+                tod=np.broadcast_to(0.0, (obs.n_samples_process,)),
                 pointing=pysanepic.Pointing(
                     theta=ptg_det[:, 0],
                     phi=ptg_det[:, 1],
                     psi=ptg_det[:, 2],
                     coordinates=coordinates,
                 ),
-                hwp_angle=hwp_det,
+                hwp_angle=hwp_angle,
                 sampling_rate_hz=obs.sampling_rate_hz,
                 noise=noise,
                 pol_angle_rad=obs.pol_angle_rad[det_idx],
@@ -631,12 +660,15 @@ def compute_sanepic_beam_templates(
             )
             for k, v in tods.items():
                 if k not in out:
-                    out[k] = np.empty((obs.n_detectors, obs.n_samples), dtype=dtype)
+                    out[k] = np.empty(
+                        (obs.n_detectors, obs.n_samples_process), dtype=dtype
+                    )
                 out[k][det_idx] = v
         for k, v in out.items():
             setattr(obs, k, v)
-    if MPI_ENABLED and MPI_COMM_WORLD.size > 1:
-        has_hwp = set().union(*MPI_COMM_WORLD.allgather(has_hwp))
+    comm = _sanepic_comm(obs_list, comm)
+    if comm is not None:
+        has_hwp = set().union(*comm.allgather(has_hwp))
     if len(has_hwp) > 1:
         raise ValueError(
             "compute_sanepic_beam_templates: observations with and without HWP "
@@ -668,15 +700,29 @@ def estimate_sanepic_noise(
     nthreads: int | None = None,
     correlation: dict | None = None,
     n_modes: int = 1,
+    flag_mask: int | None = None,
+    dipole_component: str | None = None,
+    *,
+    comm=None,
 ) -> dict:
     """
     Noise spectrum of each detector from the residual of a pysanepic map.
 
-    The residual between the TOD and the maps of `result` (e.g. a first call
-    of :func:`.make_sanepic_gls_map`, with the same `components` and `flags`)
+    The residual between the TOD and the TOD model fitted in `result` (a
+    call of :func:`.make_sanepic_gls_map`, with the same `observations`,
+    `components`, `flags`, `flag_mask` and `correlation`, so that the
+    detectors come in the same order)
     is cut in chunks of `chunk_s` seconds and its periodogram is averaged
     over all the observations of each detector (also across MPI processes),
     in `nbins` logarithmic bins. See ``pysanepic.estimate_noise``.
+
+    With pysanepic newer than 0.6.4, the model is the whole one fitted by the
+    map-maker: the maps (with their sub-pixel gradient), and, if `result`
+    has them, the gains and the dipole of `dipole_component` (the one given
+    to :func:`.make_sanepic_gls_map`, needed with calibration) and the
+    fitted templates (the TOD components of the templates without ``sky``
+    must still be in the observations). The noise is then in the units of
+    the calibrated TOD. Older versions subtract the maps only.
 
     Returns ``{detector name: noise}``: a ``pysanepic.TabulatedNoise``, or
     with `fit` (``"toast"`` or ``"keshner"``) a fitted
@@ -692,6 +738,9 @@ def estimate_sanepic_noise(
     group. Pass it to :func:`.make_sanepic_gls_map` with the same
     `correlation`. The parameters of the model (``rho``, the spectrum of
     the mode) are not used.
+
+    `comm` is the communicator of the processes sharing the observations, as
+    in :func:`.make_sanepic_gls_map`.
     """
     pysanepic = _import_pysanepic("estimate_noise", "0.4.0")
     extra = {}
@@ -706,27 +755,54 @@ def estimate_sanepic_noise(
         extra["n_modes"] = n_modes
     if isinstance(components, str):
         components = [components]
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=pointings
-    )
     nthreads = resolve_nthreads(nthreads)
     coordinate_system = {v: k for k, v in _COORDINATES.items()}[result.coordinates]
+    obs_pointings = observation_pointings(
+        observations,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=coordinate_system,
+        pointings_dtype=pointings_dtype,
+        nthreads=nthreads,
+    )
+    obs_list = [obs for obs, _ in obs_pointings]
+    # the TOD model of make_maps, in the MapResult of pysanepic > 0.6.4
+    calibrated = getattr(result, "calibration", None) is not None
+    if calibrated and dipole_component is None:
+        raise ValueError(
+            "the result has gains: estimating the noise needs dipole_component, "
+            "the TOD component with the dipole used by make_sanepic_gls_map"
+        )
+    template_definitions = getattr(result, "template_definitions", None) or {}
+    tod_templates = [k for k, t in template_definitions.items() if t.sky is None]
+    for k in tod_templates:
+        if any(not hasattr(obs, k) for obs in obs_list):
+            raise ValueError(
+                f"template '{k}' has no sky: the observations need the TOD "
+                f"component '{k}' given to make_sanepic_gls_map"
+            )
+    # the sub-pixel gradient and the sky templates as alm need the angles
+    angles = getattr(result, "gradient", None) is not None or any(
+        t.sky is not None and np.iscomplexobj(t.sky)
+        for t in template_definitions.values()
+    )
     data = _detector_data(
         pysanepic,
-        obs_list,
-        ptg_list,
-        hwp,
+        obs_pointings,
         result.nside,
         components,
         coordinate_system,
-        pointings_dtype,
         nthreads,
         "toast",  # not used: only the residual matters here
         [flags] if isinstance(flags, str) else list(flags or []),
         None,
         correlation,
+        flag_mask=flag_mask,
+        dipole_component=dipole_component if calibrated else None,
+        angles=angles,
+        tod_templates=tod_templates,
     )
-    comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
+    comm = _sanepic_comm(obs_list, comm)
     return pysanepic.estimate_noise(
         data,
         result,
