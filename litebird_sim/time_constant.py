@@ -103,11 +103,26 @@ def _filter_time_constant_in_observations(
     component: str,
     deconvolve: bool,
 ):
-    for cur_obs, tod, _ in for_each_observation(observations, component):
+    # Without τ, it is read from the detectors: check it before modifying any TOD
+    required_fields = ["time_constant_ms"] if time_constant_ms is None else None
+    for cur_obs, tod, _ in for_each_observation(
+        observations, component, required_fields=required_fields
+    ):
         if time_constant_ms is None:
             cur_time_constant_ms = cur_obs.time_constant_ms
-        else:
+        elif np.ndim(time_constant_ms) == 0:
             cur_time_constant_ms = time_constant_ms
+        else:
+            # One value per detector of the whole observation: with MPI, each
+            # process takes the values of its own detectors
+            cur_time_constant_ms = np.asarray(time_constant_ms)
+            if cur_time_constant_ms.shape != (cur_obs.n_detectors_global,):
+                raise ValueError(
+                    f"time_constant_ms has shape {cur_time_constant_ms.shape}, "
+                    f"but it must be a number or have one value for each of the "
+                    f"{cur_obs.n_detectors_global} detectors of the observation"
+                )
+            cur_time_constant_ms = cur_time_constant_ms[cur_obs.det_idx]
 
         _filter_time_constant(
             tod=tod,
@@ -130,9 +145,12 @@ def convolve_time_constant_in_observations(
     `component` to filter another one.
 
     If `time_constant_ms` is ``None``, the time constant of each detector is taken
-    from the ``time_constant_ms`` field of :class:`.DetectorInfo`. Otherwise it can
-    be a number (the same for all the detectors) or an array with one value for each
-    detector of the observations.
+    from the ``time_constant_ms`` field of :class:`.DetectorInfo`, and a
+    ``ValueError`` is raised if it is missing (``None`` or ``NaN``) for some
+    detector. Otherwise it can be a number (the same for all the detectors) or an
+    array with one value for each detector of the observation, in the order of the
+    detectors passed to :meth:`.Simulation.create_observations`: with MPI, every
+    process passes the whole array and uses the values of its own detectors.
 
     Since the convolution is linear, the order of the calls determines which
     components are filtered: e.g., add the sky signal, convolve it, then add the

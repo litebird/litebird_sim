@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import litebird_sim as lbs
 
@@ -79,3 +80,44 @@ def test_time_constant_in_observations():
     sim.deconvolve_time_constant()
     np.testing.assert_allclose(obs.tod, expected, atol=1e-6)
     np.testing.assert_allclose(obs.tod[:, middle], original[:, middle], atol=1e-2)
+
+
+def _observation(taus):
+    sim = lbs.Simulation(start_time=0.0, duration_s=60.0, random_seed=12345)
+    detectors = [
+        lbs.DetectorInfo(
+            name=f"det{i}", sampling_rate_hz=SAMPLING_RATE_HZ, time_constant_ms=tau
+        )
+        for i, tau in enumerate(taus)
+    ]
+    (obs,) = sim.create_observations(detectors=detectors)
+    obs.tod[:] = np.random.default_rng(1).normal(size=obs.tod.shape)
+    return obs
+
+
+def test_time_constant_missing_in_detectors():
+    # A τ that is NaN in some detector raises before any TOD is modified
+    obs = _observation([3.0, np.nan])
+    original = obs.tod.copy()
+    with pytest.raises(ValueError, match="time_constant_ms"):
+        lbs.convolve_time_constant_in_observations(obs)
+    np.testing.assert_array_equal(obs.tod, original)
+
+    # Passing τ explicitly does not need the field
+    lbs.convolve_time_constant_in_observations(obs, time_constant_ms=3.0)
+    assert np.all(np.isfinite(obs.tod))
+
+
+def test_time_constant_array_is_per_global_detector():
+    obs = _observation([0.0, 0.0, 0.0])
+    with pytest.raises(ValueError, match="3 detectors"):
+        lbs.convolve_time_constant_in_observations(obs, time_constant_ms=[1.0, 2.0])
+
+    # Each detector takes the value at its global index (det_idx), as an MPI
+    # process holding only some detectors would
+    expected = obs.tod.copy()
+    lbs.convolve_time_constant(expected, [1.0, 2.0, 3.0], SAMPLING_RATE_HZ)
+    lbs.convolve_time_constant_in_observations(
+        obs, time_constant_ms=np.array([1.0, 2.0, 3.0])
+    )
+    np.testing.assert_allclose(obs.tod, expected, atol=1e-6)
