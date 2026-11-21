@@ -8,6 +8,7 @@ import pytest
 from litebird_sim import (
     SphericalHarmonics,
     HealpixMap,
+    SpinMap,
     synthesize_alm,
     compute_cl,
     rotate_alm,
@@ -1069,3 +1070,76 @@ def test_multifreq_single_freq_compatibility():
     assert cls["TT"].ndim == 1
     assert len(cls["TT"]) == lmax + 1
     assert "frequency_ghz" not in cls
+
+
+def test_spin_map_polarization_angle_validation():
+    nside = 8
+    npix = HealpixMap.nside_to_npix(nside)
+    values = np.zeros((2, npix), dtype=complex)
+
+    # Maps that contain the detector angle must be given that angle too
+    with pytest.raises(ValueError):
+        SpinMap(
+            values=values,
+            spins=np.array([0, 2]),
+            nside=nside,
+            contain_polarization_angle=True,
+        )
+
+    # Maps that do not contain it cannot claim an associated angle
+    with pytest.raises(ValueError):
+        SpinMap(
+            values=values,
+            spins=np.array([0, 2]),
+            nside=nside,
+            pol_angle_rad=0.3,
+        )
+
+
+def test_spin_map_addition():
+    nside = 8
+    npix = HealpixMap.nside_to_npix(nside)
+
+    base = SpinMap(
+        values=np.ones((2, npix), dtype=complex),
+        spins=np.array([0, 2]),
+        nside=nside,
+    )
+    extended = SpinMap(
+        values=2 * np.ones((3, npix), dtype=complex),
+        spins=np.array([0, 2, 4]),
+        nside=nside,
+    )
+
+    # Spin orders that one of the operands does not have are filled with zeros
+    summed = base + extended
+    npt.assert_array_equal(summed.spins, [0, 2, 4])
+    npt.assert_allclose(summed.values[0], 3.0)
+    npt.assert_allclose(summed.values[1], 3.0)
+    npt.assert_allclose(summed.values[2], 2.0)
+    npt.assert_allclose((extended + base).values, summed.values)
+
+    different_nside = SpinMap(
+        values=np.zeros((1, 4 * npix), dtype=complex),
+        spins=np.array([0]),
+    )
+    with pytest.raises(ValueError):
+        base + different_nside
+
+    different_coords = SpinMap(
+        values=np.zeros((2, npix), dtype=complex),
+        spins=np.array([0, 2]),
+        nside=nside,
+        coordinates=CoordinateSystem.Galactic,
+    )
+    other_coords = SpinMap(
+        values=np.zeros((2, npix), dtype=complex),
+        spins=np.array([0, 2]),
+        nside=nside,
+        coordinates=CoordinateSystem.Ecliptic,
+    )
+    with pytest.raises(ValueError):
+        different_coords + other_coords
+
+    # Unspecified coordinates are compatible with any of them
+    npt.assert_allclose((base + different_coords).values, 1.0)

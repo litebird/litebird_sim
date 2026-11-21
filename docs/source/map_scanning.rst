@@ -9,11 +9,11 @@ timestreams. It implements three possible algebras:
 
 - No HWP:
 
-.. math:: 
+.. math::
    d_t = T + \gamma \left(Q\cos(2\theta + 2\psi_t)+U\sin(2\theta + 2\psi_t)\right),
    :label: noHWP
 
-where :math:`\theta` is the polarization angle of the detecotor, :math:`\psi_t` 
+where :math:`\theta` is the polarization angle of the detecotor, :math:`\psi_t`
 is the orientation of the telescope at the time :math:`t`, and :math:`\gamma`
 is the polarization efficiency.
 
@@ -31,7 +31,7 @@ where :math:`\alpha_t` is the HWP angle at the time :math:`t`.
    d_t = (1,0,0,0) \times M_{\rm pol} \times R(\theta) \times R^T(\alpha_t) \times M_{\rm HWP} \times R(\alpha_t) \times R(\psi_t) \times \vec{S}
    :label: genericHWP
 
-where 
+where
     * :math:`M_{\rm pol}` is mueller matrix of the polarimeter;
     * :math:`M_{\rm HWP}` is mueller matrix of the HWP;
     * :math:`R` is rotation matrix;
@@ -136,19 +136,94 @@ shows:
 The code automatically selects the fastest algebra based on the provided HWP.
 
 The pointing information can be included in the observation or passed through
-`pointings`. If both `observations` and `pointings` are provided, they must be 
+`pointings`. If both `observations` and `pointings` are provided, they must be
 coherent, so either a single Observation and a single numpy array, or same
 lenght list of Observations and numpy arrays.
 The effect of a possible HWP is included in the pointing information, see
-:ref:`scanning-strategy`, the polarization angle of the detectors is taken from 
-the corresponding attributes included in the observations. The same applies to 
-the polarization efficiency. 
+:ref:`scanning-strategy`, the polarization angle of the detectors is taken from
+the corresponding attributes included in the observations. The same applies to
+the polarization efficiency.
 
-The function automatically detects the coordinate system of the input map (e.g., 
+The function automatically detects the coordinate system of the input map (e.g.,
 Galactic, Ecliptic) and rotates the pointings accordingly.
 
 The low-level function, :func:`.scan_map`, allows for direct manipulation of TOD
 arrays and pointing matrices for advanced users.
+
+Scanning spin maps
+------------------
+
+A second routine, :func:`.scan_spin_maps`, scans *spin maps* instead of a
+T/Q/U map. In this formalism, used by spin-mapmaking packages (e.g SMARTIES and SBM), the sky and any
+systematic effect are described by a set of complex maps :math:`S_s`, one for
+each spin order :math:`s`, and the timestream is
+
+.. math::
+   d_t = \sum_s c_s \, \mathrm{Re}\left(S_s(p_t) e^{-i s \alpha_t}\right),
+   :label: spinmaps
+
+where :math:`c_s = 1` for :math:`s = 0` and :math:`c_s = 2` otherwise,
+:math:`p_t` is the pixel observed at time :math:`t`, and :math:`\alpha_t =
+\psi_t + \gamma_d` is the orientation of the telescope :math:`\psi_t` plus the
+polarization angle :math:`\gamma_d` of the detector.
+
+Spin maps are stored in :class:`.SpinMap`. They keep the complex maps of
+all the spin orders in a single array and follow the convention that for a systematics free tod:
+:math:`S_0 = I` and :math:`S_{\pm 2} = (Q \pm iU)/2`. Negative spins are the
+complex conjugates of the positive ones and are not stored.
+
+To build them from a T/Q/U map, you can call
+:meth:`.SpinMap.from_tqu_detectors`, which applies the polarization
+efficiency of each detector:
+
+.. testcode::
+
+   import numpy as np
+   import litebird_sim as lbs
+
+   nside = 16
+   npix = lbs.HealpixMap.nside_to_npix(nside)
+   sky_map = lbs.HealpixMap(
+       values=np.zeros((3, npix)),
+       nside=nside,
+       coordinates=lbs.CoordinateSystem.Galactic,
+   )
+   spin_maps = lbs.SpinMap.from_tqu_detectors(
+       {"det0": sky_map, "det1": sky_map},
+       pol_efficiency=[1.0, 0.9],
+   )
+
+The dictionary can then be passed to :func:`.Simulation.scan_spin_maps` (or
+to the low-level :func:`.scan_spin_maps`), which adds the signal to the TODs.
+
+If the maps already contain the detector polarization angle factor :math:`e^{-i s \gamma_d}`, set
+``contain_polarization_angle=True`` and pass the polarization angle of the
+detector in ``pol_angle_rad``: :class:`.SpinMap` rotates the maps to remove this factor
+before storing them.
+
+.. testcode::
+
+   rng = np.random.default_rng(0)
+   systematics_values = rng.normal(size=(2, npix)) + 1j * rng.normal(
+       size=(2, npix)
+   )
+   systematics = {
+       name: lbs.SpinMap(
+           values=systematics_values,
+           spins=np.array([0, 2]),
+           nside=nside,
+           coordinates=lbs.CoordinateSystem.Galactic,
+           contain_polarization_angle=True,
+           pol_angle_rad=0.1 * i,
+       )
+       for i, name in enumerate(spin_maps)
+   }
+
+   combined = {name: spin_maps[name] + systematics[name] for name in spin_maps}
+
+The ``combined`` dictionary can be scanned with
+``sim.scan_spin_maps(combined)``.
+
 
 Methods of the Simulation class
 -------------------------------
@@ -228,10 +303,10 @@ transparent:
     1.07646e-04
 
 
-The input sky can be generated using the function :func:`.Simulation.get_sky` 
-which produces sky maps for all the detectors of a given observation based 
-on an instance of :class:`.SkyGenerationParams`. These methods are MPI-compatible, 
-distributing inputs based on the job’s detector configuration without requiring 
+The input sky can be generated using the function :func:`.Simulation.get_sky`
+which produces sky maps for all the detectors of a given observation based
+on an instance of :class:`.SkyGenerationParams`. These methods are MPI-compatible,
+distributing inputs based on the job’s detector configuration without requiring
 broadcast operations.
 
 
