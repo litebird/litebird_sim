@@ -40,11 +40,11 @@ def _filter_time_constant(
     # signals with no power above the Nyquist frequency; to go beyond, simulate
     # at a higher sampling rate and decimate. With τ shorter than the sampling
     # period the filter is a sub-sample delay, whose response decays only as
-    # 1/n: the mirror image limits the error at the edges, which still affects
-    # the first and last ~100 samples (~5e-3 of a 3 Hz signal in the last 10
-    # samples, with τ = 5 ms at 19 Hz). Flagged samples are filtered like the
-    # others: the functions on observations flag the edges and the samples
-    # around the flagged ones (see _flag_filter_edges)
+    # 1/n: the mirror image limits the error at the edges, but it is still
+    # larger close to them (~2e-2 of a 3 Hz signal in the first and last 9
+    # samples, ~2e-4 in the others, with τ = 5 ms at 19 Hz). Flagged samples
+    # are filtered like the others: the functions on observations flag the
+    # edges and the samples around the flagged ones (see _flag_filter_edges)
     freqs_hz = np.fft.rfftfreq(2 * num_of_samples, d=1.0 / sampling_rate_hz)
 
     for det_idx in range(num_of_dets):
@@ -259,10 +259,10 @@ def deconvolve_time_constant_in_observations(
 ):
     """Deconvolve the time constant of the detectors from the TOD of some observations
 
-    This is the inverse of :func:`.convolve_time_constant_in_observations`, and it
-    takes the same parameters, and flags the samples in the same way. To simulate an error in the estimate of the time
-    constant, pass to `time_constant_ms` a value different from the one used in
-    the convolution.
+    This is the inverse of :func:`.convolve_time_constant_in_observations`: it
+    takes the same parameters and flags the samples in the same way. To simulate
+    an error in the estimate of the time constant, pass to `time_constant_ms` a
+    value different from the one used in the convolution.
     """
     _filter_time_constant_in_observations(
         observations=observations,
