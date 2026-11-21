@@ -121,3 +121,59 @@ def test_time_constant_array_is_per_global_detector():
         obs, time_constant_ms=np.array([1.0, 2.0, 3.0])
     )
     np.testing.assert_allclose(obs.tod, expected, atol=1e-6)
+
+
+def test_time_constant_flags_the_edges():
+    # The samples where the mirror image of the timeline enters are flagged,
+    # and the error of the filter is small in the others
+    freq_hz = 3.07
+    obs = _observation([0.0, 5.0])
+    time_s = np.arange(obs.tod.shape[1]) / SAMPLING_RATE_HZ
+    obs.tod[:] = np.cos(2 * np.pi * freq_hz * time_s)
+
+    lbs.convolve_time_constant_in_observations(obs)
+
+    flagged = (obs.local_flags & lbs.FLAG_TIME_CONSTANT) != 0
+    assert not flagged[0].any()  # τ = 0 does nothing
+    length = np.flatnonzero(~flagged[1])[0]
+    assert 0 < length < 50
+    assert flagged[1, -length:].all() and not flagged[1, length:-length].any()
+
+    x = 2 * np.pi * freq_hz * 5e-3
+    expected = np.cos(2 * np.pi * freq_hz * time_s - np.arctan(x)) / np.sqrt(1 + x**2)
+    error = np.abs(obs.tod[1] - expected)
+    assert error[flagged[1]].max() > 1e-2
+    assert error[~flagged[1]].max() < 1e-3
+
+
+def test_time_constant_flags_around_flagged_samples():
+    obs = _observation([5.0])
+    lbs.get_local_flags(obs)[0, 300] = lbs.FLAG_PLANET
+    lbs.get_global_flags(obs)[600] = lbs.FLAG_PLANET
+
+    lbs.convolve_time_constant_in_observations(obs)
+    flags = obs.local_flags[0].copy()
+    flagged = (flags & lbs.FLAG_TIME_CONSTANT) != 0
+    length = np.flatnonzero(~flagged)[0]
+    for center in (300, 600):
+        assert flagged[center - length : center + length + 1].all()
+        assert not flagged[center - length - 1] and not flagged[center + length + 1]
+    assert not flagged[450]
+    assert flags[300] & lbs.FLAG_PLANET  # The other bits are kept
+
+    # The bit set by the convolution is not extended by the deconvolution
+    lbs.deconvolve_time_constant_in_observations(obs)
+    deconv_flagged = (obs.local_flags[0] & lbs.FLAG_TIME_CONSTANT) != 0
+    deconv_length = np.flatnonzero(~deconv_flagged)[0]
+    assert not deconv_flagged[300 + max(length, deconv_length) + 1]
+
+
+def test_time_constant_without_flags():
+    obs = _observation([5.0])
+    lbs.convolve_time_constant_in_observations(obs, bit=0)
+    assert obs.local_flags is None
+
+    # τ = 0 does not allocate the flags either
+    obs = _observation([0.0])
+    lbs.convolve_time_constant_in_observations(obs)
+    assert obs.local_flags is None

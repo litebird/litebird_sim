@@ -36,6 +36,9 @@ FLAG_DTYPE = np.uint16
 #: Sample close to a planet
 FLAG_PLANET = 1 << 0
 
+#: Sample affected by the edges of the time-constant filter (see time_constant.py)
+FLAG_TIME_CONSTANT = 1 << 1
+
 
 def _local_shape(obs: Observation) -> tuple[int, int]:
     # Same shape as the TODs, also when they are not allocated

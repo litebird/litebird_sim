@@ -78,6 +78,7 @@ from .distribute import distribute_evenly, distribute_optimally
 from .flags import (
     FLAG_DTYPE,
     FLAG_PLANET,
+    FLAG_TIME_CONSTANT,
     flag_planet,
     flag_planets_in_observations,
     get_global_flags,
@@ -471,6 +472,7 @@ __all__ = [
     # flags.py
     "FLAG_DTYPE",
     "FLAG_PLANET",
+    "FLAG_TIME_CONSTANT",
     "flag_planet",
     "flag_planets_in_observations",
     "get_local_flags",

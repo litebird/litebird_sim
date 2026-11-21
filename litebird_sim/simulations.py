@@ -41,7 +41,7 @@ from .constants import NUMBA_NUM_THREADS_ENVVAR  # noqa: F401  (re-exported)
 from .coordinates import CoordinateSystem, coord_sys_to_healpix_string
 from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
-from .flags import FLAG_PLANET, flag_planets_in_observations
+from .flags import FLAG_PLANET, FLAG_TIME_CONSTANT, flag_planets_in_observations
 from .planets import PLANETS, add_planets_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
@@ -2508,6 +2508,7 @@ class Simulation:
         self,
         time_constant_ms: float | np.ndarray | None = None,
         component: str = "tod",
+        bit: int = FLAG_TIME_CONSTANT,
     ):
         """Convolve the TOD of all the observations with the time constant of the
         detectors
@@ -2516,12 +2517,14 @@ class Simulation:
         If `time_constant_ms` is ``None``, the time constants are taken from the
         ``time_constant_ms`` field of :class:`.DetectorInfo`. The order of the calls
         is up to the user: only what is in `component` at the time of the call
-        is filtered.
+        is filtered. The samples close to the edges are flagged with `bit` in
+        ``Observation.local_flags`` (``bit=0`` disables it).
         """
         convolve_time_constant_in_observations(
             observations=self.observations,
             time_constant_ms=time_constant_ms,
             component=component,
+            bit=bit,
         )
 
     @_profile
@@ -2529,6 +2532,7 @@ class Simulation:
         self,
         time_constant_ms: float | np.ndarray | None = None,
         component: str = "tod",
+        bit: int = FLAG_TIME_CONSTANT,
     ):
         """Deconvolve the time constant of the detectors from the TOD of all the
         observations
@@ -2542,6 +2546,7 @@ class Simulation:
             observations=self.observations,
             time_constant_ms=time_constant_ms,
             component=component,
+            bit=bit,
         )
 
     @_profile

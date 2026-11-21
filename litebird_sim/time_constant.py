@@ -1,7 +1,17 @@
 import numpy as np
+from scipy.ndimage import binary_dilation
 
+from .flags import FLAG_DTYPE, FLAG_TIME_CONSTANT, get_local_flags
 from .observations import Observation
 from .observation_utilities import for_each_observation
+
+# The length of the impulse response of the filter is the number of samples
+# above this fraction of its peak, as in TOAST (toast.fft.convolve)
+_IMPULSE_THRESHOLD = 0.02
+
+# ponytail: maximum number of samples used to measure the impulse response;
+# longer responses (τ ≳ 1000 / sampling rate) are truncated to this length
+_MAX_IMPULSE_SAMPLES = 2**16
 
 
 def _filter_time_constant(
@@ -32,8 +42,9 @@ def _filter_time_constant(
     # period the filter is a sub-sample delay, whose response decays only as
     # 1/n: the mirror image limits the error at the edges, which still affects
     # the first and last ~100 samples (~5e-3 of a 3 Hz signal in the last 10
-    # samples, with τ = 5 ms at 19 Hz). Flags are ignored, so the same happens
-    # around gaps; mask them with the flags if needed
+    # samples, with τ = 5 ms at 19 Hz). Flagged samples are filtered like the
+    # others: the functions on observations flag the edges and the samples
+    # around the flagged ones (see _flag_filter_edges)
     freqs_hz = np.fft.rfftfreq(2 * num_of_samples, d=1.0 / sampling_rate_hz)
 
     for det_idx in range(num_of_dets):
@@ -48,6 +59,57 @@ def _filter_time_constant(
         extended = np.concatenate((tod[det_idx], tod[det_idx][::-1]))
         filtered = np.fft.irfft(np.fft.rfft(extended) * transfer, n=len(extended))
         tod[det_idx] = filtered[:num_of_samples]
+
+
+def _impulse_response_length(
+    time_constant_ms: np.ndarray,
+    sampling_rate_hz: float,
+    num_of_samples: int,
+    deconvolve: bool,
+) -> np.ndarray:
+    """Return, for each detector, the length in samples of the impulse response
+
+    The length is the distance between the first and the last sample whose
+    absolute value is larger than ``_IMPULSE_THRESHOLD`` times the peak; it is
+    zero for τ = 0, when the filter does nothing.
+    """
+    num_of_impulse_samples = min(num_of_samples, _MAX_IMPULSE_SAMPLES)
+    lengths = np.zeros(len(time_constant_ms), dtype=int)
+    # The response depends only on τ: compute it once for each value
+    for tau_ms in np.unique(time_constant_ms):
+        if tau_ms == 0.0:
+            continue
+        impulse = np.zeros((1, num_of_impulse_samples))
+        impulse[0, num_of_impulse_samples // 2] = 1.0
+        _filter_time_constant(impulse, tau_ms, sampling_rate_hz, deconvolve)
+        response = np.abs(impulse[0])
+        above = np.flatnonzero(response > _IMPULSE_THRESHOLD * response.max())
+        lengths[time_constant_ms == tau_ms] = above[-1] - above[0] + 1
+    return lengths
+
+
+def _flag_filter_edges(cur_obs: Observation, lengths: np.ndarray, bit: int):
+    """Set `bit` in the samples affected by the edges of the filter
+
+    For each detector, the first and last ``lengths[i]`` samples are flagged,
+    as well as those closer than ``lengths[i]`` to a sample that was already
+    flagged (in ``local_flags`` or ``global_flags``) with a bit other than `bit`.
+    """
+    flags = get_local_flags(cur_obs)
+    other_bits = np.invert(FLAG_DTYPE(bit))
+    flagged = (flags & other_bits) != 0
+    if cur_obs.global_flags is not None:
+        flagged |= (cur_obs.global_flags & other_bits) != 0
+
+    for det_idx, length in enumerate(lengths):
+        if length == 0:
+            continue
+        near = binary_dilation(
+            flagged[det_idx], structure=np.ones(2 * length + 1, dtype=bool)
+        )
+        near[:length] = True
+        near[-length:] = True
+        flags[det_idx, near] |= bit
 
 
 def convolve_time_constant(
@@ -101,6 +163,7 @@ def _filter_time_constant_in_observations(
     observations: Observation | list[Observation],
     time_constant_ms: float | np.ndarray | None,
     component: str,
+    bit: int,
     deconvolve: bool,
 ):
     # Without τ, it is read from the detectors: check it before modifying any TOD
@@ -124,6 +187,9 @@ def _filter_time_constant_in_observations(
                 )
             cur_time_constant_ms = cur_time_constant_ms[cur_obs.det_idx]
 
+        cur_time_constant_ms = np.broadcast_to(
+            np.asarray(cur_time_constant_ms, dtype=np.float64), (tod.shape[0],)
+        )
         _filter_time_constant(
             tod=tod,
             time_constant_ms=cur_time_constant_ms,
@@ -131,11 +197,23 @@ def _filter_time_constant_in_observations(
             deconvolve=deconvolve,
         )
 
+        if bit == 0 or tod.shape[1] == 0:
+            continue
+        lengths = _impulse_response_length(
+            time_constant_ms=cur_time_constant_ms,
+            sampling_rate_hz=cur_obs.sampling_rate_hz,
+            num_of_samples=tod.shape[1],
+            deconvolve=deconvolve,
+        )
+        if lengths.any():
+            _flag_filter_edges(cur_obs, lengths, bit)
+
 
 def convolve_time_constant_in_observations(
     observations: Observation | list[Observation],
     time_constant_ms: float | np.ndarray | None = None,
     component: str = "tod",
+    bit: int = FLAG_TIME_CONSTANT,
 ):
     """Convolve the TOD of some observations with the time constant of the detectors
 
@@ -155,11 +233,20 @@ def convolve_time_constant_in_observations(
     Since the convolution is linear, the order of the calls determines which
     components are filtered: e.g., add the sky signal, convolve it, then add the
     noise that is not filtered by the detector (like readout noise).
+
+    The samples where the filter is inaccurate are flagged with `bit` in
+    ``Observation.local_flags``: the first and last ``L`` samples of each
+    detector, and those closer than ``L`` to samples already flagged with
+    other bits (in ``local_flags`` or ``global_flags``), where ``L`` is the
+    number of samples in which the impulse response of the filter is above 2%
+    of its peak (as in TOAST). Detectors with τ = 0 are not flagged; with
+    ``bit=0`` no flag is set.
     """
     _filter_time_constant_in_observations(
         observations=observations,
         time_constant_ms=time_constant_ms,
         component=component,
+        bit=bit,
         deconvolve=False,
     )
 
@@ -168,11 +255,12 @@ def deconvolve_time_constant_in_observations(
     observations: Observation | list[Observation],
     time_constant_ms: float | np.ndarray | None = None,
     component: str = "tod",
+    bit: int = FLAG_TIME_CONSTANT,
 ):
     """Deconvolve the time constant of the detectors from the TOD of some observations
 
     This is the inverse of :func:`.convolve_time_constant_in_observations`, and it
-    takes the same parameters. To simulate an error in the estimate of the time
+    takes the same parameters, and flags the samples in the same way. To simulate an error in the estimate of the time
     constant, pass to `time_constant_ms` a value different from the one used in
     the convolution.
     """
@@ -180,5 +268,6 @@ def deconvolve_time_constant_in_observations(
         observations=observations,
         time_constant_ms=time_constant_ms,
         component=component,
+        bit=bit,
         deconvolve=True,
     )

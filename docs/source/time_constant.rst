@@ -36,8 +36,21 @@ The filter is applied with FFTs to the samples of each observation, after
 having extended the timeline with its mirror image. This is exact for
 signals that have no power above the Nyquist frequency. Since a time
 constant shorter than the sampling period is a sub-sample delay, whose
-response decays slowly, the first and last ~100 samples of each observation
+response decays slowly, the samples close to the edges of each observation
 are affected by an error that is larger than in the rest of the timeline.
+
+As in TOAST, the functions acting on observations flag these samples with
+:data:`.FLAG_TIME_CONSTANT` in ``Observation.local_flags`` (see
+:ref:`observations`): for each detector, the first and last :math:`L`
+samples, where :math:`L` is the number of samples in which the impulse
+response of the filter is above 2% of its peak (e.g., 9 samples with
+:math:`\tau = 5\,\text{ms}` at 19 Hz). Flagged samples are filtered like the
+others, so the samples closer than :math:`L` to those already flagged with
+other bits (in ``local_flags`` or ``global_flags``) are flagged too.
+Detectors with :math:`\tau = 0` are not flagged, and ``bit=0`` disables
+the flags. With MPI, each process filters its own block of samples, so the
+edges of each block are flagged. To exclude these samples from the maps, pass
+the flags to the map-makers (see :ref:`mapmaking`).
 
 Examples
 --------
