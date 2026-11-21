@@ -618,7 +618,7 @@ correctly in HDF5 files by functions like :func:`.write_observations`.
 
 Flags are bitmasks of dtype :data:`.FLAG_DTYPE` (``uint16``): zero
 means a good sample, and each bit is a different reason why a sample is
-flagged (e.g. :data:`.FLAG_PLANET`). Modules set their own bit without
+flagged (e.g. :data:`.FLAG_PLANET`, :data:`.FLAG_TIME_CONSTANT`). Modules set their own bit without
 touching the others, and consumers choose which reasons to exclude::
 
     flags = lbs.get_local_flags(obs)  # Allocated on the first call
